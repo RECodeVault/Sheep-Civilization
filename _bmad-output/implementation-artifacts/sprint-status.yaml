@@ -1,0 +1,102 @@
+# generated: 2026-10-05T14:42:07-07:00
+# last_updated: 2026-10-05T14:42:07-07:00
+# project: sheep-civilization
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: '2026-10-05T14:42:07-07:00'
+last_updated: '2026-10-05T14:42:07-07:00'
+project: sheep-civilization
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  # Epic 1: Flock Survival Core
+  epic-1: backlog
+  1-1-scaffold-the-project-from-the-phaser-template: backlog
+  1-2-simulation-core-and-game-clock: backlog
+  1-3-sheep-wander-the-pasture: backlog
+  1-4-developer-debug-overlay-and-error-safety-net: backlog
+  1-5-hunger-and-starvation: backlog
+  1-6-hud-bottom-bar-farm-button-and-food-meter: backlog
+  1-7-drop-food-and-sheep-eat: backlog
+  1-8-losing-the-flock: backlog
+  1-9-save-resume-and-hidden-tab-pause: backlog
+  1-10-title-screen-pause-menu-and-start-over-confirm: backlog
+  epic-1-retrospective: optional
+  # Epic 2: Life, Death & Contagion
+  epic-2: backlog
+  2-1-life-stages-and-the-gdd-starting-flock: backlog
+  2-2-farm-breeding-food: backlog
+  2-3-breed-two-adults: backlog
+  2-4-carcasses-and-death-announcements: backlog
+  2-5-carcass-eating-and-the-virus: backlog
+  2-6-alert-pings-and-threat-summary: backlog
+  2-7-drag-a-sheep-into-the-better-place: backlog
+  2-8-sacrifice-food-boost: backlog
+  epic-2-retrospective: optional
+  # Epic 3: Economy & Eras
+  epic-3: backlog
+  3-1-sell-sheep-at-the-market: backlog
+  3-2-money-and-the-shop-panel: backlog
+  3-3-buy-land-and-grow-the-fence: backlog
+  3-4-decorations: backlog
+  3-5-eras-and-their-transitions: backlog
+  3-6-mvp-pacing-playtest-and-tuning-pass: backlog
+  epic-3-retrospective: optional
+  # Epic 4: Hidden Threats & Upgrades
+  epic-4: backlog
+  4-1-the-abomination-is-born-and-stays-hidden: backlog
+  4-2-the-abominations-tells: backlog
+  4-3-the-kill-cycle: backlog
+  4-4-sacrifice-reveal: backlog
+  4-5-medicine: backlog
+  4-6-overcrowding: backlog
+  4-7-better-hoe-upgrades: backlog
+  4-8-auto-feeder: backlog
+  epic-4-retrospective: optional
+  # Epic 5: Names, Feel & Ship
+  epic-5: backlog
+  5-1-continuous-deployment-to-github-pages: backlog
+  5-2-itch-io-release-package: backlog
+  5-3-sheep-names: backlog
+  5-4-stats-panel: backlog
+  5-5-last-sheep-warning: backlog
+  5-6-audio-pass-and-captions: backlog
+  5-7-volume-and-accessibility-settings: backlog
+  5-8-juice-polish-pass: backlog
+  5-9-credits-screen: backlog
+  5-10-external-playtest: backlog
+  5-11-performance-and-release-check: backlog
+  epic-5-retrospective: optional
