@@ -1,0 +1,58 @@
+installation:
+  version: 6.12.1-next.1
+  installDate: 2026-10-05T18:17:33.554Z
+  lastUpdated: 2026-10-05T18:17:33.554Z
+  installShims: false
+modules:
+  - name: core
+    version: 6.12.1-next.1
+    installDate: 2026-10-05T18:17:32.569Z
+    lastUpdated: 2026-10-05T18:17:33.541Z
+    source: built-in
+    npmPackage: null
+    repoUrl: null
+  - name: bmm
+    version: 6.12.1-next.1
+    installDate: 2026-10-05T18:17:32.699Z
+    lastUpdated: 2026-10-05T18:17:33.542Z
+    source: built-in
+    npmPackage: null
+    repoUrl: null
+  - name: bmb
+    version: main
+    installDate: 2026-10-05T18:17:32.780Z
+    lastUpdated: 2026-10-05T18:17:33.545Z
+    source: external
+    npmPackage: bmad-builder
+    repoUrl: https://github.com/bmad-code-org/bmad-builder
+    channel: next
+    sha: d4a921c49db71ad09c2dc62b8e62266b1f26ca4f
+  - name: tea
+    version: main
+    installDate: 2026-10-05T18:17:33.233Z
+    lastUpdated: 2026-10-05T18:17:33.548Z
+    source: external
+    npmPackage: bmad-method-test-architecture-enterprise
+    repoUrl: https://github.com/bmad-code-org/bmad-method-test-architecture-enterprise
+    channel: next
+    sha: 6aed15d93353f706b5e1cc912c484c2f07994db9
+  - name: bmad-loop
+    version: main
+    installDate: 2026-10-05T18:17:33.257Z
+    lastUpdated: 2026-10-05T18:17:33.552Z
+    source: external
+    npmPackage: null
+    repoUrl: https://github.com/bmad-code-org/bmad-loop
+    channel: next
+    sha: d09a324a6b5c9405dbd611e350a466132ec533bb
+  - name: gds
+    version: main
+    installDate: 2026-10-05T18:17:33.431Z
+    lastUpdated: 2026-10-05T18:17:33.554Z
+    source: external
+    npmPackage: bmad-game-dev-studio
+    repoUrl: https://github.com/bmad-code-org/bmad-module-game-dev-studio.git
+    channel: next
+    sha: ff8870955203e1665f4bf75a64049078e6d4080c
+ides:
+  - claude-code
