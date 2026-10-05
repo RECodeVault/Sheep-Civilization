@@ -120,6 +120,10 @@ export default tseslint.config(
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  {
+    // Same convention as tsc's noUnusedParameters: a leading underscore marks an intentionally unused parameter.
+    rules: { '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }] },
+  },
 
   // Disjoint boundary groups (see header).
   group(['src/sim/**/*.ts'], { pure: true, secrecy: false }),

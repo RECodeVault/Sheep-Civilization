@@ -1,0 +1,13 @@
+{
+  // Node-side scripts run directly by Node 24 type stripping. Kept separate from the root config so
+  // Node globals and types never leak into src/.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "lib": ["ES2023"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "allowImportingTsExtensions": true
+  },
+  "include": ["./**/*.ts"]
+}

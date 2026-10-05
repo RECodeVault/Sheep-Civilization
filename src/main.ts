@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import { CANVAS_HEIGHT, CANVAS_WIDTH, COLORS, FONT_FAMILIES } from './config/constants';
 import { log } from './core/log';
 import { BootScene } from './view/scenes/BootScene';
+import { GameScene } from './view/scenes/GameScene';
+import { PreloadScene } from './view/scenes/PreloadScene';
 
 const CONTAINER_ID = 'game-container';
 
@@ -62,7 +64,7 @@ async function start(): Promise<void> {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
-    scene: [BootScene],
+    scene: [BootScene, PreloadScene, GameScene],
   });
 }
 

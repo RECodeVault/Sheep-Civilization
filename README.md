@@ -53,9 +53,20 @@ npm run dev      # dev server
 | `npm run preview` | Serve the production build locally |
 | `npm test` | Vitest (core, sim and save tests) |
 | `npm run lint` | ESLint, including the architecture boundary rules |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm run assets` | Pack atlases and audio into `public/assets/` (arrives in Story 1.2) |
+| `npm run typecheck` | `tsc --noEmit` for `src/` and `tests/`, then for `scripts/` (Node types) |
+| `npm run assets` | Pack the texture atlases and sync fonts into `public/assets/` (see below) |
 | `npm run zip` | Package `dist/` for itch.io (arrives in Story 5.2) |
+
+### Assets
+
+Source art lives in `assets/art/` as loose PNGs, one file per frame, named in kebab-case `entity-state[-n]` (for example `adult-walk-2.png`). `npm run assets` packs them with free-tex-packer-core into two JSON-hash atlases (each at most 2048×2048):
+
+| Source folders | Atlas |
+|---|---|
+| `assets/art/sheep/`, `assets/art/world/` | `public/assets/atlases/sheep-world.{png,json}` |
+| `assets/art/ui/` | `public/assets/atlases/ui.{png,json}` |
+
+It also copies `assets/fonts/*.woff2` to `public/assets/fonts/`. The output is committed, so deploying needs only `vite build`. Re-run `npm run assets` after changing any source art or font, and credit new assets in `assets/CREDITS.md`. The audio sprite arrives in Story 5.6.
 
 A change is done when `npm test`, `npm run typecheck` and `npm run lint` all pass.
 

@@ -2,6 +2,8 @@
 // Source of truth for tokens: _bmad-output/planning-artifacts/ux-designs/ux-sheep-civilization-2026-10-05/DESIGN.md
 
 export const TICK_MS = 100;
+// Longest real frame the sim accumulator accepts; longer frames are clamped (no spiral of death).
+export const MAX_FRAME_MS = 250;
 
 export const CANVAS_WIDTH = 1280;
 export const CANVAS_HEIGHT = 720;

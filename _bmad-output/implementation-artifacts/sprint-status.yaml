@@ -1,5 +1,5 @@
 # generated: 2026-10-05T14:42:07-07:00
-# last_updated: 2026-10-05T15:12:28-07:00
+# last_updated: 2026-10-05T15:41:05-07:00
 # project: sheep-civilization
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: '2026-10-05T14:42:07-07:00'
-last_updated: '2026-10-05T15:12:28-07:00'
+last_updated: '2026-10-05T15:41:05-07:00'
 project: sheep-civilization
 project_key: NOKEY
 tracking_system: file-system
@@ -45,7 +45,7 @@ development_status:
   # Epic 1: Flock Survival Core
   epic-1: in-progress
   1-1-scaffold-the-project-from-the-phaser-template: done
-  1-2-simulation-core-and-game-clock: backlog
+  1-2-simulation-core-and-game-clock: done
   1-3-sheep-wander-the-pasture: backlog
   1-4-developer-debug-overlay-and-error-safety-net: backlog
   1-5-hunger-and-starvation: backlog
