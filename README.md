@@ -2,7 +2,9 @@
 
 A 2D clicker / idle game where you farm crops, feed and breed a flock of sheep, keep disease from wiping them out, and grow a humble pasture into a thriving sheep civilization.
 
-> Status: **Pre-production.** Planning is being done with [BMAD](https://github.com/bmad-code-org/BMAD-METHOD). Engine and tech stack have not been chosen yet.
+> Status: **In development (Epic 1).** Planning is done with [BMAD](https://github.com/bmad-code-org/BMAD-METHOD); the planning artifacts live in `_bmad-output/`.
+
+**Stack:** Phaser 4.2, TypeScript 6 (`strict`), Vite 8, Vitest 4.1, ESLint 10 + typescript-eslint, Node 24 LTS. Desktop browsers only; deployed as a static site.
 
 ## Core loop
 
@@ -18,20 +20,43 @@ You lose if every sheep dies.
 ## Repository layout
 
 ```
-docs/
-  concept/        Original pitch and brainstormed ideas
-  design/         Game Design Document (GDD), UX/HUD specs
-  architecture/   Technical architecture decisions
-src/              Game source code (layout decided once the engine is chosen)
-tests/            Automated tests
-assets/
-  art/            Sprites, UI art, backgrounds
-  audio/          Music and sound effects
-  fonts/          Fonts
+src/
+  main.ts         Phaser game config, font loading, scene list
+  config/         constants.ts (tick, canvas, storage keys, DESIGN.md tokens), tuning.ts (balance values)
+  core/           Engine-free utilities: log, invariant, format, eventBus, types
+  sim/            Pure game rules (no Phaser, no DOM) — lint-enforced
+  save/           localStorage save/settings (the only code allowed to touch storage)
+  input/          InputController
+  view/           Phaser scenes, field sprites, HUD, overlays, widgets, juice, audio
+  debug/          DEV-only debug overlay
+tests/            Vitest tests, mirroring src/ (core, sim, save)
+scripts/          Build-time tools (asset packing)
+assets/           Source assets (art, audio, fonts + licences, CREDITS.md)
+public/assets/    Built runtime assets served by the game
+docs/             Concept notes; planning documents are in _bmad-output/
 ```
 
-BMAD installs its own folders (for example `_bmad/` and `_bmad-output/`) when you set it up. Commit those as well so the planning artifacts stay with the code.
+The architecture is in [`_bmad-output/game-architecture.md`](_bmad-output/game-architecture.md) and the rules for contributors (human or AI) are in [`_bmad-output/project-context.md`](_bmad-output/project-context.md).
 
 ## Getting started
 
-See [`docs/concept/ideas.md`](docs/concept/ideas.md) for the original pitch and the expanded idea list. That file is the starting input for the BMAD game brief and GDD.
+```bash
+nvm use          # Node 24 (.nvmrc)
+npm install
+npm run dev      # dev server
+```
+
+| Script | What it does |
+|---|---|
+| `npm run dev` | Vite dev server |
+| `npm run build` | Production build to `dist/` (relative base, works on any subpath) |
+| `npm run preview` | Serve the production build locally |
+| `npm test` | Vitest (core, sim and save tests) |
+| `npm run lint` | ESLint, including the architecture boundary rules |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run assets` | Pack atlases and audio into `public/assets/` (arrives in Story 1.2) |
+| `npm run zip` | Package `dist/` for itch.io (arrives in Story 5.2) |
+
+A change is done when `npm test`, `npm run typecheck` and `npm run lint` all pass.
+
+See [`docs/concept/ideas.md`](docs/concept/ideas.md) for the original pitch and the expanded idea list.
