@@ -16,7 +16,7 @@ Mockups illustrate; this spine wins on any conflict.
 
 - **Platform:** desktop browsers only (Chrome, Firefox and Edge), hosted on GitHub Pages and itch.io. Mobile is not supported.
 - **Input:** mouse first, with optional `F` / `G` / `Esc` keys.
-- **Engine:** Phaser 3 + TypeScript + Vite on one fixed 16:9 canvas, scaled to fit the window. Everything, including menus, is drawn in-canvas. There is no DOM UI.
+- **Engine:** Phaser 4 + TypeScript + Vite (per game-architecture.md) on one fixed 16:9 canvas, scaled to fit the window. Everything, including menus, is drawn in-canvas. There is no DOM UI.
 - **Screens:** one fixed gameplay screen with no camera movement.
 - **Visual reference:** [DESIGN.md](./DESIGN.md). Mechanics and numbers live in the [GDD](../../gdds/gdd-sheep-civilization-2026-10-05/gdd.md) and [epics](../../gdds/gdd-sheep-civilization-2026-10-05/epics.md). The GDD wins over the [brief](../../briefs/brief-sheep-civilization-2026-10-05/brief.md) on conflicts.
 - **Context:** a solo 7-day portfolio build. Must-tier UX ships first, and items tagged *(Should)* follow GDD tiering.
@@ -157,7 +157,7 @@ Behaviour only. Visual specs are in DESIGN.md, under Components.
   - **Pair:** click adult A, which pins a heart above it, then adult B. 3 breeding food is spent, a heart appears, and a lamb is born 10 s later. Breed mode then **exits**. [ASSUMPTION]
   - **Invalid click:** clicking an ineligible sheep shakes it and keeps the mode active. Clicking empty field in breed mode drops no food. [ASSUMPTION]
   - **Cancel:** right-click, `Esc`, or clicking Breed again (Q6).
-- **Keys:** `F` farms food and `G` farms breeding food (both repeat on each press, not on hold [ASSUMPTION]). `Esc` resolves in priority order: cancel a drag, then exit breed mode, then close the shop, then open or close pause. [ASSUMPTION for the order]
+- **Keys:** `F` farms food and `G` farms breeding food (both repeat on each press, not on hold [ASSUMPTION]). `Esc` resolves in priority order (agreed 2026-10-05): close the start-over confirm, then a sub-panel, then cancel a drag, then exit breed mode, then close the shop, then open or close pause.
 - **Right-click:** cancels breed mode and is otherwise unused. The browser context menu is suppressed on the canvas.
 - **Hover:** shows the tooltip on sheep and buttons.
 - **Banned:** confirmation dialogs on in-game actions, tutorial pop-ups, and timers that hide what kills a sheep.

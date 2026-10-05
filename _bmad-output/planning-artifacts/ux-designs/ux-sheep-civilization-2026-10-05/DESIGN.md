@@ -283,7 +283,7 @@ components:
 
 # DESIGN.md — Sheep Civilization
 
-Visual reference for a Phaser 3 desktop-browser game. Mechanics live in the [GDD](../../gdds/gdd-sheep-civilization-2026-10-05/gdd.md); behaviour lives in [EXPERIENCE.md](./EXPERIENCE.md). All sizes are canvas pixels on the base canvas, which is scaled to fit the window.
+Visual reference for a Phaser 4 desktop-browser game. Mechanics live in the [GDD](../../gdds/gdd-sheep-civilization-2026-10-05/gdd.md); behaviour lives in [EXPERIENCE.md](./EXPERIENCE.md). All sizes are canvas pixels on the base canvas, which is scaled to fit the window.
 
 Mockups illustrate; this spine wins on any conflict.
 

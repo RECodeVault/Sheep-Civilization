@@ -82,7 +82,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 - **Desktop browsers only** (Chrome, Firefox, Edge — latest 2). No mobile/touch code paths, no portal SDKs (Poki/CrazyGames), no service worker, no backend or network calls at runtime (fonts self-hosted; no Google Fonts/CDN requests).
 - **Canvas:** fixed 1280×720 logical size, FIT-scaled; all layout in logical pixels from DESIGN.md. Minimum supported window 960×540 — HUD must stay legible there.
-- **Input:** mouse primary; keys `F` (Farm), `G` (Farm Breeding Food), `Esc` (priority chain: confirm → submenu → shop → breed mode → pause). Ignore key repeats for F/G (`event.repeat`), and ignore shortcuts while a modal is open. Click vs drag threshold = 6 px.
+- **Input:** mouse primary; keys `F` (Farm), `G` (Farm Breeding Food), `Esc` (priority chain: confirm → sub-panel → cancel drag → exit breed mode → close shop → pause). Ignore key repeats for F/G (`event.repeat`), and ignore shortcuts while a modal is open. Click vs drag threshold = 6 px.
 - **Visibility:** on `document.visibilitychange` → hidden: stop sim accumulation, force a save, pause music. On visible: resume with no overlay and reset the frame delta (no catch-up burst).
 - **Persistence:** `localStorage` keys `sheepciv.save.v1` and `sheepciv.settings` only. Wrap every access in try/catch (private mode / quota / blocked storage) and fall back gracefully; the game must run with storage unavailable.
 - **Audio autoplay:** nothing plays before the first pointer input; music starts on the Title screen after that input.

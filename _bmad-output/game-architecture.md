@@ -213,7 +213,7 @@ The template's sample scenes are replaced by the structure defined in Project St
 
 - One `InputController` (in `src/input/`) owns pointer and keyboard handling. Modes: `idle`, `breeding` (awaiting adult A / adult B), `dragging` (sheep or medicine).
 - Pointer down + > 6 px movement → drag; otherwise click on release.
-- **Esc priority:** close confirm → close submenu (Volume/Stats/Credits) → close shop → cancel breed mode → open/close pause.
+- **Esc priority:** close confirm → close sub-panel (Volume/Stats/Credits) → cancel drag → exit breed mode → close shop → open/close pause.
 - Breed mode also cancels on right-click or clicking Breed again; it exits after one pair (UX).
 
 ### Data Persistence
