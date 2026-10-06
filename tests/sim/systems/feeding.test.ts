@@ -93,16 +93,25 @@ describe('updateFeeding claims', () => {
     expect(seekers(state, older.id)).toHaveLength(0);
   });
 
+  it('does not throw when the only eligible sheep has a non-finite position (corrupt save)', () => {
+    const c = mid(newGame());
+    const state = gameWith([{ x: c.x, y: c.y }]);
+    state.sheep[0].x = Number.NaN;
+    createFoodPiece(state, c.x, c.y);
+    expect(() => updateFeeding(state)).not.toThrow();
+    expect(state.sheep[0].activity).toBe('wander');
+  });
+
   it('reverts a stale claim to wander with targetId omitted', () => {
     const c = mid(newGame());
     const state = gameWith([{ x: c.x + 50, y: c.y }]);
-    const p = createFoodPiece(state, c.x, c.y);
+    createFoodPiece(state, c.x, c.y);
     updateFeeding(state);
+    expect(state.sheep[0].activity).toBe('seekFood');
     state.foodPieces.length = 0;
     updateFeeding(state);
     expect(state.sheep[0].activity).toBe('wander');
     expect('targetId' in state.sheep[0]).toBe(false);
-    expect(p.id).toBeGreaterThan(0);
   });
 });
 
@@ -156,6 +165,8 @@ describe('feeding over time', () => {
       { x: r.left, y: c.y, fullness: 0.05 },
       { x: r.right, y: c.y, fullness: TUNING.fedAbove },
     ]);
+    // The other sheep is Fed but still hungry enough to seek.
+    expect(TUNING.fedAbove).toBeLessThan(TUNING.seekBelowFullness);
     const [doomed, other] = state.sheep;
     // Nearer the doomed sheep, so it claims the piece first.
     const p = createFoodPiece(state, r.left + 100, c.y);

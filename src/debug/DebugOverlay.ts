@@ -98,10 +98,11 @@ export function installDebugOverlay(game: Phaser.Game): void {
   const row2 = buttonRow(panel);
   const foodButton = button(row2, `+${ADD_FOOD} food`, () => {
     activeScene()?.debugMutate((s) => {
-      // Drops pieces in the pen the way a full Farm bar does (there is no food stock).
+      // Drops pieces in the pen like full Farm bars, but at Math.random spots (debug is view-side), so
+      // the game's seeded rng stream is untouched. No FoodDropped: the pieces still bounce in on bind.
       const r = innerFence(s);
       for (let i = 0; i < ADD_FOOD; i++) {
-        createFoodPiece(s, rngRange(s, r.left, r.right), rngRange(s, r.top, r.bottom));
+        createFoodPiece(s, r.left + Math.random() * (r.right - r.left), r.top + Math.random() * (r.bottom - r.top));
       }
     });
     refreshSim();

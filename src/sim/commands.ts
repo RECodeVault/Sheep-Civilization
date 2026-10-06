@@ -27,6 +27,10 @@ export function applyCommand(state: GameState, cmd: Command): void {
  * boost (2.8) change the pips per click here, so one click may complete several bars.
  */
 function farm(state: GameState): void {
+  // Between clicks a valid bar is a whole number below farmPipsPerFood. A loaded save may hold NaN, a
+  // negative or a huge value (1e20 - 8 === 1e20 would loop for ever): start that bar over instead.
+  const p = state.farmProgress;
+  if (!(Number.isInteger(p) && p >= 0 && p < TUNING.farmPipsPerFood)) state.farmProgress = 0;
   state.farmProgress += TUNING.farmPipsPerClick;
   let added = 0;
   while (state.farmProgress >= TUNING.farmPipsPerFood) {

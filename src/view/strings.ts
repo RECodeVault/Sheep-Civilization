@@ -20,8 +20,8 @@ export const STRINGS = Object.freeze({
   farmLabel: 'Farm',
   farmKey: 'F',
   farmTooltip: 'Farm: fill the bar for 1 food (F)',
-  // Float popup (UX-DR44), e.g. "+1" when a Farm bar fills the stock.
+  // Float popup (UX-DR44), e.g. "+1" when a full Farm bar drops a piece.
   farmPopup: (n: number): string => `+${n}`,
-  // Meter and stock value (UX-DR29), e.g. "12/20".
+  // Meter value (UX-DR29), e.g. "3/8" for the Farm bar.
   meterValue: (n: number, cap: number): string => `${n}/${cap}`,
 } as const);

@@ -35,6 +35,7 @@ describe('encodeSave / decodeSave', () => {
       ['an array', '[]'],
       ['a number', '42'],
       ['a wrong schemaVersion', JSON.stringify({ ...good, schemaVersion: SAVE_SCHEMA_VERSION + 1 })],
+      ['a pre-1.7 version 1 save', JSON.stringify({ ...good, schemaVersion: 1 })],
       ['a missing schemaVersion', JSON.stringify({ savedAt: good.savedAt, state: good.state })],
       ['a missing state', JSON.stringify({ schemaVersion: SAVE_SCHEMA_VERSION, savedAt: good.savedAt })],
       ['a state that is an array', JSON.stringify({ ...good, state: [] })],

@@ -1,4 +1,5 @@
-// Farming & feeding (FR4, FR5): food pieces on the field, who walks to which piece, and eating.
+// Feeding (FR5): food pieces in the pen (dropped by full Farm bars, FR3), who walks to which piece,
+// and eating.
 // Feeding owns the `seekFood` and `eating` activities; movement only reads them.
 //
 // Claim model: a seeker keeps its `targetId` until it eats the piece or the piece is gone, so sheep
@@ -11,7 +12,7 @@ import { nextId, type FoodPiece, type GameState, type SheepActivity } from '../s
 // Module-scope scratch, grown on demand, so a tick allocates nothing: claimed[i] marks piece i.
 let claimed = new Uint8Array(64);
 
-/** Creates a food piece, clamped to where a sheep centre can reach it (FR4, Farm overflow). */
+/** Creates a food piece, clamped to where a sheep centre can reach it (a full Farm bar, FR3; debug). */
 export function createFoodPiece(state: GameState, x: number, y: number): FoodPiece {
   // Sheep centres never come within fenceInset of a rail, so a piece there could never be eaten.
   const r = innerFence(state);
@@ -96,6 +97,8 @@ export function updateFeeding(state: GameState): void {
         best = i;
       }
     }
+    // Only a non-finite position (a corrupt save) can leave every distance un-comparable.
+    if (best < 0) break;
     const s = sheep[best];
     let pick = -1;
     let pickD = Infinity;

@@ -44,16 +44,16 @@ describe('applyCommand Farm (8-pip bar)', () => {
     ]);
   });
 
-  it('carries leftover pips and completes every whole bar in one click', () => {
-    const state = newGame();
-    const preset = 2 * TUNING.farmPipsPerFood + 1;
-    state.farmProgress = preset;
-    applyCommand(state, { type: 'Farm' });
-    const total = preset + TUNING.farmPipsPerClick;
-    const bars = Math.floor(total / TUNING.farmPipsPerFood);
-    expect(state.farmProgress).toBe(total % TUNING.farmPipsPerFood);
-    expect(state.foodPieces).toHaveLength(bars);
-    expect(drained().at(-1)).toEqual({ type: 'Farmed', resource: 'food', added: bars });
+  it('starts a corrupt bar over (NaN, negative, fractional, huge) instead of breaking or hanging', () => {
+    for (const bad of [Number.NaN, -1000, 2.5, TUNING.farmPipsPerFood, 1e20]) {
+      const state = newGame();
+      state.farmProgress = bad;
+      applyCommand(state, { type: 'Farm' });
+      expect(state.farmProgress).toBe(TUNING.farmPipsPerClick);
+      expect(state.foodPieces).toEqual([]);
+      farm(state, TUNING.farmPipsPerFood - TUNING.farmPipsPerClick);
+      expect(state.foodPieces).toHaveLength(1);
+    }
   });
 
   it('keeps dropping with no cap, so food can pile up in the pen', () => {

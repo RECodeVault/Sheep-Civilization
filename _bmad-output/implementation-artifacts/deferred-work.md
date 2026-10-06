@@ -67,6 +67,15 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Save validation for the new fields (Story 1.9):** extend the checks listed above.
   - `activity` must be one of the `SheepActivity` values (`wander`, `seekFood`, `eating` today).
   - `targetId`, when present, must be a finite integer. A stale id is already tolerated at runtime: feeding reverts the sheep to `wander`.
-  - `farmProgress` must be an integer in `[0, TUNING.farmPipsPerFood)`; clamp or reject.
-- **Pointer input (Story 2.4):** 1.7 first built `idle`-mode pointer clicks (6 px click/drag threshold tracked as the maximum distance, resolved on release at the down point, `pointerupoutside`/`GAME_OUT` disarm, `input` error guards). It was removed when field clicks stopped dropping food (Addendum A). It was never committed, so rebuild it in 2.4 from the design in Story 1.7's Task 9 (9.2–9.4, 9.6–9.7), which the 1.7 browser checks verified. `sheepIndexAt` in `SheepHover.ts` is already shared.
-- **`food` is gone (Addendum A):** the 1.6 item "Unvalidated `food` in a save" no longer applies; Story 1.9 should reject or drop a stray `food` field from old debug saves.
+  - `farmProgress` must be an integer in `[0, TUNING.farmPipsPerFood)`. Since the 1.7 review, `Farm` resets a bad value on the next click, so a bad value only shows wrongly on the HUD until then. Validation should still reject or clamp it on load.
+- **Pointer input (Story 2.4):** 1.7 first built `idle`-mode pointer clicks (6 px click/drag threshold tracked as the maximum distance, resolved on release at the down point, `pointerupoutside`/`GAME_OUT` disarm, `input` error guards). It was removed when field clicks stopped dropping food (Addendum A). It was never committed, so rebuild it in 2.4 from the design in Story 1.7's Task 9 (9.1–9.4 and 9.7; 9.6, the context menu off, still stands), which the 1.7 browser checks verified. `sheepIndexAt` in `SheepHover.ts` is already shared.
+- **`food` is gone (Addendum A):** the 1.6 item "Unvalidated `food` in a save" no longer applies.
+  - **Resolved in the 1.7 review:** `SAVE_SCHEMA_VERSION` is now 2, so pre-1.7 (version 1) debug saves are rejected outright.
+
+## Deferred from: code review of 1-7-drop-food-and-sheep-eat (2026-10-06)
+
+- **Claims never time out (Stories 1.9, 3.6):** `updateFeeding` releases a claim only when its piece is gone.
+  - A piece outside the inner fence (only possible from a corrupt save or a future smaller fence) leaves its seeker pressing on the rail until it starves, while the piece stays claimed.
+  - Two full sheep resting on a piece also hold a seeker off: their separation push beats its walk within about 12 px. Today that clears within 4 s, when they stop resting.
+  - Fix: Story 1.9 validates piece positions, and Story 3.6 considers a claim timeout.
+- **Farm bar size defined twice (Story 3.6):** `COMPONENTS.farmProgress.segmentCount` (pips drawn) and `TUNING.farmPipsPerFood` (pips per food) are both 8. `FarmProgress.set` scales between them and the "{n}/8" text always reads the tuning value. If 3.6 retunes the bar, change both, or build the pips from the tuning value.

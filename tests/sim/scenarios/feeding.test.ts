@@ -49,6 +49,8 @@ describe('feeding scenario', () => {
     const run = () => {
       const state = newGame(99);
       fillFlock(state, 100);
+      // Fed, but still below the seek threshold, so every sheep may claim a piece.
+      expect(TUNING.fedAbove).toBeLessThan(TUNING.seekBelowFullness);
       for (const s of state.sheep) s.fullness = TUNING.fedAbove;
       const r = innerFence(state);
       for (let i = 0; i < 300; i++) {

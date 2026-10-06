@@ -705,8 +705,8 @@ export function createSheep(state: GameState, o: { stage: Stage; x: number; y: n
 function nextActivity(s: Sheep, state: GameState): SheepActivity {
   if (s.activity === 'dragged') return 'dragged';
   if (s.isAbomination && s.stalk) return 'stalking';
-  if (s.fullness < TUNING.seekThreshold && state.food.length) return 'seekFood';
-  if (hungerOf(s) === 'starving' && !state.food.length && state.carcasses.length) return 'seekCarcass';
+  if (s.fullness < TUNING.seekThreshold && state.foodPieces.length) return 'seekFood';
+  if (hungerOf(s) === 'starving' && !state.foodPieces.length && state.carcasses.length) return 'seekCarcass';
   return 'wander';
 }
 ```

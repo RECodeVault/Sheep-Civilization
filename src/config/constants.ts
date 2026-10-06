@@ -10,7 +10,9 @@ export const CANVAS_HEIGHT = 720;
 
 export const SAVE_KEY = 'sheepciv.save.v1';
 export const SETTINGS_KEY = 'sheepciv.settings';
-export const SAVE_SCHEMA_VERSION = 1;
+// 2 since Story 1.7 (2026-10-06): `food` removed, `farmProgress` and sheep `targetId` added. No
+// version-1 save was ever persisted (saving starts in 1.9), so older debug saves are simply rejected.
+export const SAVE_SCHEMA_VERSION = 2;
 
 /*
  * Colour-usage rules (DESIGN.md Colors, Do's and Don'ts — UX-DR2):

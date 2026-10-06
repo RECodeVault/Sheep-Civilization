@@ -29,7 +29,8 @@ export const TUNING = Object.freeze({
   // raises the pips per click and the boost (2.8) doubles them.
   farmPipsPerFood: 8,
   farmPipsPerClick: 1,
-  // FR5: the nearest sheep below 90 Fullness seeks food; a piece is worth +35, capped at fullnessMax.
+  // FR5: sheep below 90 Fullness may seek food (feeding.ts pairs each piece with its nearest such
+  // sheep); a piece is worth +35, capped at fullnessMax.
   seekBelowFullness: 90,
   foodPieceFullness: 35,
   // [ASSUMPTION, tune in 3.6] A seeker eats once its centre is this close to the piece. Must stay

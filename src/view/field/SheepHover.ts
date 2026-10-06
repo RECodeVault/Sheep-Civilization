@@ -10,7 +10,7 @@ const HIT_PAD_PX = 6;
 
 /**
  * Index in `items` of the front-most sheep under (x, y), or -1, tested against the rendered sprites.
- * Hover and the InputController both use it, so they always agree on what counts as a sheep.
+ * Shared so Story 2.4's pointer clicks agree with the hover on what counts as a sheep.
  * Allocates nothing.
  */
 export function sheepIndexAt(

@@ -4,7 +4,7 @@ baseline_commit: 0156a7da258a7fc7cb939bd5a04aaf62e3400798
 
 # Story 1.7: Drop Food and Sheep Eat
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -236,6 +236,18 @@ so that I can keep my flock alive.
     - No console errors.
   - [x] 12.3 Performance: about 100 sheep at ×1 with a pile of about 300 pieces. Compare with the 1.4 SwiftShader baseline (about 51.7 FPS mean) and report the numbers; Rylan decides on any follow-up.
 
+### Review Findings
+
+- [x] [Review][Decision] Old saves break Farm: no schema bump after `food` was removed and `farmProgress` added — `SAVE_SCHEMA_VERSION` is still 1, so a pre-1.7 debug save decodes. Its missing `farmProgress` becomes `NaN` on the first Farm: no bar ever completes and the HUD shows "NaN/8". Options: bump to 2 (old saves rejected cleanly; there is no migrations module yet), or keep 1 and rely on the Farm sanitising patch plus Story 1.9 validation. (blind+edge) — **Resolved (Rylan): bumped to 2.**
+- [x] [Review][Patch] Corrupt `farmProgress` (NaN, negative, huge) breaks or hangs Farm; sanitise it before adding pips [src/sim/commands.ts:30] (edge+blind)
+- [x] [Review][Patch] Guard `best < 0` in the claim loop so a non-finite sheep position cannot throw inside step [src/sim/systems/feeding.ts:88] (blind)
+- [x] [Review][Patch] Stale comments after Addendum A: feeding.ts (FR4, "overflow"), strings.ts ("stock", "12/20"), SheepHover (`InputController` uses it), tuning.ts seek wording [src/sim/systems/feeding.ts:1] (auditor+blind)
+- [x] [Review][Patch] Debug "+5 food" advances the sim RNG; use view-side `Math.random` and fix its comment [src/debug/DebugOverlay.ts:99] (blind+auditor)
+- [x] [Review][Patch] Tests: remove the meaningless `expect(p.id)` assertion, and assert the `fedAbove < seekBelowFullness` precondition that the scenario relies on [tests/sim/systems/feeding.test.ts:92] (blind)
+- [x] [Review][Patch] Dev Agent Record contradicts the code (note 9 `toField`, File List `foodStock`/`DropFood`, AC notes for the old 9-AC design); the architecture still has the `state.food.length` example; deferred-work cites 9.6, which stands [_bmad-output/implementation-artifacts/1-7-drop-food-and-sheep-eat.md] (auditor)
+- [x] [Review][Defer] A seeker never gives up an unreachable or blocked piece (corrupt save, a future smaller fence, or full sheep resting on it) [src/sim/systems/feeding.ts:38] — deferred: unreachable only via saves (1.9 validation); blocking clears when the resting sheep move on
+- [x] [Review][Defer] The Farm bar size is defined twice (`COMPONENTS.farmProgress.segmentCount` and `TUNING.farmPipsPerFood`) [src/config/constants.ts:252] — deferred: both are 8; Story 3.6 must change both if it retunes
+
 ## Dev Notes
 
 ### What exists today (read before changing)
@@ -379,13 +391,14 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
 
 - Ultimate context engine analysis completed - comprehensive developer guide created
 - Reworked 2026-10-06 for the approved Farm progress bar change (sprint-change-proposal-2026-10-06)
-- **AC 1:** a field click in `idle` dispatches `DropFood`, which spends 1 and creates a piece at the cursor. The piece bounces in, and the stock updates on the same frame. Covered by unit tests and browser checks.
-- **AC 2:** at 0 food the sim emits `SpendRefused`; nothing drops and `FoodStock.refuse()` flashes `alert` and shakes, always ending at home.
-- **AC 3:** the claim model gives each piece the nearest eligible (< 90) sheep, which then takes its own nearest unclaimed piece. Eating is +35 capped at 100, the piece is removed, `FoodEaten` drives the munch crumbs, and pieces never spoil. Covered by the feeding unit and scenario tests.
-- **AC 4:** a sheep click (shared `sheepIndexAt` hit test) and a moved press both do nothing.
-- **AC 5:** a scenario test shows a starving sheep eating a piece 30 px away within the travel-time budget and returning to Fed, with JSON round-trips mid-seek and after.
-- **AC 6–8:** the 8-pip bar, "+1" only on a stock fill, overflow to the field at the cap, the stock read-out and the new tooltip. Covered by the rewritten command tests and browser checks.
-- **AC 9:** `npm test` 144/144 in 22 files (was 122 in 20). Typecheck, lint and build are clean (only the existing Phaser chunk-size warning). The debug overlay is absent from `dist/`.
+- **Current ACs (after Addendum A):**
+  - **AC 1:** 8 clicks or presses fill the bar and "{n}/8". The 8th drops a piece at a seeded-random spot in the pen; it bounces in, the bar resets and "+1" pops. Leftover pips carry over and there is no cap. Covered by unit tests and browser checks.
+  - **AC 2:** there is no `food` in state or on the HUD, and no `DropFood`. A field or sheep click does nothing, and the context menu is suppressed (probe 11/11).
+  - **AC 3:** the claim model gives each piece the nearest eligible (< 90) sheep, which then takes its own nearest unclaimed piece. Eating is +35 capped at 100, `FoodEaten` drives the munch crumbs, and pieces never spoil. Covered by the feeding unit and scenario tests.
+  - **AC 4:** the 8 pips and "{n}/8", starting at "0/8". Tooltip "Farm: fill the bar for 1 food (F)".
+  - **AC 5:** a scenario test shows a starving sheep eating a piece 30 px away within the travel-time budget and returning to Fed, with JSON round-trips mid-seek and after.
+  - **AC 6:** test, typecheck, lint and build are clean (only the existing Phaser chunk-size warning). The debug overlay is absent from `dist/`. See the review follow-up for the final test count.
+  - Notes 1–7 below describe the build *before* Addendum A; note 8 is the Addendum, and it wins where they differ.
 - **Deviations and decisions:**
   1. `innerFence` and `pieceIndex` live in `src/sim/selectors.ts` (pure reads), not in `feeding.ts`. Movement and commands use them without importing another system, which follows the "systems never call each other" rule more strictly. Movement keeps its own inline rect for the hot loop.
   2. `eatReachPx` 12 and `eatMs` 1 500 are [ASSUMPTION] values for Story 3.6. The "piece under a grazing sheep" test confirms 12 px is reachable.
@@ -415,11 +428,30 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
        - After 3 Loads, one click is one pip and there is one F listener.
        - The bar matched the sim on every frame. No console errors.
      - Docs updated (see the proposal's Addendum A). The auto-feeder (4.8) is flagged as needing a redesign.
-  9. The `Farmed` event keeps `added` and adds `toField`. With the base tuning a click completes at most one bar, but the loop handles multi-bar clicks for 2.8/4.7 (tested with a preset).
+  9. `Farmed` is `{ resource, added }`; Addendum A removed `toField`. With the base tuning a click completes at most one bar, but the while loop handles multi-bar clicks for 2.8/4.7.
 - **For Rylan:**
   - The food icon, food piece and crumb are placeholders.
   - The munch SFX arrives in 5.6; reduced motion (bounce and shake off) in 5.7.
   - The pacing risk from 8 clicks per food is now Story 3.6's tuning task.
+
+### Review Follow-up (2026-10-06)
+
+The decision was resolved (Rylan: bump the save version) and all 6 patches were applied. 2 items were deferred and 4 dismissed.
+
+- **Save version:** `SAVE_SCHEMA_VERSION` 1 → 2, with a comment on why. A test shows a version-1 save is rejected. The storage key `sheepciv.save.v1` is unchanged (architecture).
+- **Corrupt Farm bar:** `farm()` resets `farmProgress` to 0 before adding pips unless it is an integer in `[0, farmPipsPerFood)`. That covers NaN, negative, fractional and huge values, so `1e20` can no longer loop for ever.
+  - The new test covers NaN, -1000, 2.5, 8 and 1e20.
+  - It replaces the preset multi-bar test, which relied on a value that is now treated as corrupt. The multi-bar `while` loop stays for 2.8/4.7.
+- **Claim loop:** `if (best < 0) break;`. A test with a NaN sheep position fails without the guard and passes with it.
+- **Comments:** fixed in `feeding.ts` (FR3 instead of FR4, no "overflow"), `strings.ts` (no stock, "3/8"), `SheepHover.ts` (shared for 2.4) and `tuning.ts` (the seek wording).
+- **Debug "+5 food":** uses `Math.random` spots, so the seeded rng stream is untouched.
+- **Tests:** removed the dummy `expect(p.id)` and now assert the claim before removing the piece. Added `expect(fedAbove < seekBelowFullness)` preconditions where tests rely on it.
+- **Docs:**
+  - The completion notes now give verdicts for the current ACs.
+  - Note 9 and the File List are corrected.
+  - The architecture example now uses `state.foodPieces.length`.
+  - The deferred-work notes are updated: the 9.6 wording, a bad `farmProgress` now self-heals, and `food` is resolved by the version bump.
+- **Result:** `npm test` 140/140 in 22 files. Typecheck, lint and build are clean.
 
 ### File List
 
@@ -435,7 +467,7 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
 - `public/assets/atlases/sheep-world.png`, `public/assets/atlases/sheep-world.json` (regenerated)
 - `assets/CREDITS.md` (modified)
 - `src/config/tuning.ts` (modified)
-- `src/config/constants.ts` (modified: `farmProgress`, `foodStock` replace `foodMeter`)
+- `src/config/constants.ts` (modified: `farmProgress` replaces `foodMeter`; `SAVE_SCHEMA_VERSION` 2)
 - `src/sim/state.ts` (modified)
 - `src/sim/commands.ts` (modified)
 - `src/sim/events.ts` (modified)
@@ -450,7 +482,8 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
 - `src/view/strings.ts` (modified)
 - `src/view/assetKeys.ts` (modified)
 - `tests/config/constants.test.ts` (modified)
-- `tests/sim/commands.test.ts` (modified: Farm tests rewritten, DropFood added)
+- `tests/sim/commands.test.ts` (modified: Farm tests rewritten for the 8-pip bar)
+- `tests/save/saveFile.test.ts` (modified: a version-1 save is rejected)
 - `tests/sim/selectors.test.ts` (modified)
 - `tests/sim/state.test.ts` (modified)
 - `tests/sim/systems/movement.test.ts` (modified)
@@ -467,3 +500,4 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
 | 2026-10-06 | Implemented food drops and eating (`DropFood`, the feeding system with its claim model, seek/eat movement, `FoodSprite` bounce, munch crumbs, `InputController` pointer + `idle` mode) and the 8-pip Farm bar (stock fill, overflow to the field, `FarmProgress` + `FoodStock`, refuse shake/flash). Tests 144/144; browser checks 25/25; 60 FPS at 100 sheep with a pile. Status → review. |
 | 2026-10-06 | Rylan's review: the Farm bar shows its count "{n}/8" (starts at "0/8") beside the pips, before the food stock; pips narrowed to fit. Tests 144/144; browser checks 25/25 + count checks. |
 | 2026-10-06 | Addendum A (Rylan): no food stock and no click-to-drop. Every full Farm bar drops a piece at a random spot in the pen. Removed `food`, `DropFood`, `SpendRefused`, `FoodStock` and the pointer pipeline (deferred to 2.4). Docs updated. Tests 138/138; browser checks 11/11. |
+| 2026-10-06 | Code review: 1 decision (save version → 2) and 6 patches applied (corrupt `farmProgress` reset, claim-loop guard, stale comments, debug rng, test fixes, record and doc fixes); 2 deferred, 4 dismissed. Tests 140/140. Status → done. |
