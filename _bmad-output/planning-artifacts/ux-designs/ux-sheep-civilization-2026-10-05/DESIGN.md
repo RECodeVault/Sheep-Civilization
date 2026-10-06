@@ -193,11 +193,10 @@ components:
     fillColor: '{colors.hay}'
     segmentCount: '8'
     valueTypography: '{typography.numeric}'
-  breeding-meter:
+  breeding-progress:
     trackColor: '{colors.wool-shade}'
     fillColor: '{colors.heart}'
-    segmentCount: '10'
-    costMarkerColor: '{colors.heart-deep}'
+    segmentCount: '8'
     valueTypography: '{typography.numeric}'
   money-counter:
     textColor: '{colors.bark}'
@@ -238,6 +237,13 @@ components:
     fillColor: '{colors.infection}'
     outlineColor: '{colors.bark}'
     size: 16px
+  breeding-piece:
+    fillColor: '{colors.heart}'
+    outlineColor: '{colors.heart-deep}'
+  ready-marker:
+    fillColor: '{colors.heart}'
+    outlineColor: '{colors.bark}'
+    size: 14px
   tooltip:
     backgroundColor: '{colors.dusk-deep}'
     textColor: '{colors.wool}'
@@ -316,8 +322,8 @@ All hex values below are [ASSUMPTION].
 | Field | `pasture` | `#86B85C` | Reference tone for the Pasture background art | UI chrome |
 | Food | `hay` | `#E9A23B` | Farm button, Farm progress fill, food pieces, hover, coin icon | Danger |
 | | `hay-deep` | `#B86F1C` | Farm button border and pressed state | Text |
-| Breeding | `heart` | `#E27894` | Farm Breeding Food button, breeding meter | Infection or death |
-| | `heart-deep` | `#A8405D` | Breed tool active state, breed-cost marker | |
+| Breeding | `heart` | `#E27894` | Farm Breeding Food button, breeding progress fill, breeding pieces, ready marker | Infection or death |
+| | `heart-deep` | `#A8405D` | Breed tool active state, breeding-piece outline | |
 | Market (commerce, warm) | `awning` | `#B8453A` | Market awning stripes, sell highlight, price tag | Alerts |
 | | `wood` | `#8E5A30` | Market counter, shop toggle, shop panel border | |
 | Better Place (ominous) | `void` | `#160E1C` | Hole interior, boost-timer pill | Any panel |
@@ -387,7 +393,7 @@ The base canvas is `{spacing.canvas-width}` × `{spacing.canvas-height}` (16:9),
 │ └───────┘                [captions]                          │
 ├──────────────────────────────────────────────────────────────┤
 │ [FARM F]    [FARM BREED G] [BREED] [MED] │ $ │ 🐑12/25 │ ⚠2 ✚1 ✖0 │ ×2 0:18 │ [SHOP] │
-│ ▮▮▮▯▯▯▯▯ 3/8          ♥ ▮▮ 4/10                                       │
+│ ▮▮▮▯▯▯▯▯ 3/8          ▮▮▯▯▯▯▯▯ 2/8                                    │
 └──────────────────────────────────────────────────────────────┘
 ```
 - **Bottom bar** (`{spacing.hud-bar-height}`), left to right: resource producers (each meter stacked under its button), then the Breed tool and the Medicine slot *(Should)*, then status read-outs, then the threat summary, the boost timer and the Shop toggle. Actions are on the left and information is on the right.
@@ -433,7 +439,8 @@ Each component's behaviour is in EXPERIENCE.md, under Component Patterns. The ke
 - **Shop panel** (`shop-panel`) and **shop item row** (`shop-item-row`): a `wool` panel with a `wood` border, headed "Shop" in `label` so all rows fit above the bar. Each row shows the icon, the name and price on its first line, and a one-line effect (strings from the GDD) in `caption` type on its second. An unaffordable row greys its name, effect and price to `disabled-ink` but stays readable. A locked Land tier shows "Needs Land {n}" on its effect line. [ASSUMPTION]
 - **Slider** (`slider`) and **toggle** (`toggle`): a chunky track with a `hay` fill and a `bark` thumb that is 40 px tall for easy grabbing.
 - **Farm progress** (`farm-progress`): 8 discrete `hay` pips on a `wool-shade` track, stacked under the Farm button, with the count "3/8" beside it (it starts at "0/8"). Each click fills a pip (more with Better Hoe or the boost); a full bar drops 1 food piece into the pen and empties.
-- **Breeding food meter** (`breeding-meter`): 10 `heart` pips, stacked under the Farm Breeding Food button. A `heart-deep` tick marks the 3-pip breed cost.
+- **Breeding progress** (`breeding-progress`): 8 discrete `heart` pips on a `wool-shade` track, stacked under the Farm Breeding Food button, with the count "2/8" beside it (it starts at "0/8"). A full bar drops 1 breeding piece into the pen and empties. (changed 2026-10-06)
+- **Breeding piece** (`breeding-piece`) and **ready marker** (`ready-marker`): a small heart-shaped `heart` treat with a `heart-deep` outline on the field, told apart from the hay food piece by shape as well as colour; and a small `heart` icon with a bark outline above a sheep that is ready to breed. [ASSUMPTION]
 - **Money counter** (`money-counter`): a hay coin icon and "$145".
 - **Flock counter** (`flock-counter`): a sheep icon and "12/25", meaning alive over capacity. At 90% or more of capacity the numbers turn `alert` and a small crowd icon appears.
 - **Era badge** (`era-badge`): a `dusk` pill at the top-right of the field, for example "Village".

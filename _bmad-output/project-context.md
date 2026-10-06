@@ -96,9 +96,9 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **Every non-sacrifice death goes through `killSheep(state, id, cause)`** (spawns a carcass). Sell/sacrifice go through `removeSheep` (no carcass). Both run `checkLastSheepAndLoss` — selling or sacrificing the last sheep is a loss. Never splice `state.sheep` anywhere else.
 - **The Abomination is secret.** View, HUD, tooltip, toast, stats and save-inspection code use `PublicSheep` only; `isAbomination`/`stalk` are read only in `src/sim/`, `src/debug/` and `src/save/` (validation and migrations; the lint rule is off there). It always displays as a lamb, its stalking shows as `wander`, its victims' toast is the vague "{name} just… fell over.", and the truth is revealed only by `Sacrificed { wasAbomination }`. It never ages or dies of old age but **can starve**.
 - **Era is derived** from live sheep count every time (`currentEra`). Never store or increment an era; `lastEra` exists only to emit `EraChanged`. Eras regress.
-- **Capacity counts living sheep + `state.pregnancies`.** Breeding is blocked at capacity; Breed greys out with the reason tooltip.
+- **Capacity counts living sheep + `state.pregnancies`.** Breeding is blocked at capacity or with fewer than 2 ready adults; Breed greys out with the reason tooltip. Breeding food is a field piece adults eat to become ready (no stock).
 - **Timers are absolute game-ms deadlines** in state (`diesAt`, `doomedAt`, `cooldownUntil`, `boostUntil`, `nextKillAt`…). Never countdown fields decremented per tick, never `setTimeout`/Phaser timers for game rules.
-- **Boost:** a sacrifice sets `boostUntil = time + 30 s` (reset, not stacked) and doubles **Farm (food) only**, not breeding food.
+- **Boost:** a sacrifice sets `boostUntil = time + 30 s` (reset, not stacked) and doubles **Farm (food) pips only**, never the breeding bar.
 - **A starving sheep eats a carcass only when no food piece is on the field.** Eating a carcass = 100% infection; infected dies 20 s later.
 - **No confirmations** on sell, sacrifice or shop purchases (a misdrop is the joke). The only confirm is start-over (New Game with a save / pause Restart); Lose → Restart wipes without confirm.
 - **Hidden tab = full pause.** Nothing progresses while away; no offline progress, ever.

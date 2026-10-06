@@ -73,3 +73,12 @@
 - Pieces pile up in the pen with no cap and never spoil; "+1" pops over the button when a bar completes.
 - **Open:** the auto-feeder (Story 4.8) drew from the food stock; what feeds it is decided when 4.8 is created.
 - Pacing: one fewer click per piece (no field click), so feeding is about 8 Farm clicks per piece. Still for Story 3.6 to tune.
+
+## 2026-10-06 · Breeding food works like the Farm bar (Rylan)
+- Reverses "Unchanged: Farm Breeding Food (+1 per click, cap 10)" from the Farm-bar entries above, after the Story 2.2 build.
+- **Farm Breeding Food:** each click (or `G`) fills 1 pip of an **8-pip** breeding bar ("{n}/8"). A full bar drops 1 **breeding-food piece** (pink, heart-shaped) at a seeded-random reachable spot in the pen; leftover pips carry over. No stock, no cap, pieces never spoil; never boosted and Better Hoe does not apply.
+- **Eating:** an adult that is not ready and not on cooldown walks to the nearest breeding piece and eats it, becoming **ready to breed** (no Fullness). Food comes first. Lambs and elders ignore pieces; a ready adult that turns elder loses readiness. Breeding pieces never count as food (carcass rule, auto-feeder).
+- **Breeding:** the Breed tool pairs two ready adults; no cost. Both lose readiness and start the 60 s cooldown. Breed greys out at capacity or with fewer than 2 ready adults ("Needs 2 ready sheep.").
+- **HUD:** the 10-heart breeding meter, its cost tick and its empty shake are removed; a heart-pip bar "{n}/8" sits under the button; ready sheep show a small heart above them.
+- **Risk:** a breeding now takes 16 clicks (2 pieces) instead of 3. [ASSUMPTION] Story 3.6 tunes `breedingPipsPerFood`.
+- Source: `planning-artifacts/sprint-change-proposal-2026-10-06-breeding-food.md`.

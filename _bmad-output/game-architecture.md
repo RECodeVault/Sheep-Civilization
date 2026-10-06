@@ -178,6 +178,7 @@ The template's sample scenes are replaced by the structure defined in Project St
 - Entities (sheep, carcasses, food pieces) are stored in arrays of plain records with a stable numeric `id` from `state.nextId`. References between entities use ids, never object references.
 - Only `src/sim/` mutates `GameState`. Entry points: `step(state)` (advance one tick) and `applyCommand(state, cmd)` (player intent). Both are pure in the sense of having no I/O, no Phaser and no `Date.now()`/`Math.random()`.
 - The Farm bar lives in `state.farmProgress`: integer pips in the current bar (0 to `TUNING.farmPipsPerFood − 1`). Every full bar drops a food piece at a seeded-random reachable spot in the pen; there is no food stock (changes 2026-10-06).
+- The breeding bar lives in `state.breedingProgress` (0 to `TUNING.breedingPipsPerFood − 1`). Every full bar drops a breeding piece into `state.breedingPieces: { id, x, y }[]` at a seeded-random reachable spot. A sheep that eats one gets `breedReady: true`; there is no breeding stock (changed 2026-10-06).
 - Pending lambs live in `state.pregnancies: { parentA, parentB, dueAt, x, y }[]`; capacity checks count living sheep **plus** pregnancies.
 - Derived values (current era, Fed/Hungry/Starving, flock count, capacity) are computed by selector functions, never stored, so they cannot drift. Era regression falls out naturally.
 - The Abomination flag lives on the sheep record (`isAbomination`) but is **only** read by `sim/` and the reveal path; view and tooltip code must use selectors that do not expose it.
@@ -472,10 +473,10 @@ sheep-civilization/
 | Tick orchestration | `src/sim/step.ts` | Advances `state.time`, runs systems in fixed order |
 | Player commands | `src/sim/commands.ts` | Validates and applies `Command`s |
 | Hunger | `src/sim/systems/hunger.ts` | Fullness drain, starvation death |
-| Farming & feeding | `src/sim/systems/feeding.ts` | Farm progress, food pieces (dropped by full Farm bars), eating |
+| Farming & feeding | `src/sim/systems/feeding.ts` | Farm and breeding progress, food and breeding pieces (dropped by full bars), eating both |
 | Movement & spacing | `src/sim/systems/movement.ts` + `src/sim/grid.ts` | Wander, seek, separation, fence containment |
-| Life stages | `src/sim/systems/lifecycle.ts` | Ageing, elder, old-age death, gestation/birth |
-| Breeding | `src/sim/systems/breeding.ts` | Pair validation, cost, cooldown, capacity |
+| Life stages | `src/sim/systems/lifecycle.ts` | Ageing, elder (clears `breedReady`), old-age death, gestation/birth |
+| Breeding | `src/sim/systems/breeding.ts` | Pair validation (two ready adults), cooldown, capacity |
 | Carcasses | `src/sim/systems/carcass.ts` | Spawn on death, clear, starving-eats-carcass |
 | Virus | `src/sim/systems/virus.ts` | Infection, 20 s death |
 | Market | `src/sim/systems/market.ts` | Selling rules and prices |
@@ -603,6 +604,7 @@ export interface PublicSheep {
   stage: 'lamb' | 'adult' | 'elder';
   hunger: 'fed' | 'hungry' | 'starving';
   infected: boolean; onCooldown: boolean;
+  ready: boolean;            // breedReady; not secret: the Abomination never grows past a lamb, so it is never ready
   gait: 'normal' | 'offstep';
   activity: SheepActivity;   // 'stalking' reported as 'wander'
 }
@@ -614,6 +616,7 @@ export function publicSheep(s: Sheep, state: GameState): PublicSheep {
     hunger: hungerOf(s),
     infected: s.infectedAt !== undefined,
     onCooldown: state.time < s.cooldownUntil,
+    ready: s.breedReady,
     gait: s.isAbomination ? 'offstep' : 'normal',
     activity: s.activity === 'stalking' ? 'wander' : s.activity,
   };
@@ -647,7 +650,7 @@ sync(items: readonly PublicSheep[], alpha: number): void {
 }
 ```
 
-**Usage:** sheep, carcasses, food pieces. Sprites hold no game data beyond their bound id and animation state. Pools are pre-sized to 120 sheep, 60 food, 40 carcasses and **grow on demand** (food pieces never spoil, so counts are unbounded).
+**Usage:** sheep, carcasses, food pieces. Sprites hold no game data beyond their bound id and animation state. Pools are pre-sized to 120 sheep, 60 food, 30 breeding pieces, 40 carcasses and **grow on demand** (food and breeding pieces never spoil, so counts are unbounded).
 
 #### N4 — Derived Era with Change Signal
 
@@ -698,7 +701,7 @@ export function createSheep(state: GameState, o: { stage: Stage; x: number; y: n
 
 **Pattern:** One explicit `activity` state machine per sheep; everything else derived.
 
-- `activity`: `wander` → `seekFood` → `eating` → `wander`; `seekCarcass` (starving, no food on field); `stalking` (Abomination only); `dragged` (set by drag command, cleared on drop).
+- `activity`: `wander` → `seekFood` → `eating` → `wander`; `wander` → `seekBreedingFood` → `eating` → `wander` (an adult that is not ready and not on cooldown, when no food comes first; changed 2026-10-06); `seekCarcass` (starving, no food on field); `stalking` (Abomination only); `dragged` (set by drag command, cleared on drop).
 - Derived, never stored: hunger state (from `fullness`), stage (from `bornAt`), infected (from `infectedAt`), on-cooldown (from `cooldownUntil`).
 - Transitions happen only inside sim systems during `step`, never in view code.
 
@@ -707,6 +710,7 @@ function nextActivity(s: Sheep, state: GameState): SheepActivity {
   if (s.activity === 'dragged') return 'dragged';
   if (s.isAbomination && s.stalk) return 'stalking';
   if (s.fullness < TUNING.seekThreshold && state.foodPieces.length) return 'seekFood';
+  if (canEatBreedingFood(s, state) && state.breedingPieces.length) return 'seekBreedingFood'; // adult, !breedReady, not on cooldown
   if (hungerOf(s) === 'starving' && !state.foodPieces.length && state.carcasses.length) return 'seekCarcass';
   return 'wander';
 }

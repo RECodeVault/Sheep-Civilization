@@ -50,13 +50,13 @@ The schedule is a 7-day solo build. Each epic must end in something playable bef
 
 **In scope:**
 - Life stages: lamb 0–60 s, adult 60–300 s, elder 300–420 s, then death from old age
-- The Farm Breeding Food button (+1, cap 10). Breed tool: adult A, then adult B, costs 3, lamb born after 10 s. Each adult has a 60 s breeding cooldown.
+- The Farm Breeding Food button fills a bar that drops breeding pieces; adults that eat one become ready (changed 2026-10-06). Breed tool: ready adult A, then ready adult B, lamb born after 10 s. Each adult has a 60 s breeding cooldown.
 - Carcasses from every non-sacrifice death. They never disappear on their own and are cleared with 1 click.
 - A Starving sheep eats a carcass only when no food piece is on the field
 - Virus: eating a carcass means instant green tint, death after 20 s, and a new carcass
 - The Better Place: drag any sheep in. No carcass is left, and Farm clicks give 2× food for 30 s (repeat sacrifices reset the timer).
 - Drag versus click threshold of 6 px
-- The starting flock becomes 2 adults aged 60 s and 1 newborn lamb (matching the GDD); breeding food starts at 0
+- The starting flock becomes 2 adults aged 60 s and 1 newborn lamb (matching the GDD); the breeding bar starts empty
 
 **Out of scope:** money, shop, eras, medicine.
 
@@ -66,7 +66,7 @@ The schedule is a 7-day solo build. Each epic must end in something playable bef
 
 **Stories (high level):**
 1. Life stages and old-age death
-2. Breeding food meter and the Breed tool
+2. Breeding food bar and pieces, and the Breed tool
 3. Carcass spawning and clearing
 4. Carcass eating and virus infection
 5. Better Place drag-to-sacrifice, the food boost, and handling for sheep dropped on the wrong target (Market vs Better Place)

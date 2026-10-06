@@ -85,10 +85,10 @@ Pillar test: without pillar 1 the game is Cookie Clicker; without pillar 2 it is
 
 | Step | Player action | Outcome / reward | Pillar |
 |---|---|---|---|
-| Farm | Click Farm (food) and Farm Breeding Food | Food meters fill | 1 |
+| Farm | Click Farm (food) and Farm Breeding Food | Both bars fill; each full bar drops a piece in the pen | 1 |
 | Feed | Fill the Farm bar; each full bar drops a food piece in the pen | Sheep walk to the food and eat; Fullness refills | 1, 2 |
 | Contain | Click carcasses away; drag infected or suspicious sheep to the Better Place | The contagion chain breaks; the sacrifice grants a food boost | 1, 2, 3 |
-| Breed | Pair two adults using breeding food | A lamb is born (1 in 20 is the Abomination) | 3, 4 |
+| Breed | Adults eat breeding food to become ready; pair two ready adults | A lamb is born (1 in 20 is the Abomination) | 3, 4 |
 | Decide | Sell, sacrifice or keep each adult or elder | Money, a boost, or a bigger flock | 3 |
 | Grow | Buy land and upgrades; reach era thresholds | Higher capacity, a new background, more sheep to manage | 4 → back to 1 |
 
@@ -129,8 +129,9 @@ Each sheep has a **Fullness** stat: 100 means full, and the sheep dies at 0. Pla
 | Parameter | Value |
 |---|---|
 | **Farm** button | Each click fills 1 pip of an **8-pip** progress bar (tune), shown with its count "{n}/8". Every full bar drops **1 food piece** at a random reachable spot in the pen and resets; leftover pips carry over. There is **no food stock** and nothing to spend: Farm is the only way to make food (changed 2026-10-06). |
-| **Farm Breeding Food** button | +1 breeding food per click. Breeding meter cap **10**. Start with 0. |
+| **Farm Breeding Food** button | Works like Farm: each click fills 1 pip of an **8-pip** breeding bar (tune), shown "{n}/8". Every full bar drops **1 breeding-food piece** (a pink treat) at a random reachable spot in the pen; leftover pips carry over. No stock, no cap, never boosted (changed 2026-10-06). |
 | Sheep seek food | The nearest non-full sheep (Fullness below 90) walks to the nearest piece. Walk speed **60 px/s** (tune). |
+| Sheep seek breeding food | An adult that is not ready and not on cooldown walks to the nearest breeding piece and eats it, becoming **ready to breed** (no Fullness). Food comes first: a sheep that would seek food does that instead. Lambs and elders ignore breeding pieces. A ready adult that turns elder loses its readiness. |
 | Uneaten pieces | Stay on the field until eaten. They never spoil. |
 
 #### Life Stages
@@ -143,14 +144,14 @@ Each sheep has a **Fullness** stat: 100 means full, and the sheep dies at 0. Pla
 
 #### Breeding
 
-1. Choose the **Breed** tool.
-2. Click adult A, then adult B.
-3. This costs **3 breeding food**.
+1. Feed breeding food: adults that eat a breeding piece become **ready** (a small heart shows above them).
+2. Choose the **Breed** tool.
+3. Click ready adult A, then ready adult B. Breeding uses up both sheep's readiness and costs nothing else.
 4. A heart appears, and a lamb is born beside them **10 s** later.
 
 **Breeding cooldown:** each adult can breed once every **60 s** (tune). The cooldown starts at breeding, so a pair cannot breed again while their lamb is on the way. A sheep on cooldown shows a small heart-outline icon on hover.
 
-Breeding is blocked (the button greys out) while the flock is at land capacity. A pending lamb occupies a capacity slot from the moment of breeding.
+Breeding is blocked (the button greys out) while the flock is at land capacity. A pending lamb occupies a capacity slot from the moment of breeding. Breeding is also blocked while fewer than 2 adults are ready.
 
 #### Market (Selling)
 
@@ -223,7 +224,7 @@ The game is mouse-only, with optional keyboard shortcuts.
 
 | Input | Action |
 |---|---|
-| Left-click **Farm** / **Farm Breeding Food** | Fill the Farm bar (8 clicks = 1 food; 2× pips while boosted) / add 1 breeding food |
+| Left-click **Farm** / **Farm Breeding Food** | Fill the Farm bar (8 clicks = 1 food; 2× pips while boosted) / fill the breeding bar (8 clicks = 1 breeding piece) |
 | Left-click an empty field | Nothing (food comes from the Farm bar) |
 | Left-click a carcass | Clear it |
 | Drag a sheep → Better Place | Sacrifice |
@@ -241,7 +242,7 @@ Dragging and clicking are told apart by a **6 px** movement threshold.
 
 ### Core Click/Interaction
 
-- **Primary clicks:** Farm (fills the Farm bar; a full bar = 1 food) and Farm Breeding Food (+1 breeding food). Clicks are the only source of either resource. There is no passive income.
+- **Primary clicks:** Farm (fills the Farm bar; a full bar = 1 food) and Farm Breeding Food (fills the breeding bar; a full bar = 1 breeding piece). Clicks are the only source of either resource. There is no passive income.
 - **Click value progression:** a Farm click fills 1 pip; Better Hoe upgrades raise it to 2 and then 3 pips. The Better Place boost doubles the pips per click for 30 s.
 - **Auto-click:** none. The auto-feeder automates *feeding*, not farming (see Automation Systems).
 - **Combo/streak:** none.
@@ -293,7 +294,7 @@ There is one flat shop with no branches.
   - At 8 clicks per food, 10 sheep need about 1.9 Farm clicks/s and 25 sheep about 4.8 (before upgrades), with no separate field click. Better Hoe and the boost cut this to a half or a third. [ASSUMPTION, tune in the post-Epic 3 playtest]
 
   Attention pressure grows with the flock, and that is the game's soft cap.
-- **Time gates:** life stages (60 s to adulthood), the 10 s gestation, and the **60 s per-adult breeding cooldown**. Without the cooldown, Village arrived in about 90 s.
+- **Time gates:** life stages (60 s to adulthood), the 10 s gestation, and the **60 s per-adult breeding cooldown**. Without the cooldown, Village arrived in about 90 s. One breeding needs 2 breeding pieces (16 clicks at 8 pips) [ASSUMPTION, tune in the post-Epic 3 playtest].
 - **Pacing target:** in the Must-tier economy, **Village (10 sheep) in about 3–5 min** and **Town (25) in about 10–15 min** (tune). Hand-simulation with the cooldown, no losses and no sales gives Village at about 3 min. Sales for Land I ($50 = 5 adults) and founder deaths at about 6 min push Town later.
 - **Walls:** the land costs. Getting past them means selling sheep, which is a direct trade-off against the era threshold, since eras count live sheep.
 
@@ -337,7 +338,7 @@ The player progresses through **flock size**: more land, more sheep and later er
 | Resource | Earned | Spent | Cap |
 |---|---|---|---|
 | Food | 1 piece per full Farm bar (8 pips; a click fills 1, 2 or 3 pips with upgrades, ×2 when boosted) | Eaten by sheep (+35 Fullness) | None: pieces wait in the pen, never spoil |
-| Breeding food | Farm Breeding Food click +1 | 3 per breeding | 10 |
+| Breeding food | 1 piece per full breeding bar (8 pips; a click fills 1, never boosted) | Eaten by an adult that can breed (makes it ready; a breeding uses 2 ready adults) | None: pieces wait in the pen, never spoil |
 | Money | Sell adult $10 / elder $5 | Shop | None |
 | Sheep | Breeding | Selling, sacrifice, death | Land capacity |
 

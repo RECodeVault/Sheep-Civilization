@@ -48,7 +48,7 @@ Nothing is more than one level deep from the game. Modals replace each other and
 
 **HUD information hierarchy** (Q4: always visible):
 
-1. **Act now:** Farm and Farm Breeding Food buttons, the Farm progress bar ("{n}/8"), the breeding food meter (/10) and the Breed tool.
+1. **Act now:** Farm and Farm Breeding Food buttons, the Farm progress bar ("{n}/8"), the breeding progress bar ("{n}/8") and the Breed tool.
 2. **Threat summary:** counts of Starving, Infected and Carcasses (see HUD & Diegetic UI).
 3. **Status:** money, flock vs land capacity (`12/25`), current era, boost timer (only while active).
 4. **Access:** the Shop toggle.
@@ -77,9 +77,9 @@ Microcopy is cozy with dark laughs: short, deadpan and storybook-polite about te
 | Shop panel header | "Shop" [ASSUMPTION] |
 | Lose | "The flock is gone." · "Survived 12:34 · Peak flock 18" · **Restart** [ASSUMPTION for the heading] |
 | Breed greyed (capacity) | Tooltip: "No room. Buy land." [ASSUMPTION] |
-| Breed greyed (food) | Tooltip: "Needs 3 breeding food." [ASSUMPTION] |
+| Breed greyed (not ready) | Tooltip: "Needs 2 ready sheep." [ASSUMPTION] |
 | Invalid sell | Tag: "Too young" |
-| Button tooltips | "Farm: fill the bar for 1 food (F)", "Farm Breeding Food: +1 (G)", "Breed: pick two adults" |
+| Button tooltips | "Farm: fill the bar for 1 food (F)", "Farm Breeding Food: fill the bar for 1 breeding food (G)", "Breed: pick two adults" |
 
 There is no tutorial text beyond button labels and tooltips (Q9). There are no exclamation marks except "Last sheep!". Never write grim words such as "corpse", "blood" or "kill" in the UI; "carcass" is the strongest word allowed.
 
@@ -90,9 +90,9 @@ Behaviour only. Visual specs are in DESIGN.md, under Components.
 | Component | Behavioural rules |
 |---|---|
 | Farm button | Left-click or `F` fills the click value of pips on the 8-pip Farm progress bar ("{n}/8"), with a squash and a soft pop sound. When a bar completes, a food piece drops at a random spot in the pen with its landing bounce, and a "+1" popup rises over the button. There is no food stock (changed 2026-10-06). While boosted it uses `{components.button-farm-boosted}`. |
-| Farm Breeding Food button | Same behaviour, using `G`. It is never boosted. |
-| Farm progress / breeding food meter | Update the same frame as the change. An attempted breeding spend with too little triggers the empty shake (`{colors.alert}` flash) on the breeding meter. |
-| Breed tool | Toggles breed mode (see Interaction Primitives). It greys out (`{components.button-disabled}`) at land capacity, including pending lambs, or when breeding food is below 3 [ASSUMPTION for the food case], and its tooltip gives the reason. |
+| Farm Breeding Food button | Same behaviour as Farm, using `G`: each click fills a pip of the 8-pip breeding bar ("{n}/8"), and a full bar drops a breeding piece at a random spot in the pen with a "+1" popup. Adults that can breed walk to it and eat it, becoming ready. It is never boosted (changed 2026-10-06). |
+| Farm progress / breeding progress | Update the same frame as the change. |
+| Breed tool | Toggles breed mode (see Interaction Primitives). It greys out (`{components.button-disabled}`) at land capacity, including pending lambs, or when fewer than 2 adults are ready [ASSUMPTION for the readiness case], and its tooltip gives the reason. |
 | Shop toggle | Opens and closes the shop panel. `Esc` also closes it. The sim keeps running. |
 | Shop panel / shop item row | Click a row to buy instantly, with no confirmation. The money counter ticks down and the item applies (for example, the fence grows). Unaffordable rows stay visible but greyed. A one-time item (Auto-feeder, decorations, Land tiers) shows "Owned" after purchase. [ASSUMPTION] Medicine can be bought repeatedly. |
 | Medicine slot *(Should)* | Appears once at least one dose is owned. Drag a dose onto an infected sheep to cure it instantly. A drop anywhere else returns the dose to the slot. |
@@ -127,6 +127,7 @@ Behaviour only. Visual specs are in DESIGN.md, under Components.
 | **Starving** | Sheep | Thin sprite, frantic bleats, and an alert ping on entry. Counted in the threat summary. |
 | **Infected** | Sheep | `{colors.infection}` tint **plus** an infection marker (bubbles) **plus** a sickly wobble in its walk [ASSUMPTION for the wobble]. Ping on entry. |
 | **Elder** | Sheep | Greyer sprite. |
+| Ready to breed | Sheep | Small heart icon above the sheep until it breeds or turns elder. [ASSUMPTION] |
 | Breeding cooldown | Sheep | Heart-outline icon on hover only. |
 | Pregnant pair | Field | A heart floats between them, and a lamb pops out 10 s later. |
 | Carcass | Field | X-eyes sprite and a dust puff on spawn, plus a ping on spawn. Stays until clicked. Counted in the threat summary. |
@@ -153,8 +154,8 @@ Behaviour only. Visual specs are in DESIGN.md, under Components.
   - Release on the field puts the sheep down where it was dropped. Outside the fence, it is placed at the nearest point inside the fence. [ASSUMPTION]
 - **No confirmations** on sell or sacrifice (Q8). The misdrop is part of the joke.
 - **Breed mode** (Q6):
-  - **Enter:** click Breed. The button fills with `{colors.heart-deep}`, the cursor becomes a heart, and eligible adults get a soft heart marker. Ineligible sheep (lambs, elders, sheep on cooldown) do not. [ASSUMPTION for the markers]
-  - **Pair:** click adult A, which pins a heart above it, then adult B. 3 breeding food is spent, a heart appears, and a lamb is born 10 s later. Breed mode then **exits**. [ASSUMPTION]
+  - **Enter:** click Breed. The button fills with `{colors.heart-deep}`, the cursor becomes a heart, and ready adults get a soft heart marker. Other sheep (lambs, elders, adults not ready) do not. [ASSUMPTION for the markers]
+  - **Pair:** click adult A, which pins a heart above it, then adult B. both sheep stop being ready, a heart appears, and a lamb is born 10 s later. Breed mode then **exits**. [ASSUMPTION]
   - **Invalid click:** clicking an ineligible sheep shakes it and keeps the mode active. Clicking empty field in breed mode drops no food. [ASSUMPTION]
   - **Cancel:** right-click, `Esc`, or clicking Breed again (Q6).
 - **Keys:** `F` farms food and `G` farms breeding food (both repeat on each press, not on hold [ASSUMPTION]). `Esc` resolves in priority order (agreed 2026-10-05): close the start-over confirm, then a sub-panel, then cancel a drag, then exit breed mode, then close the shop, then open or close pause.
@@ -197,6 +198,8 @@ These come from the GDD feedback list. Every one also has an audio cue.
 |---|---|
 | Any button click | Button squash, "+N" float popup, soft pop |
 | Food drop | Piece bounces on landing |
+| Breeding piece drop | Piece bounces on landing |
+| Eating breeding food | Munch particle, then the ready heart pops in |
 | Eating | Munch particle, munch SFX |
 | Death | Comedic "baa-*thud*", slapstick pose, dust puff, then a carcass |
 | Sacrifice | Cartoon suction, `{colors.halo}` sparkle, Farm button gold glow |
@@ -204,7 +207,6 @@ These come from the GDD feedback list. Every one also has an audio cue.
 | Breeding | A heart pops; the lamb arrives 10 s later with a small poof |
 | Sale | Coin popup "$10", cash-register ding [ASSUMPTION] |
 | Era change | Crossfade of about 1 s, banner, fanfare |
-| Empty meter | Meter shake and `{colors.alert}` flash |
 | Last sheep *(Should)* | Banner and sting |
 
 **Reduced motion** turns off meter shake (it flashes only), banner slide-in (it fades instead), floating popups (they fade in place) and any screen shake added later. **Gameplay animation is never reduced.** The Abomination's off-step walk, the thin and droop poses and the infection wobble are information, not decoration.

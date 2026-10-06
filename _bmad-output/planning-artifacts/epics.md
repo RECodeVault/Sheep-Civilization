@@ -25,14 +25,15 @@ FR2: Sheep display three hunger states derived from Fullness: Fed (>50), Hungry 
 FR3: Each Farm click fills the current click value of pips (base 1) on an 8-pip Farm progress bar, shown with its count "{n}/8"; every full bar drops 1 food piece at a random reachable spot in the pen and the bar resets, with leftover pips carrying over. There is no food stock.
 FR4: (Removed 2026-10-06) Clicking the field no longer drops food; food comes only from full Farm bars (FR3).
 FR5: The nearest sheep with Fullness below 90 walks (60 px/s) to the nearest food piece and eats it for +35 Fullness (capped at 100); uneaten pieces stay until eaten and never spoil.
-FR6: A new game starts with 2 adults aged 60 s and 1 newborn lamb, all at Fullness 60, an empty Farm bar and 0 breeding food.
+FR6: A new game starts with 2 adults aged 60 s and 1 newborn lamb, all at Fullness 60, with an empty Farm bar, an empty breeding bar and no sheep ready to breed.
 
 **Life stages & breeding**
 FR7: Sheep age through Lamb (0–60 s), Adult (60–300 s) and Elder (300–420 s); elders die of old age at 420 s.
-FR8: The Farm Breeding Food button adds +1 breeding food, capped at 10; it is never boosted.
-FR9: With the Breed tool, clicking adult A then adult B costs 3 breeding food, shows a heart, and a lamb is born beside them 10 s later.
+FR8: (Changed 2026-10-06) Each Farm Breeding Food click fills 1 pip of an 8-pip breeding bar, shown with its count "{n}/8"; every full bar drops 1 breeding-food piece at a random reachable spot in the pen and the bar resets, with leftover pips carrying over. There is no breeding food stock and no cap; pieces stay until eaten and never spoil. The bar is never boosted and Better Hoe does not apply.
+FR8a: An adult that is not ready and not on breeding cooldown walks to the nearest breeding-food piece and eats it, becoming ready to breed (no Fullness). A sheep that would seek food (Fullness < 90 and a food piece exists) seeks food first. Lambs and elders ignore breeding pieces, and a ready adult that turns elder loses its readiness.
+FR9: With the Breed tool, clicking ready adult A then ready adult B shows a heart, uses up both sheep's readiness, and a lamb is born beside them 10 s later. Breeding costs no breeding food.
 FR10: Each adult has a 60 s breeding cooldown starting at breeding; a sheep on cooldown cannot breed and shows a heart-outline icon on hover.
-FR11: Breeding is blocked (Breed greyed out) when living sheep plus pending lambs reach land capacity, or when breeding food is below 3.
+FR11: Breeding is blocked (Breed greyed out) when living sheep plus pending lambs reach land capacity, or when fewer than 2 adults are ready to breed.
 
 **Death, carcasses & virus**
 FR12: Every death other than sacrifice (starvation, old age, virus, Abomination) leaves a carcass at the sheep's position.
@@ -140,7 +141,7 @@ Items tagged **(Should)** follow GDD Should tier; everything else is Must.
 - UX-DR4: Typography usage mapping: display = title logo, era banner, "The flock is gone."; title = menu headers ("Paused"), "Last sheep!"; label = all buttons, shop row names/prices, "Shop" header, era badge; numeric = meter values, money, flock/capacity, boost timer; body = tooltips, toasts; caption = audio captions, shop effect lines; popup = "+1"/"+2"/"$10" popups. (DESIGN: Typography)
 - UX-DR5: No text smaller than 18px on the base canvas (≥13.5px at 960×540 min). Numbers right-aligned in fixed-width boxes so non-tabular digits do not jitter. Text rendered with `resolution` = device pixel ratio. (DESIGN: Typography; EXPERIENCE: Accessibility Floor)
 - UX-DR6: Define radii tokens sm 4, md 8, lg 12, full 9999; spacing tokens 1=4, 2=8, 3=12, 4=16, 5=24, 6=32; layout tokens canvas-width 1280, canvas-height 720, safe-margin 16, hud-bar-height 112, hit-min 40. (DESIGN: rounded/spacing)
-- UX-DR7: Define component-spec constants mirroring the DESIGN front-matter `components` map (button-farm, button-farm-boosted, button-breed-food, button-breed-tool, button-disabled, button-menu, button-menu-destructive, shop-toggle, panel, shop-panel, shop-item-row, slider, toggle, menu-scrim, menu-scrim-start, food-meter, breeding-meter, money-counter, flock-counter, era-badge, era-banner, boost-timer, threat-summary, alert-ping, infection-marker, tooltip, drop-target-market, drop-target-better-place, drop-target-invalid, announcement-toast, last-sheep-banner, caption, float-popup, lose-panel, medicine-slot) referencing token names. (DESIGN: components)
+- UX-DR7: Define component-spec constants mirroring the DESIGN front-matter `components` map (button-farm, button-farm-boosted, button-breed-food, button-breed-tool, button-disabled, button-menu, button-menu-destructive, shop-toggle, panel, shop-panel, shop-item-row, slider, toggle, menu-scrim, menu-scrim-start, food-meter, breeding-progress, breeding-piece, ready-marker, money-counter, flock-counter, era-badge, era-banner, boost-timer, threat-summary, alert-ping, infection-marker, tooltip, drop-target-market, drop-target-better-place, drop-target-invalid, announcement-toast, last-sheep-banner, caption, float-popup, lose-panel, medicine-slot) referencing token names. (DESIGN: components)
 - UX-DR8: Depth styling: no soft shadows; panels/buttons get a 2px darker outline plus a 2px offset "drop" in `bark` @40%; pressed buttons lose the offset; disabled buttons have no drop offset. (DESIGN: Elevation & Depth)
 - UX-DR9: Shapes: pixel-stepped 9-slice corners — `rounded.md` (8px) for buttons, `rounded.lg` (12px) for panels; pills (`rounded.full`) reserved for non-clickable status read-outs (era badge, boost timer). Round "!" ping glyph and bubble-cluster glyph used nowhere else. (DESIGN: Shapes)
 - UX-DR10: Four render layers bottom→top: (1) World: background, fence, sheep, food, carcasses, Market, Better Place; (2) World overlays: alert pings, infection markers, float popups — always above shop panel; (3) HUD: bottom bar, shop panel, toasts, captions, tooltip; (4) Modal: start/pause/credits/lose over scrim. Modals replace each other, never stack two deep. (DESIGN: Elevation & Depth)
@@ -164,13 +165,14 @@ Items tagged **(Should)** follow GDD Should tier; everything else is Must.
 
 #### HUD
 
-- UX-DR25: Bottom bar: 112px tall, wool surface, left→right: Farm button (Farm progress bar beneath), Farm Breeding Food button (breeding meter beneath), Breed tool, Medicine slot (Should), money, flock counter, threat summary, boost timer, Shop toggle. Actions left, information right. Always visible (Q4). (DESIGN: Layout; EXPERIENCE: IA, HUD & Diegetic UI)
+- UX-DR25: Bottom bar: 112px tall, wool surface, left→right: Farm button (Farm progress bar beneath), Farm Breeding Food button (breeding progress bar beneath), Breed tool, Medicine slot (Should), money, flock counter, threat summary, boost timer, Shop toggle. Actions left, information right. Always visible (Q4). (DESIGN: Layout; EXPERIENCE: IA, HUD & Diegetic UI)
 - UX-DR26: Farm button (`button-farm`): 64px tall, hay fill, hay-deep border, bark label "Farm", key hint "F", rounded.md, padding 12. Left-click or `F` fills the click value of pips on the Farm progress bar, with a squash and a soft pop SFX. When a bar completes, its food piece drops into the pen with a landing bounce and a "+1" float popup rises over the button. Pressed state uses hay-deep / loses drop offset. (DESIGN: Components; EXPERIENCE: Component Patterns)
 - UX-DR27: Farm button boosted (`button-farm-boosted`): pulsing `halo` outer glow and a small `void` badge with `halo` text "×2"; each click fills double pips. (DESIGN: Components; EXPERIENCE: State Patterns)
-- UX-DR28: Farm Breeding Food button (`button-breed-food`): same anatomy, heart fill, heart-deep border, bark label "Farm Breeding Food", key hint "G", 64px; same click/squash/popup behaviour; never boosted. (DESIGN/EXPERIENCE: Components)
+- UX-DR28: Farm Breeding Food button (`button-breed-food`): same anatomy, heart fill, heart-deep border, bark label "Farm Breeding Food", key hint "G", 64px; same click/squash/popup behaviour as Farm: left-click or `G` fills a pip of the breeding bar, and a full bar drops a breeding-food piece into the pen with a "+1" popup over the button; never boosted. (DESIGN/EXPERIENCE: Components)
 - UX-DR29: Farm progress (`farm-progress`), stacked under Farm: 8 discrete hay pips on a wool-shade track showing the current bar, with its count "{n}/8" in numeric beside it (starts at "0/8"); updates on the frame of the change. (Changed 2026-10-06: no food stock.)
-- UX-DR30: Breeding food meter (`breeding-meter`): 10 heart pips on wool-shade track under Farm Breeding Food, value "{n}/10", `heart-deep` tick marking the 3-pip breed cost; same-frame update and empty shake/flash. (DESIGN/EXPERIENCE: Components)
-- UX-DR31: Breed tool (`button-breed-tool`): 56px, wool fill, heart-deep border, heart icon, label "Breed"; active: heart-deep fill, wool label, heart cursor. Greyed (`button-disabled`) at land capacity (including pending lambs) or when breeding food < 3, with tooltip reason ("No room. Buy land." / "Needs 3 breeding food."); becoming greyed exits active breed mode. (DESIGN/EXPERIENCE: Components; State Patterns)
+- UX-DR30: (Changed 2026-10-06) Breeding progress (`breeding-progress`): stacked under Farm Breeding Food, 8 discrete heart pips on a wool-shade track showing the current bar, with its count "{n}/8" in numeric beside it (starts at "0/8"); updates on the frame of the change. There is no breeding stock, cost tick or empty shake. (DESIGN/EXPERIENCE: Components)
+- UX-DR30a: Breeding-food piece: a small heart-coloured, heart-shaped treat on the field, distinct from the hay food piece by shape as well as colour; bounces on landing; a ready sheep shows a small heart icon above it (world-overlay layer, always visible) until it breeds or turns elder. [ASSUMPTION for sprite and marker] (Sprint change 2026-10-06, breeding food)
+- UX-DR31: Breed tool (`button-breed-tool`): 56px, wool fill, heart-deep border, heart icon, label "Breed"; active: heart-deep fill, wool label, heart cursor. Greyed (`button-disabled`) at land capacity (including pending lambs) or when fewer than 2 adults are ready, with tooltip reason ("No room. Buy land." / "Needs 2 ready sheep."); becoming greyed exits active breed mode. (DESIGN/EXPERIENCE: Components; State Patterns)
 - UX-DR32: Disabled button (`button-disabled`): flat `disabled` fill, `disabled-ink` label, opacity 1, no drop offset; actions are greyed with readable label, never hidden. (DESIGN: Components, Do's)
 - UX-DR33: **(Should)** Medicine slot (`medicine-slot`): small wool tile right after Breed, infection-colored bottle icon, bark "×{n}" count, rounded.md; only appears while ≥1 dose owned; drag a dose onto an infected sheep cures instantly; drop elsewhere returns dose to slot. (DESIGN/EXPERIENCE: Components)
 - UX-DR34: Money counter (`money-counter`): hay coin icon + "${n}" in numeric bark; read-only; ticks down on purchase. (DESIGN/EXPERIENCE: Components)
@@ -198,7 +200,7 @@ Items tagged **(Should)** follow GDD Should tier; everything else is Must.
 - UX-DR53: Invalid drop target (`drop-target-invalid`): lamb (incl. Abomination) dragged over Market → target desaturates to `disabled`, tag reads "Too young"; drop there bounces sheep back onto the field. (DESIGN: Components; EXPERIENCE: Interaction Primitives)
 - UX-DR54: Alert ping (`alert-ping`): 20px alert circle, wool "!" glyph, 2px bark outline; pops once above sheep/carcass when it enters Starving, becomes Infected, or a carcass spawns; bobs ~3s then settles to small static dot until state resolves; drawn above shop panel. Abomination never pinged. (DESIGN: Components; EXPERIENCE: HUD & Diegetic UI)
 - UX-DR55: Infection marker (`infection-marker`): 16px cluster of three lime (`infection`) bubbles with bark outline, bobbing above an infected sheep's head on top of green tint, until death or cure; no timer display. (DESIGN/EXPERIENCE: Components)
-- UX-DR56: Breed-mode markers: eligible adults show a soft heart marker; first-selected adult A gets a pinned heart above it; pregnant pair shows a heart floating between them; lamb pops out 10s later with small poof. (EXPERIENCE: Interaction Primitives, State Patterns, Game Feel)
+- UX-DR56: Breed-mode markers: ready adults show a soft heart marker; first-selected adult A gets a pinned heart above it; pregnant pair shows a heart floating between them; lamb pops out 10s later with small poof. (EXPERIENCE: Interaction Primitives, State Patterns, Game Feel)
 
 #### States
 
@@ -206,7 +208,7 @@ Items tagged **(Should)** follow GDD Should tier; everything else is Must.
 - UX-DR58: Infected sheep: `infection` tint + infection marker + sickly wobble walk; ping on entry. Elder: greyer sprite. Breeding cooldown: heart-outline icon on hover only. (EXPERIENCE: State Patterns)
 - UX-DR59: Carcass: X-eyes sprite and dust puff on spawn, ping on spawn; stays until clicked; counted in threat summary. Death shows no red blood/gore. (EXPERIENCE: State Patterns; DESIGN: Do's)
 - UX-DR60: Dragged sheep: lifted 4px, legs dangling, stops wandering; both drop targets highlight. (EXPERIENCE: State Patterns)
-- UX-DR61: (Removed 2026-10-06) There is no food stock, so there is no empty food meter; the empty shake remains for the breeding meter (UX-DR30).
+- UX-DR61: (Removed 2026-10-06) There is no food stock, so there is no empty food meter; and since 2026-10-06 there is no breeding stock either, so no meter has an empty shake.
 - UX-DR62: Hidden tab: sim stops completely (and game saves); on return play resumes with no overlay. (EXPERIENCE: State Patterns, Accessibility Floor, Key Flows)
 - UX-DR63: Shop open state: panel open, toggle in open style, sim running, pings stay above the panel. (EXPERIENCE: State Patterns)
 - UX-DR64: Abomination must be visually identical to a lamb in every UI element: no ping, no count, no tooltip difference; its victim's death surfaces normally with a cause-less toast. Off-step walk and flock avoidance are its only tells. (EXPERIENCE: HUD & Diegetic UI; DESIGN: Do's)
@@ -217,13 +219,13 @@ Items tagged **(Should)** follow GDD Should tier; everything else is Must.
 - UX-DR66: Drag threshold: a press becomes a drag after 6px of movement; below that it is a click. (EXPERIENCE: Interaction Primitives)
 - UX-DR67: Drag a sheep: on drag start both drop targets highlight together; target under cursor intensifies; release on Market sells, in Better Place sacrifices; release on field places sheep where dropped; release outside the fence places it at the nearest point inside the fence. (EXPERIENCE: Interaction Primitives)
 - UX-DR68: No confirmations on sell, sacrifice or shop purchases; no confirmation dialogs on in-game actions, no tutorial pop-ups, no timers that hide what kills a sheep. (EXPERIENCE: Interaction Primitives, Component Patterns)
-- UX-DR69: Breed mode enter: click Breed → button heart-deep fill, cursor becomes heart, eligible adults get heart marker (lambs, elders, cooldown sheep don't). (EXPERIENCE: Interaction Primitives)
-- UX-DR70: Breed mode pair: click adult A (pins heart), then adult B → 3 breeding food spent, heart appears, lamb born 10s later, breed mode exits. Clicking an ineligible sheep shakes it and keeps mode active; clicking empty field in breed mode drops no food. (EXPERIENCE: Interaction Primitives)
+- UX-DR69: Breed mode enter: click Breed → button heart-deep fill, cursor becomes heart, ready adults get heart marker (lambs, elders, sheep that are not ready or are on cooldown don't). (EXPERIENCE: Interaction Primitives)
+- UX-DR70: Breed mode pair: click ready adult A (pins heart), then ready adult B → both lose readiness, heart appears, lamb born 10s later, breed mode exits. Clicking an ineligible sheep shakes it and keeps mode active; clicking empty field in breed mode drops no food. (EXPERIENCE: Interaction Primitives)
 - UX-DR71: Breed mode cancel: right-click, `Esc`, or clicking Breed again. (EXPERIENCE: Interaction Primitives)
 - UX-DR72: Keys: `F` farms food, `G` farms breeding food, one action per keypress (no repeat on hold). Key hints printed on buttons. No touch, gamepad or remapping. (EXPERIENCE: Interaction Primitives, Input Schemes)
 - UX-DR73: `Esc` priority chain (agreed 2026-10-05): close start-over confirm → close sub-panel (Volume/Stats/Credits) → cancel drag → exit breed mode → close shop → open/close pause. (EXPERIENCE: Interaction Primitives, Component Patterns; game-architecture.md)
 - UX-DR74: Right-click cancels breed mode; right-drag (past 6px) pans the field camera, pinned so the whole pen stays in view (added 2026-10-06, Rylan); browser context menu suppressed on the canvas. (EXPERIENCE: Interaction Primitives)
-- UX-DR75: Hover shows tooltip on sheep and buttons; button tooltips: "Farm: fill the bar for 1 food (F)", "Farm Breeding Food: +1 (G)", "Breed: pick two adults". (EXPERIENCE: Interaction Primitives, Voice and Tone)
+- UX-DR75: Hover shows tooltip on sheep and buttons; button tooltips: "Farm: fill the bar for 1 food (F)", "Farm Breeding Food: fill the bar for 1 breeding food (G)", "Breed: pick two adults". (EXPERIENCE: Interaction Primitives, Voice and Tone)
 - UX-DR76: Mouse-only completeness: every action reachable via left-click, drag, right-click. (EXPERIENCE: Input Schemes)
 
 #### Feel
@@ -234,7 +236,7 @@ Items tagged **(Should)** follow GDD Should tier; everything else is Must.
 - UX-DR80: Sacrifice: cartoon suction, `halo` sparkle, Farm button gold glow. (EXPERIENCE: Game Feel & Juice; DESIGN: Colors)
 - UX-DR81: **(Should)** Abomination reveal: true-form flash, screech and sting. (EXPERIENCE: Game Feel & Juice)
 - UX-DR82: Breeding: heart pops; lamb arrives 10s later with small poof. Sale: coin popup "$10" (or "$5") and cash-register ding. (EXPERIENCE: Game Feel & Juice)
-- UX-DR83: Era change: ~1s crossfade, banner, fanfare (regress: soft descending note). Empty meter: shake + alert flash. **(Should)** Last sheep: banner + sting. Every juice item has an audio cue. (EXPERIENCE: Game Feel & Juice)
+- UX-DR83: Era change: ~1s crossfade, banner, fanfare (regress: soft descending note). **(Should)** Last sheep: banner + sting. Every juice item has an audio cue. (EXPERIENCE: Game Feel & Juice)
 
 #### Accessibility
 
@@ -253,7 +255,7 @@ Items tagged **(Should)** follow GDD Should tier; everything else is Must.
 - UX-DR93: Action toasts: sold "{name} sold. $10." / "{name} sold. $5."; sacrifice "{name} went to a Better Place."; reveal innocent "…that was just {name}." ("…that was just a sheep." before names); reveal Abomination: screech then "Good riddance.". (EXPERIENCE: Voice and Tone)
 - UX-DR94: Banners: era up "Village" / "Town" / "Wool Empire"; era regress "Back to {era}."; "Last sheep!" (Should). (EXPERIENCE: Voice and Tone)
 - UX-DR95: Screen strings: "Paused"; "Shop"; start-over "Start over? Your flock will be lost." · "Cancel" · "Start over"; lose "The flock is gone." · "Survived {mm:ss} · Peak flock {n}" · "Restart"; menu labels "Continue", "New Game", "Credits", "Resume", "Volume", "Stats", "Restart", "Back", "Main Menu"; shop "Owned", "Needs Land {n}". (EXPERIENCE: Voice and Tone, IA, Component Patterns; DESIGN: Components)
-- UX-DR96: HUD strings: Breed greyed tooltips "No room. Buy land." / "Needs 3 breeding food."; invalid sell tag "Too young"; drop labels "$10"/"$5" and "+2× food"; button labels "Farm" (F), "Farm Breeding Food" (G), "Breed"; button tooltips per UX-DR75; threat hover "{n} starving" (and equivalents); sheep tooltip "{Stage} · {Hunger}". (EXPERIENCE: Voice and Tone, Component Patterns)
+- UX-DR96: HUD strings: Breed greyed tooltips "No room. Buy land." / "Needs 2 ready sheep."; invalid sell tag "Too young"; drop labels "$10"/"$5" and "+2× food"; button labels "Farm" (F), "Farm Breeding Food" (G), "Breed"; button tooltips per UX-DR75; threat hover "{n} starving" (and equivalents); sheep tooltip "{Stage} · {Hunger}". (EXPERIENCE: Voice and Tone, Component Patterns)
 - UX-DR97: Copy rules: centralise strings in one module; sheep always named once names exist (Should), "A sheep" before; no exclamation marks except "Last sheep!"; banned words "corpse", "blood", "kill" (carcass is strongest allowed); no tutorial text beyond labels and tooltips. (EXPERIENCE: Voice and Tone)
 
 #### Layout
@@ -272,10 +274,11 @@ FR4: Removed 2026-10-06
 FR5: Epic 1 - Sheep seek and eat food
 FR6: Epic 2 - GDD starting flock (Epic 1 uses an interim 3-adult flock)
 FR7: Epic 2 - Life stages and old-age death
-FR8: Epic 2 - Farm Breeding Food button
+FR8: Epic 2 - Farm Breeding Food bar (drops breeding pieces)
+FR8a: Epic 2 - Adults eat breeding food and become ready
 FR9: Epic 2 - Breed tool and gestation
 FR10: Epic 2 - Breeding cooldown
-FR11: Epic 2 - Breeding blocked at capacity / low breeding food
+FR11: Epic 2 - Breeding blocked at capacity / fewer than 2 ready adults
 FR12: Epic 2 - Carcass on every non-sacrifice death
 FR13: Epic 2 - Click to clear carcass
 FR14: Epic 2 - Starving sheep eat carcasses when no food
@@ -318,7 +321,7 @@ Players open the game from a title screen and keep a small flock alive by farmin
 
 ### Epic 2: Life, Death & Contagion (Must)
 Sheep are born, age and die; neglect spreads a carcass → infection chain, which the player breaks by clearing carcasses or sacrificing infected sheep in the Better Place. Includes the colour-independent infection cue, alert pings and threat summary.
-**FRs covered:** FR6, FR7, FR8, FR9, FR10, FR11, FR12, FR13, FR14, FR15, FR16, FR18, FR19, FR20 (sacrifice)
+**FRs covered:** FR6, FR7, FR8, FR8a, FR9, FR10, FR11, FR12, FR13, FR14, FR15, FR16, FR18, FR19, FR20 (sacrifice)
 
 ### Epic 3: Economy & Eras (Must — MVP complete)
 Players sell sheep for money, buy land and decorations, and watch the pasture move through four eras (which can regress). Ends with the first pacing playtest.
@@ -666,7 +669,7 @@ So that every sheep has a lifespan I must plan around.
 
 **Given** `createNewGame(seed)`
 **When** a new game starts
-**Then** the flock is 2 adults aged 60 s plus 1 newborn lamb, all at Fullness 60, with an empty Farm bar and 0 breeding food (FR6), replacing the Epic 1 interim flock
+**Then** the flock is 2 adults aged 60 s plus 1 newborn lamb, all at Fullness 60, with an empty Farm bar (FR6; the breeding bar arrives in 2.2), replacing the Epic 1 interim flock
 **And** `SAVE_SCHEMA_VERSION` is bumped with a migration if the state shape changed
 
 **Given** a seeded test
@@ -676,26 +679,39 @@ So that every sheep has a lifespan I must plan around.
 ### Story 2.2: Farm Breeding Food
 
 As a player,
-I want a second farm button that produces breeding food,
-So that I can save up to breed my sheep.
+I want a second farm button that fills a bar and drops breeding food into the pen,
+So that my adults can eat it and become ready to breed.
+
+> **Changed 2026-10-06** (sprint-change-proposal-2026-10-06-breeding-food.md): breeding food works like the Farm bar and drops pieces that adults eat; there is no breeding stock.
 
 **Acceptance Criteria:**
 
 **Given** the bottom bar
 **When** it renders
-**Then** a Farm Breeding Food button (`button-breed-food`: heart fill, heart-deep border, label "Farm Breeding Food", key hint "G") sits right of Farm, with a breeding meter beneath it: 10 `heart` pips, a `heart-deep` tick marking the 3-pip breed cost and "{n}/10" in numeric type (UX-DR28, UX-DR30)
+**Then** a Farm Breeding Food button (`button-breed-food`: heart fill, heart-deep border, label "Farm Breeding Food", key hint "G") sits right of Farm, with a breeding progress bar beneath it: 8 `heart` pips and "{n}/8" in numeric type, starting at "0/8" (UX-DR28, UX-DR30)
 
-**Given** breeding food below 10
-**When** I click the button or press `G`
-**Then** a `FarmBreeding` command adds 1 (FR8), with Farm's squash and same-frame meter update, and a "+1" popup on every click (breeding food has no progress bar); holding `G` gives one action per press (FR43)
+**Given** the button
+**When** I click it or press `G`
+**Then** a `FarmBreeding` command fills 1 pip (FR8), with Farm's squash and a same-frame bar update; holding `G` gives one action per press (FR43)
+**And** a full bar resets (keeping leftover pips) and drops a breeding-food piece at a seeded-random reachable spot in the pen, with a landing bounce and a "+1" popup over the button (UX-DR30a, UX-DR44)
+**And** the bar is never boosted; there is no cap and pieces never spoil
 
-**Given** breeding food at 10
-**When** I farm breeding food
-**Then** the button squashes, no popup appears and the meter bumps
+**Given** breeding pieces in the pen
+**When** an adult is not ready and not on breeding cooldown
+**Then** the nearest such adult walks to the nearest piece and eats it, becomes ready (`breedReady`) and gains no Fullness; lambs, elders and ready adults ignore pieces (FR8a)
+**And** a sheep that would seek food (Fullness < 90 and a food piece exists) seeks food first; breeding pieces never count as food for carcass eating (FR14)
+
+**Given** a ready sheep
+**When** it renders
+**Then** a small heart icon shows above it until it breeds or turns elder; turning elder clears `breedReady` (FR8a, UX-DR30a)
 
 **Given** the button tooltip
 **When** hovered
-**Then** it reads "Farm Breeding Food: +1 (G)" (UX-DR75)
+**Then** it reads "Farm Breeding Food: fill the bar for 1 breeding food (G)" (UX-DR75)
+
+**Given** a save from before this change
+**When** it loads
+**Then** it migrates with an empty breeding bar, no pieces and no sheep ready (`SAVE_SCHEMA_VERSION` bump)
 
 ### Story 2.3: Breed Two Adults
 
@@ -705,17 +721,17 @@ So that I can grow my flock.
 
 **Acceptance Criteria:**
 
-**Given** the Breed tool (`button-breed-tool`: wool fill, heart-deep border, heart icon, label "Breed") right of the breeding meter
-**When** I click it with ≥ 3 breeding food and free capacity
-**Then** `InputController` enters `breeding` mode: the button fills `heart-deep` with a `wool` label, the cursor becomes a heart, and eligible adults (not on cooldown, not lambs or elders) show a soft heart marker (UX-DR31, UX-DR69)
+**Given** the Breed tool (`button-breed-tool`: wool fill, heart-deep border, heart icon, label "Breed") right of the breeding progress bar
+**When** I click it with at least 2 ready adults and free capacity
+**Then** `InputController` enters `breeding` mode: the button fills `heart-deep` with a `wool` label, the cursor becomes a heart, and ready adults show a soft heart marker (UX-DR31, UX-DR69)
 
 **Given** breeding mode
-**When** I click adult A then adult B
-**Then** A gets a pinned heart, a `Breed` command spends 3 breeding food, a heart floats between them, a pregnancy `{ parentA, parentB, dueAt, x, y }` is added to `state.pregnancies`, and breed mode exits (FR9, UX-DR70)
+**When** I click ready adult A then ready adult B
+**Then** A gets a pinned heart, a `Breed` command clears both sheep's `breedReady` and starts their cooldown, a heart floats between them, a pregnancy `{ parentA, parentB, dueAt, x, y }` is added to `state.pregnancies`, and breed mode exits (FR9, UX-DR70)
 **And** 10 s later a lamb is born beside them with a small poof and a `LambBorn` event (UX-DR56, UX-DR82)
 
 **Given** breeding mode
-**When** I click an ineligible sheep
+**When** I click an ineligible sheep (not a ready adult)
 **Then** it shakes and breed mode stays active; clicking empty field drops no food (UX-DR70)
 
 **Given** breeding mode
@@ -726,9 +742,9 @@ So that I can grow my flock.
 **When** 60 s have not yet passed (`cooldownUntil`)
 **Then** it cannot breed and its tooltip shows the heart-outline icon (FR10)
 
-**Given** living sheep + pending pregnancies equal capacity (10 before land), or breeding food < 3
+**Given** living sheep + pending pregnancies equal capacity (10 before land), or fewer than 2 adults are ready
 **When** the HUD renders
-**Then** Breed is greyed (`button-disabled`) with tooltip "No room. Buy land." or "Needs 3 breeding food.", and an active breed mode exits (FR11, UX-DR31, UX-DR32)
+**Then** Breed is greyed (`button-disabled`) with tooltip "No room. Buy land." or "Needs 2 ready sheep.", and an active breed mode exits (FR11, UX-DR31, UX-DR32)
 **And** capacity is computed by a selector as living sheep + `state.pregnancies.length` (AR21)
 
 ### Story 2.4: Carcasses and Death Announcements
@@ -853,7 +869,7 @@ So that the dark choice has a real payoff.
 
 **Given** a boost
 **When** I farm breeding food
-**Then** it is not doubled (FR8)
+**Then** each click still fills 1 breeding pip (FR8)
 
 **Given** a seeded test
 **When** a sacrifice happens, then 29 s and 31 s pass
@@ -1005,6 +1021,7 @@ So that the MVP hypothesis is tested and pacing is close to the GDD targets befo
 **When** numbers are off
 **Then** only values in `config/tuning.ts` are changed, sim tests still pass using `TUNING` references, and changes are noted in the GDD decision log
 **And** `TUNING.farmPipsPerFood` (8) is tuned against the GDD feed-demand numbers, with a decision on whether Better Hoe moves from Should to Must, and a 300-piece field pile keeps the sim tick under 2 ms
+**And** `TUNING.breedingPipsPerFood` (8) is tuned so the first breeding lands in the GDD pacing window, and a mixed pile of food and breeding pieces keeps the sim tick under 2 ms
 
 **Given** the session
 **When** it ends
@@ -1164,7 +1181,7 @@ So that I can keep up with a growing flock.
 
 **Given** the shop
 **When** I buy Better Hoe I ($30) then Better Hoe II ($100, requires I)
-**Then** a Farm click fills 2 then 3 pips (FR24); the Farm tooltip is unchanged
+**Then** a Farm click fills 2 then 3 pips (FR24); the Farm tooltip is unchanged and the breeding bar still fills 1 pip per click
 
 **Given** an active sacrifice boost
 **When** I farm with a hoe
@@ -1176,7 +1193,7 @@ As a player,
 I want an auto-feeder that drops food for the hungriest sheep,
 So that I get a little help without the game playing itself.
 
-> **Redesign pending (2026-10-06):** there is no food stock any more, so "taking 1 from the food meter" and "the food meter is 0" no longer apply. Decide what feeds the auto-feeder when this story is created.
+> **Redesign pending (2026-10-06):** there is no food stock any more, so "taking 1 from the food meter" and "the food meter is 0" no longer apply. Decide what feeds the auto-feeder when this story is created. It drops food pieces only; breeding pieces are never produced or targeted by it.
 
 **Acceptance Criteria:**
 
