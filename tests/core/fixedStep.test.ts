@@ -70,6 +70,17 @@ describe('FixedStepClock', () => {
     expect(clock.advance(100)).toBe(4);
   });
 
+  it('runs no ticks at speed 0 (debug pause) and resumes where it left off', () => {
+    const clock = new FixedStepClock();
+    clock.advance(TICK_MS / 2);
+    const alpha = clock.alpha;
+    clock.speed = 0;
+    for (let i = 0; i < 10; i++) expect(clock.advance(MAX_FRAME_MS)).toBe(0);
+    expect(clock.alpha).toBe(alpha);
+    clock.speed = 1;
+    expect(clock.advance(TICK_MS / 2)).toBe(1);
+  });
+
   it('applies speed after clamping', () => {
     const clock = new FixedStepClock();
     clock.speed = 4;

@@ -4,6 +4,7 @@ import { log } from './core/log';
 import { BootScene } from './view/scenes/BootScene';
 import { GameScene } from './view/scenes/GameScene';
 import { PreloadScene } from './view/scenes/PreloadScene';
+import { attachGame, installSafetyNet, reportError } from './view/safetyNet';
 
 const CONTAINER_ID = 'game-container';
 
@@ -48,12 +49,15 @@ async function loadFonts(): Promise<void> {
 }
 
 async function start(): Promise<void> {
+  const container = document.getElementById(CONTAINER_ID);
+  // First, so errors during boot (fonts, game creation) are caught too.
+  installSafetyNet(container);
   document.body.style.backgroundColor = COLORS.duskDeep;
-  document.getElementById(CONTAINER_ID)?.style.setProperty('background-color', COLORS.duskDeep);
+  container?.style.setProperty('background-color', COLORS.duskDeep);
 
   await loadFonts();
 
-  new Phaser.Game({
+  const game = new Phaser.Game({
     type: Phaser.AUTO,
     width: CANVAS_WIDTH,
     height: CANVAS_HEIGHT,
@@ -66,6 +70,14 @@ async function start(): Promise<void> {
     },
     scene: [BootScene, PreloadScene, GameScene],
   });
+  attachGame(game);
+
+  // DEV only, and a dynamic import: production replaces import.meta.env.DEV with false, drops the
+  // branch and never emits the debug chunk. Never import src/debug/ statically.
+  if (import.meta.env.DEV) {
+    const { installDebugOverlay } = await import('./debug/DebugOverlay');
+    installDebugOverlay(game);
+  }
 }
 
-start().catch((err: unknown) => log.error('boot', 'Startup failed', err));
+start().catch((err: unknown) => reportError('boot', err));
