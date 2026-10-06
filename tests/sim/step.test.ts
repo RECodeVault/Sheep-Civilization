@@ -20,7 +20,7 @@ describe('step', () => {
     expect(a).toStrictEqual(b);
   });
 
-  it('emits nothing while no system is registered', () => {
+  it('movement emits no events', () => {
     expect(runFor(newGame(), 2_000)).toEqual([]);
   });
 

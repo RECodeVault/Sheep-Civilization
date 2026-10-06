@@ -1,0 +1,128 @@
+// Movement and flock spacing (AR5): per-tick steering from wander, separation and fence
+// containment, with neighbour queries through the uniform grid. No physics engine (ADR-3).
+import { TICK_MS } from '../../config/constants';
+import { TUNING } from '../../config/tuning';
+import { assertNever } from '../../core/types';
+import { queryNeighbours, rebuildGrid } from '../grid';
+import { rng, rngRange } from '../rng';
+import { fenceBounds } from '../selectors';
+import type { GameState } from '../state';
+
+const TAU = 2 * Math.PI;
+const DT = TICK_MS / 1000;
+
+// Module-scope scratch, grown on demand, so a tick allocates nothing.
+let vx = new Float64Array(128);
+let vy = new Float64Array(128);
+const neighbours: number[] = [];
+
+function wrapAngle(a: number): number {
+  a %= TAU;
+  return a < 0 ? a + TAU : a;
+}
+
+/**
+ * Two passes so the result does not depend on array order: every velocity is computed from the
+ * start-of-tick positions first, then every sheep moves and is clamped inside the fence.
+ */
+export function updateMovement(state: GameState): void {
+  const sheep = state.sheep;
+  const n = sheep.length;
+  if (n > vx.length) {
+    let size = vx.length;
+    while (size < n) size *= 2;
+    vx = new Float64Array(size);
+    vy = new Float64Array(size);
+  }
+
+  const f = fenceBounds(state);
+  const left = f.x + TUNING.fenceInset;
+  const right = f.x + f.width - TUNING.fenceInset;
+  const top = f.y + TUNING.fenceInset;
+  const bottom = f.y + f.height - TUNING.fenceInset;
+  const margin = TUNING.fenceTurnMarginPx;
+  const walk = TUNING.walkSpeedPxPerS;
+  const space = TUNING.personalSpacePx;
+  const sepScale = TUNING.separationWeight * walk;
+
+  rebuildGrid(sheep);
+
+  // Pass 1: velocities.
+  for (let i = 0; i < n; i++) {
+    const s = sheep[i];
+    let wx = 0;
+    let wy = 0;
+    let walking = false;
+
+    switch (s.activity) {
+      case 'wander':
+        if (state.time >= s.restUntil) {
+          if (rng(state) < TUNING.wanderRestChance) {
+            s.restUntil = state.time + rngRange(state, TUNING.wanderRestMinMs, TUNING.wanderRestMaxMs);
+          } else {
+            walking = true;
+            let h = s.heading + rngRange(state, -TUNING.wanderTurnRad, TUNING.wanderTurnRad);
+            // Soft containment: near an inner edge and heading out, mirror the heading back toward
+            // the pen, so sheep turn around instead of sliding along the rail.
+            if ((s.x < left + margin && Math.cos(h) < 0) || (s.x > right - margin && Math.cos(h) > 0)) h = Math.PI - h;
+            if ((s.y < top + margin && Math.sin(h) < 0) || (s.y > bottom - margin && Math.sin(h) > 0)) h = -h;
+            s.heading = wrapAngle(h);
+            wx = Math.cos(s.heading) * walk;
+            wy = Math.sin(s.heading) * walk;
+          }
+        }
+        break;
+      default:
+        assertNever(s.activity);
+    }
+
+    // Separation: linear falloff from full push at contact to none at the personal-space radius.
+    let sx = 0;
+    let sy = 0;
+    const count = queryNeighbours(sheep, i, space, neighbours);
+    for (let k = 0; k < count; k++) {
+      const o = sheep[neighbours[k]];
+      const dx = s.x - o.x;
+      const dy = s.y - o.y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d === 0) {
+        // Exactly coincident: split along x by id, deterministically and without rng.
+        sx += s.id > o.id ? 1 : -1;
+      } else {
+        const w = 1 - d / space;
+        sx += (dx / d) * w;
+        sy += (dy / d) * w;
+      }
+    }
+
+    let ux = wx + sx * sepScale;
+    let uy = wy + sy * sepScale;
+    const speed = Math.sqrt(ux * ux + uy * uy);
+    if (speed > walk) {
+      ux *= walk / speed;
+      uy *= walk / speed;
+    }
+    // A crowded walker turns with the push, so it does not walk straight back in next tick.
+    if (walking && (sx !== 0 || sy !== 0) && speed > 0) s.heading = wrapAngle(Math.atan2(uy, ux));
+    vx[i] = ux;
+    vy[i] = uy;
+  }
+
+  // Pass 2: integrate, then the hard clamp that guarantees no sheep leaves the fence. A clamped
+  // axis flips the heading so the next tick walks inward.
+  for (let i = 0; i < n; i++) {
+    const s = sheep[i];
+    let x = s.x + vx[i] * DT;
+    let y = s.y + vy[i] * DT;
+    if (x < left || x > right) {
+      x = x < left ? left : right;
+      s.heading = wrapAngle(Math.PI - s.heading);
+    }
+    if (y < top || y > bottom) {
+      y = y < top ? top : bottom;
+      s.heading = wrapAngle(-s.heading);
+    }
+    s.x = x;
+    s.y = y;
+  }
+}

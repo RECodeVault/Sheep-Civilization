@@ -23,7 +23,23 @@ export const TUNING = Object.freeze({
   // [ASSUMPTION, tune in 3.6] Starting fence, inside the Land I fence of mockups/hud.html so it can
   // grow in place; clear of the Better Place (upper-left), the Market (right) and the 112 px bar.
   startFence: Object.freeze({ x: 556, y: 330, width: 380, height: 250 }) satisfies Rect,
-  // Distance from the fence edge to the nearest spawn point (a sheep's centre). Clears a 64×52 sheep
-  // (half-width 32) plus the fence's 4 px side rail and its 12 px pair of top/bottom rails.
-  spawnInset: 40,
+  // Closest a sheep's centre may come to the fence, for spawning and movement alike. Clears a 64×52
+  // sheep (half-width 32) plus the fence's 4 px side rail and its 12 px pair of top/bottom rails.
+  fenceInset: 40,
+  // GDD Feeding: "Walk speed 60 px/s (tune)". The cap on any sheep's total speed.
+  walkSpeedPxPerS: 60,
+  // GDD Abomination tells: "normal 24 px personal space (tune)". Story 4.2 adds the 36 px value.
+  personalSpacePx: 24,
+  // Architecture (Movement and Flock Spacing): 48 px uniform grid for neighbour queries.
+  gridCellPx: 48,
+  // [ASSUMPTION, tune in 3.6] Wander feel: the most a heading turns per tick, the per-tick chance a
+  // walking sheep stops to graze (mean walk about 5 s), and how long a grazing stop lasts.
+  wanderTurnRad: 0.35,
+  wanderRestChance: 0.02,
+  wanderRestMinMs: 1_500,
+  wanderRestMaxMs: 4_000,
+  // [ASSUMPTION, tune in 3.6] Separation speed at full overlap, as a multiple of walk speed (before
+  // the walk-speed cap), and how close to the inner fence edge a walking sheep starts turning back.
+  separationWeight: 1.5,
+  fenceTurnMarginPx: 24,
 });

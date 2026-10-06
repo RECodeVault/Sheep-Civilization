@@ -6,10 +6,26 @@ import type { PooledEntitySprite } from './EntityLayer';
 // Placeholder art is 32×26, shown at 2× (about 64×52 on the 1280×720 canvas, as in the mockup).
 const SHEEP_SCALE = 2;
 
+// Facing changes only when a sheep moves more than this sideways in one tick (a quarter of walk
+// speed), so grazing and small separation nudges in a crowd do not flip it back and forth.
+const FACING_DEADBAND_PX = 1.5;
+
+/**
+ * Draws a sheep between its previous and current tick positions (fixed-step interpolation), so the
+ * 10 Hz sim looks smooth at any refresh rate. Rendering is one tick behind the sim; Story 2.7's drag
+ * must snap to the pointer instead. The positions here are view state only, never game data.
+ */
 export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEntitySprite<PublicSheep> {
   private boundId = 0;
+  private fresh = true;
+  private prevX = 0;
+  private prevY = 0;
+  private currX = 0;
+  private currY = 0;
+  private lastTick = 0;
 
   constructor(scene: Phaser.Scene) {
+    // The placeholder adult frame faces right; flipX makes it face left.
     super(scene, 0, 0, ATLAS.sheepWorld, FRAME.adultIdle);
     this.setScale(SHEEP_SCALE);
     scene.add.existing(this);
@@ -25,12 +41,29 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
     this.setActive(true).setVisible(true);
   }
 
-  // Story 1.3 adds interpolation between the previous and current tick positions (alpha).
-  sync(pub: PublicSheep, _alpha: number): void {
-    if (this.x !== pub.x || this.y !== pub.y) {
-      this.setPosition(pub.x, pub.y);
+  sync(pub: PublicSheep, alpha: number, simTime: number): void {
+    if (this.fresh) {
+      // A newly bound (possibly reused) sprite starts at rest, never sliding in from an old spot.
+      this.fresh = false;
+      this.prevX = this.currX = pub.x;
+      this.prevY = this.currY = pub.y;
+      this.lastTick = simTime;
+    } else if (simTime !== this.lastTick) {
+      this.prevX = this.currX;
+      this.prevY = this.currY;
+      this.currX = pub.x;
+      this.currY = pub.y;
+      this.lastTick = simTime;
+      const dx = this.currX - this.prevX;
+      if (dx < -FACING_DEADBAND_PX) this.setFlipX(true);
+      else if (dx > FACING_DEADBAND_PX) this.setFlipX(false);
+    }
+    const x = this.prevX + (this.currX - this.prevX) * alpha;
+    const y = this.prevY + (this.currY - this.prevY) * alpha;
+    if (this.x !== x || this.y !== y) {
+      this.setPosition(x, y);
       // Lower sheep draw in front.
-      this.setDepth(pub.y);
+      this.setDepth(y);
     }
   }
 
@@ -40,6 +73,8 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
 
   reset(): void {
     this.boundId = 0;
+    this.fresh = true;
+    this.setFlipX(false);
     this.setActive(false).setVisible(false);
   }
 }

@@ -72,6 +72,6 @@ export class GameScene extends Phaser.Scene {
 
   private render(): void {
     selectPublicSheep(this.state, this.publicSheep);
-    this.sheepLayer.sync(this.publicSheep, this.clock.alpha);
+    this.sheepLayer.sync(this.publicSheep, this.clock.alpha, this.state.time);
   }
 }

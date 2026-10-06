@@ -4,7 +4,11 @@ import { ObjectPool } from './ObjectPool';
 
 export interface PooledEntitySprite<TPublic> {
   bind(id: number): void;
-  sync(item: TPublic, alpha: number): void;
+  /**
+   * `alpha` is the fraction of the next tick already accumulated; `simTime` is `state.time`, so a
+   * sprite can tell when a new tick arrived and shift its previous/current positions.
+   */
+  sync(item: TPublic, alpha: number, simTime: number): void;
   /** Hides the sprite as its entity leaves; exit animations (juice) arrive in later stories. */
   playExit(): void;
 }
@@ -25,7 +29,7 @@ export class EntityLayer<TPublic extends { id: number }, TSprite extends PooledE
     this.pool = pool;
   }
 
-  sync(items: readonly TPublic[], alpha: number): void {
+  sync(items: readonly TPublic[], alpha: number, simTime: number): void {
     this.seen.clear();
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
@@ -36,7 +40,7 @@ export class EntityLayer<TPublic extends { id: number }, TSprite extends PooledE
         spr.bind(it.id);
         this.live.set(it.id, spr);
       }
-      spr.sync(it, alpha);
+      spr.sync(it, alpha, simTime);
     }
     // Deleting the current entry during Map.forEach is safe.
     this.live.forEach(this.sweep);

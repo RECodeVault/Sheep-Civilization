@@ -15,6 +15,10 @@ export interface Sheep {
   bornAt: number;
   fullness: number;
   activity: SheepActivity;
+  /** Wander direction in radians. Saved, so a resumed game continues the same walk. */
+  heading: number;
+  /** Game-ms deadline: while `time < restUntil` the sheep grazes in place (wander only). */
+  restUntil: number;
 }
 
 export interface FoodPiece {
@@ -68,6 +72,8 @@ export function createSheep(state: GameState, o: { x: number; y: number; bornAt:
     bornAt: o.bornAt,
     fullness: TUNING.startFullness,
     activity: 'wander',
+    heading: rngRange(state, 0, 2 * Math.PI),
+    restUntil: 0,
   };
   state.sheep.push(s);
   return s;
@@ -86,7 +92,7 @@ export function createNewGame(seed: number): GameState {
     lastEra: 'pasture',
   };
   const f = fenceBounds(state);
-  const inset = TUNING.spawnInset;
+  const inset = TUNING.fenceInset;
   for (let i = 0; i < TUNING.interimFlockAdults; i++) {
     createSheep(state, {
       x: Math.round(rngRange(state, f.x + inset, f.x + f.width - inset)),

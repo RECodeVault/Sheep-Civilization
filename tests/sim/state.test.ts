@@ -33,16 +33,16 @@ describe('createNewGame', () => {
     });
   });
 
-  it('places every sheep inside the starting fence, inset by spawnInset', () => {
+  it('places every sheep inside the starting fence, inset by fenceInset', () => {
     for (const seed of [1, 2, 3, 1234, 0xffffffff]) {
       const state = createNewGame(seed);
       const f = fenceBounds(state);
       for (const s of state.sheep) {
         expect(Number.isInteger(s.x) && Number.isInteger(s.y)).toBe(true);
-        expect(s.x).toBeGreaterThanOrEqual(f.x + TUNING.spawnInset);
-        expect(s.x).toBeLessThanOrEqual(f.x + f.width - TUNING.spawnInset);
-        expect(s.y).toBeGreaterThanOrEqual(f.y + TUNING.spawnInset);
-        expect(s.y).toBeLessThanOrEqual(f.y + f.height - TUNING.spawnInset);
+        expect(s.x).toBeGreaterThanOrEqual(f.x + TUNING.fenceInset);
+        expect(s.x).toBeLessThanOrEqual(f.x + f.width - TUNING.fenceInset);
+        expect(s.y).toBeGreaterThanOrEqual(f.y + TUNING.fenceInset);
+        expect(s.y).toBeLessThanOrEqual(f.y + f.height - TUNING.fenceInset);
       }
     }
   });

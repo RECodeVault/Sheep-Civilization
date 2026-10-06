@@ -1,6 +1,9 @@
 import { TICK_MS } from '../../src/config/constants';
+import { TUNING } from '../../src/config/tuning';
 import { clearEvents, drainEvents, type SimEvent } from '../../src/sim/events';
-import { createNewGame, type GameState } from '../../src/sim/state';
+import { rngRange } from '../../src/sim/rng';
+import { fenceBounds } from '../../src/sim/selectors';
+import { createNewGame, createSheep, type GameState } from '../../src/sim/state';
 import { step } from '../../src/sim/step';
 
 /** A fresh game with an empty event queue. Seeds are fixed literals so tests are deterministic. */
@@ -18,4 +21,23 @@ export function runFor(state: GameState, ms: number): SimEvent[] {
     drainEvents((e) => events.push(e));
   }
   return events;
+}
+
+/** The rect sheep centres must stay inside: the fence inset by `fenceInset` on every side. */
+export function innerFence(state: GameState): { left: number; right: number; top: number; bottom: number } {
+  const f = fenceBounds(state);
+  const i = TUNING.fenceInset;
+  return { left: f.x + i, right: f.x + f.width - i, top: f.y + i, bottom: f.y + f.height - i };
+}
+
+/** Adds adults at rng positions inside the inner fence until the flock has `count` sheep. */
+export function fillFlock(state: GameState, count: number): void {
+  const r = innerFence(state);
+  while (state.sheep.length < count) {
+    createSheep(state, {
+      x: rngRange(state, r.left, r.right),
+      y: rngRange(state, r.top, r.bottom),
+      bornAt: -TUNING.startAdultAgeMs,
+    });
+  }
 }
