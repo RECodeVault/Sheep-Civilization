@@ -4,7 +4,8 @@ import { STRINGS } from '../strings';
 import { textStyle } from '../widgets/box';
 import { Button } from '../widgets/Button';
 import { Panel } from '../widgets/Panel';
-import { guarded, lineBox, type Modal } from './MenuPanel';
+import { guarded } from '../safetyNet';
+import { lineBox, type Modal } from './MenuPanel';
 
 const CANCEL = COMPONENTS.buttonMenu;
 const START_OVER = COMPONENTS.buttonMenuDestructive;

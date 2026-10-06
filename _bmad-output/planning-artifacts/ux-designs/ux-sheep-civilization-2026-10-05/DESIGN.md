@@ -139,6 +139,7 @@ components:
     hoverBackgroundColor: '{colors.hay}'
     typography: '{typography.label}'
     rounded: '{rounded.md}'
+    width: 96px
     height: 40px
   shop-toggle:
     backgroundColor: '{colors.wood}'

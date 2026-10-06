@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { LAYOUT } from '../../config/constants';
 import { TUNING, type Rect } from '../../config/tuning';
 import { ATLAS, FRAME } from '../assetKeys';
+import { guarded } from '../safetyNet';
 
 const COUNT = 3;
 // Same 2× scale as SheepSprite (placeholder art is 32×26).
@@ -16,7 +17,8 @@ const PICK_TRIES = 12;
  * The title screen's decorative sheep (UX-DR12): three sprites walking between random spots in the
  * visible meadow around the title panel, resting between walks. Cosmetic view code only: tweens and
  * Math.random() are fine here because nothing touches GameState, and no sim runs on the title (only
- * GameScene steps the sim). The owning scene kills the tweens on shutdown.
+ * GameScene steps the sim). Callbacks are guarded, since Phaser calls them from its step. The owning
+ * scene kills the tweens on shutdown.
  */
 export class TitleFlock {
   private readonly scene: Phaser.Scene;
@@ -35,7 +37,7 @@ export class TitleFlock {
 
   private rest(sheep: Phaser.GameObjects.Sprite): void {
     const ms = Phaser.Math.Between(TUNING.wanderRestMinMs, TUNING.wanderRestMaxMs);
-    this.scene.time.delayedCall(ms, () => this.walk(sheep));
+    this.scene.time.delayedCall(ms, guarded(() => this.walk(sheep)));
   }
 
   private walk(sheep: Phaser.GameObjects.Sprite): void {
@@ -49,8 +51,8 @@ export class TitleFlock {
       duration: (dist / TUNING.walkSpeedPxPerS) * 1000,
       ease: 'Linear',
       // Lower sheep draw in front, as on the field.
-      onUpdate: () => sheep.setDepth(sheep.y),
-      onComplete: () => this.rest(sheep),
+      onUpdate: guarded(() => sheep.setDepth(sheep.y)),
+      onComplete: guarded(() => this.rest(sheep)),
     });
   }
 

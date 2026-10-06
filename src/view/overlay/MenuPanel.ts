@@ -1,6 +1,6 @@
 import type Phaser from 'phaser';
 import { CANVAS_HEIGHT, CANVAS_WIDTH, COMPONENTS, SPACING, TYPOGRAPHY, type TypographyToken } from '../../config/constants';
-import { reportError } from '../safetyNet';
+import { guarded } from '../safetyNet';
 import { textStyle } from '../widgets/box';
 import { Button } from '../widgets/Button';
 import { Panel } from '../widgets/Panel';
@@ -18,17 +18,6 @@ const STACK_GAP = SPACING[3];
 export function lineBox(role: TypographyToken, lines = 1): number {
   const t = TYPOGRAPHY[role];
   return Math.round(t.fontSize * t.lineHeight * lines);
-}
-
-/** Wraps a button or key handler: it runs inside Phaser's input step, where a throw stops the loop. */
-export function guarded(fn: () => void): () => void {
-  return () => {
-    try {
-      fn();
-    } catch (err) {
-      reportError('ui', err);
-    }
-  };
 }
 
 /** Anything a ModalController can show and hide. */

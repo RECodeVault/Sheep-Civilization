@@ -39,6 +39,11 @@ export function blockSaving(reason: string): void {
   blockedReason = reason;
 }
 
+/** True after a sim error blocked saving for this game: the live state may be bad. */
+export function isSavingBlocked(): boolean {
+  return blockedReason !== null;
+}
+
 /** Re-enables saving; GameScene calls it when a fresh or freshly loaded game starts. */
 export function allowSaving(): void {
   blockedReason = null;

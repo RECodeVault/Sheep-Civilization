@@ -44,7 +44,7 @@ export class OverlayScene extends Phaser.Scene {
   create(): void {
     this.gameScene = this.scene.get('GameScene') as GameScene;
     this.showingLose = false;
-    this.modals = new ModalController<OverlayModal>(this, COMPONENTS.menuScrim.opacity, SCRIM_DEPTH);
+    this.modals = new ModalController<OverlayModal>(this, COMPONENTS.menuScrim, SCRIM_DEPTH);
     this.losePanel = new LosePanel(this, PANEL_DEPTH, this.restart);
     this.subPanel = new PlaceholderPanel(this, PANEL_DEPTH, () => this.modals.back());
     this.modals

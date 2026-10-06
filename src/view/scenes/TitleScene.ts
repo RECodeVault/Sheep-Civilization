@@ -4,9 +4,10 @@ import { discardSave, loadSave, wipeSave } from '../../save/saveStore';
 import type { GameState } from '../../sim/state';
 import { TitleFlock } from '../field/TitleFlock';
 import { ConfirmPanel } from '../overlay/ConfirmPanel';
-import { guarded, MenuPanel, type MenuItem } from '../overlay/MenuPanel';
+import { MenuPanel, type MenuItem } from '../overlay/MenuPanel';
 import { ModalController } from '../overlay/ModalController';
 import { PlaceholderPanel } from '../overlay/PlaceholderPanel';
+import { guarded } from '../safetyNet';
 import { STRINGS } from '../strings';
 import { stateCanRun, type GameSceneData } from './GameScene';
 
@@ -20,6 +21,11 @@ const TITLE_GAP = SPACING[5];
 const TITLE_W = 560;
 
 type TitleModal = 'title' | 'confirm' | 'credits';
+
+/** Optional scene data: a game Main Menu could not save, offered for Continue from memory. */
+export interface TitleSceneData {
+  unsaved?: GameState;
+}
 
 /**
  * The start screen (UX-DR12): the logo and Continue (only when a save loads and can run) / New Game
@@ -36,14 +42,22 @@ export class TitleScene extends Phaser.Scene {
     super('TitleScene');
   }
 
-  create(): void {
-    const loaded = loadSave();
-    this.saved = loaded !== null && stateCanRun(loaded) ? loaded : null;
-    if (loaded !== null && this.saved === null) discardSave();
+  create(data?: TitleSceneData): void {
+    const unsaved = data?.unsaved;
+    // Phaser reuses start data when a later start passes none, so consume it (as GameScene does).
+    if (data !== undefined) delete data.unsaved;
+    if (unsaved !== undefined) {
+      // Main Menu could not save (storage blocked or full): Continue resumes the live game.
+      this.saved = stateCanRun(unsaved) ? unsaved : null;
+    } else {
+      const loaded = loadSave();
+      this.saved = loaded !== null && stateCanRun(loaded) ? loaded : null;
+      if (loaded !== null && this.saved === null) discardSave();
+    }
 
     // Placeholder ground until the era backgrounds arrive in Epic 3, as in GameScene.
     this.cameras.main.setBackgroundColor(COLORS.pasture);
-    this.modals = new ModalController<TitleModal>(this, COMPONENTS.menuScrimStart.opacity, SCRIM_DEPTH);
+    this.modals = new ModalController<TitleModal>(this, COMPONENTS.menuScrimStart, SCRIM_DEPTH);
 
     const items: MenuItem[] = [];
     if (this.saved !== null) items.push({ label: STRINGS.continue, onActivate: this.continueGame });
@@ -91,7 +105,11 @@ export class TitleScene extends Phaser.Scene {
   };
 
   // The confirm or credits go back to the title panel; on the title panel itself Esc does nothing.
-  private readonly onEsc = guarded(() => {
+  // Ignores key repeat, and an event Phaser's keyboard queue dispatches twice (see InputController).
+  private lastEsc: KeyboardEvent | null = null;
+  private readonly onEsc = guarded((event: KeyboardEvent): void => {
+    if (event === this.lastEsc || event.repeat) return;
+    this.lastEsc = event;
     this.modals.back();
   });
 

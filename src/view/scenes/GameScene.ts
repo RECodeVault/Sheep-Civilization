@@ -3,7 +3,7 @@ import { COLORS } from '../../config/constants';
 import { FixedStepClock } from '../../core/fixedStep';
 import { log } from '../../core/log';
 import { InputController } from '../../input/InputController';
-import { allowSaving, startAutosave, wipeSave, writeSave } from '../../save/saveStore';
+import { allowSaving, isSavingBlocked, startAutosave, wipeSave, writeSave } from '../../save/saveStore';
 import { applyCommand, type Command } from '../../sim/commands';
 import { clearEvents, drainEvents, type SimEvent } from '../../sim/events';
 import {
@@ -25,8 +25,11 @@ import { ObjectPool } from '../field/ObjectPool';
 import { PenCamera } from '../field/PenCamera';
 import { SheepHover } from '../field/SheepHover';
 import { SheepSprite } from '../field/SheepSprite';
-import { markGameStarted, reportError, setForceSave } from '../safetyNet';
+import { markGameStarted, reportError, setForceSave, showToast } from '../safetyNet';
+import { STRINGS } from '../strings';
+import type { TitleSceneData } from './TitleScene';
 import { Tooltip } from '../widgets/Tooltip';
+import type { HudScene } from './HudScene';
 import type { OverlayScene } from './OverlayScene';
 
 const SHEEP_POOL_SIZE = 120;
@@ -44,7 +47,8 @@ const MUNCH = {
   alpha: { start: 1, end: 0 },
 } as const;
 // Above every sheep (sheep depth = y ≤ 720). Sheep hover stays in this scene; HudScene draws above
-// it, and sheep never reach the bar, so the two tooltips never overlap.
+// it. The panned pen can slide under the Pause button, so the sheep hover skips while the pointer is
+// on a HUD control (pointerOnHudControl) and the two tooltips never show together.
 const TOOLTIP_DEPTH = 10_000;
 
 /** Optional scene data: a state to resume instead of a new game (a loaded save, or debug Load save). */
@@ -150,6 +154,9 @@ export class GameScene extends Phaser.Scene {
     this.skipDelta = false;
     this.game.events.on(Phaser.Core.Events.HIDDEN, this.onHidden, this);
     this.game.events.on(Phaser.Core.Events.VISIBLE, this.onVisible, this);
+    // A right-drag released while the window has no focus (alt-tab) never reaches Phaser, so the
+    // pan is dropped on blur and on hide.
+    this.game.events.on(Phaser.Core.Events.BLUR, this.onBlur, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       input.destroy();
       bus.off('sim', this.onSim, this);
@@ -157,6 +164,7 @@ export class GameScene extends Phaser.Scene {
       setForceSave(null);
       this.game.events.off(Phaser.Core.Events.HIDDEN, this.onHidden, this);
       this.game.events.off(Phaser.Core.Events.VISIBLE, this.onVisible, this);
+      this.game.events.off(Phaser.Core.Events.BLUR, this.onBlur, this);
     });
     this.render();
     // Run in parallel, drawn above (Overlay on top). `launch` restarts a running scene, so every
@@ -174,11 +182,6 @@ export class GameScene extends Phaser.Scene {
    */
   get simState(): Readonly<GameState> {
     return this.state;
-  }
-
-  /** True while the pause menu, a sub-panel or the start-over confirm is up (the clock is stopped). */
-  get isPaused(): boolean {
-    return this.paused;
   }
 
   /** True while any modal is up, the lose screen included: shortcuts, Farm and tooltips are off. */
@@ -217,17 +220,28 @@ export class GameScene extends Phaser.Scene {
 
   /**
    * Pause → Main Menu (Rylan, 2026-10-06): saves now, then leaves for the title, where Continue
-   * resumes this game. No confirm: nothing is lost. The save goes through writeSave, so it is
-   * validated and refused after a sim error (the last good save stays). HUD and Overlay are stopped
-   * with the game; Phaser queues all three ops, so input handlers may call it.
+   * resumes this game. No confirm, and nothing is lost (code review decision, Rylan):
+   * - the save wrote: the title loads it as usual;
+   * - it failed (storage blocked or full, invalid state): the live game is handed to the title, so
+   *   Continue still resumes it from memory;
+   * - saving is blocked after a sim error: the live state may be the bad one, so the game stays open
+   *   (paused) with a toast, and the last good save is kept.
+   * HUD and Overlay are stopped with the game; Phaser queues the ops, so input handlers may call it.
    */
   quitToTitle(): void {
+    let data: TitleSceneData = {};
+    if (!writeSave(this.state)) {
+      if (isSavingBlocked()) {
+        showToast(STRINGS.quitSaveFailed);
+        return;
+      }
+      data = { unsaved: this.state };
+    }
     this.stopAutosave();
     setForceSave(null);
-    writeSave(this.state);
     this.scene.stop('HudScene');
     this.scene.stop('OverlayScene');
-    this.scene.start('TitleScene');
+    this.scene.start('TitleScene', data);
   }
 
   update(): void {
@@ -250,14 +264,21 @@ export class GameScene extends Phaser.Scene {
         this.skipDelta = false;
         for (let t = 0; t < ticks; t++) this.tick();
       }
-      this.inputController.update();
       this.render();
-      // SheepHover reads the raw pointer, not hit objects, so it would show under the pause scrim.
-      if (this.paused) this.sheepHover.clear();
-      else this.sheepHover.update(this.publicSheep, this.game.loop.time);
     } catch (err) {
       // The remaining ticks of this frame are dropped, so a bad state throws once per frame at most.
       reportError('sim', err);
+    }
+    // View-only work (the pan and the sheep tooltip) has its own guard: a bug here is a UI error, and
+    // must not count as a sim error, which would stop saving.
+    try {
+      this.inputController.update();
+      // SheepHover reads the raw pointer, not hit objects, so it would show under any modal's scrim
+      // or through a HUD control the pen is panned under.
+      if (this.modalOpen || this.pointerOnHudControl()) this.sheepHover.clear();
+      else this.sheepHover.update(this.publicSheep, this.game.loop.time);
+    } catch (err) {
+      reportError('ui', err);
     }
   }
 
@@ -303,8 +324,19 @@ export class GameScene extends Phaser.Scene {
     return true;
   }
 
+  private pointerOnHudControl(): boolean {
+    // Launched after this scene and replaced on every restart: look it up, and only trust it live.
+    const hud = this.scene.get('HudScene') as HudScene;
+    return hud.sys.isActive() && hud.pointerOverControl;
+  }
+
+  private onBlur(): void {
+    this.inputController.cancelPan();
+  }
+
   private onHidden(): void {
     this.hidden = true;
+    this.inputController.cancelPan();
   }
 
   // Never touches `paused`: a menu open before the tab hid is still open after.

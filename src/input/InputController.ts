@@ -43,13 +43,19 @@ export class InputController {
   private panDownY = 0;
   private panLastX = 0;
   private panLastY = 0;
+  // Phaser's KeyboardManager replays its whole per-step queue on every new key event, and its
+  // duplicate check compares only with the event before, so with three or more key events in one
+  // step an earlier keydown is dispatched again (KeyboardPlugin.update). Each handler ignores an
+  // event object it already handled.
+  private lastFarmKey: KeyboardEvent | null = null;
+  private lastEscKey: KeyboardEvent | null = null;
 
   constructor(input: Phaser.Input.InputPlugin, hooks: InputHooks) {
     this.hooks = hooks;
     this.input = input;
     input.on('pointerdown', this.onPointerDown, this);
-    // UX-DR74: right-click is reserved (it cancels breed mode in 2.3); never show the browser menu.
-    input.mouse?.disableContextMenu();
+    // UX-DR74: the browser context menu is disabled once for the page in BootScene (Phaser adds a
+    // listener per call that can never be removed).
     this.keyboard = input.keyboard;
     if (this.keyboard === null) {
       log.warn('input', 'No keyboard plugin; keyboard shortcuts are off');
@@ -72,8 +78,7 @@ export class InputController {
     if (!p.rightButtonDown() || this.hooks.modalOpen()) {
       // Released (anywhere, even off the canvas), or a modal opened mid-drag. A release that never
       // passed the threshold is a right-click; Story 2.3 cancels breed mode on it here.
-      this.panArmed = false;
-      this.panning = false;
+      this.cancelPan();
       return;
     }
     if (!this.panning) {
@@ -89,6 +94,12 @@ export class InputController {
     }
   }
 
+  /** Drops a right-drag pan in progress (window blur or hide: its release may never arrive). */
+  cancelPan(): void {
+    this.panArmed = false;
+    this.panning = false;
+  }
+
   destroy(): void {
     this.input.off('pointerdown', this.onPointerDown, this);
     this.keyboard?.off('keydown-F', this.onFarmKey, this);
@@ -97,7 +108,8 @@ export class InputController {
 
   private onFarmKey(event: KeyboardEvent): void {
     // One action per press, never on hold (FR43, UX-DR72); leave Ctrl/Cmd/Alt+F to the browser.
-    if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event === this.lastFarmKey || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+    this.lastFarmKey = event;
     // UX-DR20: shortcuts are ignored while a modal is up.
     if (this.hooks.modalOpen()) return;
     bus.emit('farm:pressed', undefined);
@@ -114,7 +126,8 @@ export class InputController {
 
   // Runs inside Phaser's input step, where a throw would stop the game loop.
   private onEscKey(event: KeyboardEvent): void {
-    if (event.repeat) return;
+    if (event === this.lastEscKey || event.repeat) return;
+    this.lastEscKey = event;
     try {
       const steps = this.hooks.esc;
       for (let i = 0; i < steps.length; i++) if (steps[i]()) return;

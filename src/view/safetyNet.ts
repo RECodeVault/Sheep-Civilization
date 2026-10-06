@@ -115,6 +115,20 @@ export function reportError(source: LogTag, err: unknown): void {
 }
 
 /**
+ * Wraps a handler Phaser calls from its own step (button, key, tween or timer callbacks), where a
+ * throw would stop the game loop: errors are reported as `ui` instead.
+ */
+export function guarded<A extends unknown[]>(fn: (...args: A) => void): (...args: A) => void {
+  return (...args: A) => {
+    try {
+      fn(...args);
+    } catch (err) {
+      reportError('ui', err);
+    }
+  };
+}
+
+/**
  * Shows a short top-centre toast that never blocks clicks. Up to 3 stack, newest on top; showing a
  * text that is already up moves it to the top and restarts its timer instead of duplicating it.
  */

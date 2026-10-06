@@ -176,6 +176,25 @@ export class Button {
     return this;
   }
 
+  /** True while Phaser reports the pointer over the button. */
+  get isHovered(): boolean {
+    return this.hovered;
+  }
+
+  /**
+   * Forgets hover and press, and resets the hand cursor. For a modal opening over the button: the
+   * scrim takes the pointer, so Phaser never sends this button pointer-out, and the stale hover would
+   * bring the tooltip, hover fill or hand cursor back. After the modal, hover returns once the pointer
+   * leaves and re-enters.
+   */
+  clearHover(): void {
+    if (this.hovered) this.scene.input.resetCursor();
+    this.hovered = false;
+    this.pressed = false;
+    this.hoverSinceMs = -1;
+    this.refresh();
+  }
+
   /** Real time (ms) the pointer started hovering, or -1 if no tooltip should show. */
   get hoverSince(): number {
     return this.hoverSinceMs;

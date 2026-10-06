@@ -1,8 +1,13 @@
 import type Phaser from 'phaser';
-import { CANVAS_HEIGHT, CANVAS_WIDTH, COLOR_INT, COMPONENTS } from '../../config/constants';
+import { CANVAS_HEIGHT, CANVAS_WIDTH, COLOR_INT, type ColorToken } from '../../config/constants';
+import { invariant } from '../../core/invariant';
 import type { Modal } from './MenuPanel';
 
-const SCRIM_COLOR = COMPONENTS.menuScrim.backgroundColor;
+/** A scrim component spec: `COMPONENTS.menuScrim` (72%, in game) or `menuScrimStart` (40%, title). */
+export interface ScrimSpec {
+  readonly backgroundColor: ColorToken;
+  readonly opacity: number;
+}
 
 /**
  * The one scrim and "which panel is up" (UX-DR20, layer 4), for the title (40% scrim) and the
@@ -18,13 +23,13 @@ export class ModalController<Id extends string> {
   private currentId: Id | null = null;
   private previousId: Id | null = null;
 
-  constructor(scene: Phaser.Scene, opacity: number, depth: number) {
+  constructor(scene: Phaser.Scene, scrim: ScrimSpec, depth: number) {
     this.scene = scene;
-    this.opacity = opacity;
+    this.opacity = scrim.opacity;
     // Full canvas, interactive with no handlers: it swallows clicks ("clicking the scrim does
     // nothing"), and Phaser's global top-only input keeps them from the scenes below.
     this.scrim = scene.add
-      .rectangle(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, COLOR_INT[SCRIM_COLOR], 1)
+      .rectangle(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, COLOR_INT[scrim.backgroundColor], 1)
       .setOrigin(0, 0)
       .setDepth(depth)
       .setInteractive();
@@ -48,9 +53,13 @@ export class ModalController<Id extends string> {
     this.setScrim(true, this.opacity);
   }
 
-  /** Shows `id` over the current panel's place; `back` returns to the current panel. */
+  /**
+   * Shows `id` in the current panel's place; `back` returns to the current panel. Needs a panel up:
+   * with none there would be no way back (use `show`).
+   */
   open(id: Id): void {
     const from = this.currentId;
+    invariant(from !== null, `ModalController.open('${id}') with no panel up; use show()`);
     this.swap(id);
     this.previousId = from;
     this.setScrim(true, this.opacity);

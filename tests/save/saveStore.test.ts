@@ -5,6 +5,7 @@ import {
   allowSaving,
   blockSaving,
   discardSave,
+  isSavingBlocked,
   loadSave,
   resetSaveStoreForTests,
   startAutosave,
@@ -170,12 +171,15 @@ describe('writeSave / loadSave', () => {
     const storage = new MemoryStorage();
     writeSave(newGame(2), storage, NOW);
     const before = storage.items.get(SAVE_KEY);
+    expect(isSavingBlocked()).toBe(false);
     blockSaving('test');
+    expect(isSavingBlocked()).toBe(true);
     blockSaving('test again');
     expect(writeSave(newGame(3), storage)).toBe(false);
     expect(storage.items.get(SAVE_KEY)).toBe(before);
     expect(saveWarnings()).toBe(1);
     allowSaving();
+    expect(isSavingBlocked()).toBe(false);
     expect(writeSave(newGame(3), storage)).toBe(true);
     expect(storage.items.get(SAVE_KEY)).not.toBe(before);
   });

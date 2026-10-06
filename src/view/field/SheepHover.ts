@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import type Phaser from 'phaser';
 import type { Hunger, PublicSheep, Stage } from '../../sim/selectors';
 import { STRINGS } from '../strings';
 import { HOVER_DELAY_MS, type Tooltip } from '../widgets/Tooltip';
@@ -35,9 +35,6 @@ export function sheepIndexAt(
   return best;
 }
 
-// Reused for the pointer's world point: no allocation per frame.
-const WORLD = new Phaser.Math.Vector2();
-
 /**
  * Shows the sheep tooltip (FR42, UX-DR43) for the sheep under the pointer. Reads the pointer and the
  * rendered sprites only: it sends no commands and never touches GameState. Allocates nothing per frame.
@@ -69,15 +66,14 @@ export class SheepHover {
     // Story 2.7: hide while dragging.
     const p = this.input.activePointer;
     // The input manager tracks whether the pointer is over the canvas; no listeners to clean up.
-    // World coordinates, like the sprites. Taken from this camera each frame, not pointer.worldX:
-    // that is only refreshed when this scene hit-tests a pointer event, so it goes stale while the
-    // camera pans (PenCamera) or the pointer sits over the HUD.
+    // World coordinates, like the sprites: the pointer plus this frame's camera scroll (zoom 1, no
+    // rotation). Not pointer.worldX, which is only refreshed when this scene hit-tests an event, and
+    // not camera.getWorldPoint, whose matrix is rebuilt only at render (one frame behind a pan).
     if (!this.input.manager.isOver) {
       this.clear();
       return;
     }
-    this.camera.getWorldPoint(p.x, p.y, WORLD);
-    const hit = sheepIndexAt(items, this.layer, WORLD.x, WORLD.y);
+    const hit = sheepIndexAt(items, this.layer, p.x + this.camera.scrollX, p.y + this.camera.scrollY);
     if (hit < 0) {
       this.clear();
       return;

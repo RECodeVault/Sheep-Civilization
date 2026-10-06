@@ -4,7 +4,7 @@ baseline_commit: 8d14fbee7ce1b15449dbd531eab7cf975e929423
 
 # Story 1.10: Title Screen, Pause Menu and Start-Over Confirm
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -212,6 +212,26 @@ so that I can control my session.
     - **(3.5)** the era badge must stay visible top-right **above** the pause and confirm scrim (UX-DR20, DESIGN Layout), so it must render in OverlayScene or above it, not in HudScene;
     - **(5.7)** reduced motion for the lose scrim fade (if kept);
     - **(5.4, 5.7, 5.9)** replace `PlaceholderPanel`.
+
+### Review Findings
+
+- [x] [Review][Decision] Main Menu when the save fails. **Resolved (Rylan): option 1, now a patch.** If the save fails, hand the in-memory game to the title, which offers Continue for it. If saving was blocked by a sim error, the in-memory state may be bad: stay in the paused game with a short "couldn't save" toast (option 2). `quitToTitle` ignores `writeSave`'s result, so when storage is blocked or full, or saving stopped after a sim error, the title reloads an older save (or none) and the session's flock is lost without a word, although the comment says "nothing is lost". (edge+blind)
+- [x] [Review][Patch] Main Menu save failure (from the decision above): hand the unsaved game to TitleScene for Continue; after a sim-error block, stay paused and show a toast [src/view/scenes/GameScene.ts:224]
+- [x] [Review][Patch] The sheep tooltip clears only while paused, not under every modal (the lose screen, e.g. debug sheep after a loss). Use `modalOpen` [src/view/scenes/GameScene.ts:256] (blind+auditor)
+- [x] [Review][Patch] Stale HUD hover after a modal: the scrim stops HUD pointer-out, so the Farm/Pause tooltip, hover look or hand cursor come back wrongly. Clear button hover when a modal opens [src/view/scenes/HudScene.ts:133] (blind+edge)
+- [x] [Review][Patch] Sheep hover shows through HUD controls (the Pause button can sit over the panned pen; two tooltips at once). Skip the hover while the pointer is over a HUD control [src/view/field/SheepHover.ts:79] (edge+blind)
+- [x] [Review][Patch] The hover hit test uses `getWorldPoint`, which reads last frame's camera matrix while panning. Use pointer + scroll, as the tooltip does [src/view/field/SheepHover.ts:79] (edge)
+- [x] [Review][Patch] Pan and hover errors are reported as `sim` errors, which block saving. Give them their own `ui` guard [src/view/scenes/GameScene.ts:253] (blind)
+- [x] [Review][Patch] The pan stays armed if the right button is released while the window has lost focus (alt-tab). Disarm on game BLUR/HIDDEN [src/input/InputController.ts:68] (blind)
+- [x] [Review][Patch] Phaser's keyboard queue can re-dispatch an earlier Esc/F within one step (with 3 or more key events, its dedupe only checks the previous event). Ignore an event object already handled [src/input/InputController.ts:115] (edge)
+- [x] [Review][Patch] `disableContextMenu` adds a permanent canvas listener on every GameScene start. Call it once at boot (it also covers the title) [src/input/InputController.ts:51] (edge)
+- [x] [Review][Patch] TitleFlock timer and tween callbacks are unguarded (Gotcha 11) [src/view/field/TitleFlock.ts:39] (blind+auditor)
+- [x] [Review][Patch] The title's Esc listener does not ignore key repeat [src/view/scenes/TitleScene.ts:95] (auditor)
+- [x] [Review][Patch] `buttonPause` drifts from DESIGN.md (`padding` is only in code; the width is the literal `PAUSE_W`). Put the width in the component and DESIGN.md, and drop the unused padding [src/config/constants.ts:205] (auditor)
+- [x] [Review][Patch] The title scrim takes its colour from `menuScrim`, not `menuScrimStart` [src/view/overlay/ModalController.ts:5] (auditor)
+- [x] [Review][Patch] `ModalController.open()` with nothing showing leaves no way back, and the `GameScene.isPaused` getter is unused [src/view/overlay/ModalController.ts:51] (blind)
+- [x] [Review][Patch] DEV: the debug panel (top-left, z-index 999) covers the Pause button. Move it [src/debug/DebugOverlay.ts:47] (edge)
+- [x] [Review][Patch] The Dev Agent Record deviation list is out of order (…6, 8, 9, 7) [1-10 story file] (auditor)
 
 ## Dev Notes
 
@@ -490,6 +510,8 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
   4. **`Button.setDepth` now sets the hit zone's depth** (bug found by the probe; see Debug Log).
   5. **A constants test change:** `tests/config/constants.test.ts` now expects 36 DESIGN.md components (`button-pause` was added to DESIGN.md in Task 8b.6).
   6. **No new unit tests.** This story touches only the view and input layers (project rule: Vitest covers sim and save only). The browser probe is the proof.
+  7. **Commands while paused:** nothing queues (Farm is ignored under a modal), so the 1.2/1.6 deferred items close without a queue cap.
+
   8. **Main Menu in the pause menu (Rylan, after implementation, 2026-10-06):** it is the last button. `GameScene.quitToTitle()` saves (validated `writeSave`, so it is refused after a sim error and the last good save stays), stops autosave and the forced save, stops HUD and Overlay, and starts the title, where Continue resumes. There is no confirm, because nothing is lost. The label "Main Menu" is an `[ASSUMPTION]` (not in the Voice table). This also closes the 1.6 "HudScene lifetime" item. EXPERIENCE.md and epics.md (UX-DR14, UX-DR95) record it.
   9. **Field camera (Rylan, 2026-10-06; outside the story's scope, built on this branch at his request):**
      - Every game (new, continued, restarted) opens with the pen centred in the field above the bottom bar (scroll 106,151).
@@ -498,12 +520,47 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
      - `PenCamera` keeps the exact scroll and shows whole pixels. `InputController` polls the pointer each frame, because Phaser stops sending moves to the game scene while the HUD is on top.
      - `SheepHover` now hit-tests with `camera.getWorldPoint`, and `Tooltip` is fixed to the screen.
      - UX docs, the architecture, project-context and `deferred-work.md` (notes for 2.3, 2.4, 2.7, 3.1, 3.3) record it.
-  7. **Commands while paused:** nothing queues (Farm is ignored under a modal), so the 1.2/1.6 deferred items close without a queue cap.
+### Review Follow-up (2026-10-06)
+
+The review found 1 decision, 15 patches, 0 deferred items and 6 dismissed. The decision became a 16th patch.
+
+- **Decision (Rylan): option 1.** If Main Menu's save fails, the in-memory game goes to the title, and Continue resumes it. If saving was blocked by a sim error, the game stays paused with the toast "Your flock couldn't be saved, so it stays here." (`TitleSceneData.unsaved`, `isSavingBlocked`).
+- **16 patches applied:**
+  - **Hover and tooltips:**
+    - The sheep tooltip is off under every modal (`modalOpen`) and while the pointer is on a HUD control (`HudScene.pointerOverControl`).
+    - The hit test uses pointer + scroll, not last frame's `getWorldPoint` matrix.
+    - `Button.clearHover` runs on both HUD buttons when a modal opens (no stale tooltip, fill or hand cursor).
+  - **Errors:** pan and hover have their own `ui` guard.
+  - **Input:**
+    - The pan is cancelled on game BLUR and HIDDEN.
+    - Esc and F ignore an event object Phaser's keyboard queue dispatches twice.
+    - The context menu is disabled once in `BootScene` (no more listener per game).
+  - **Title:** the TitleFlock callbacks are guarded (`guarded` moved to `safetyNet`), and the title's Esc ignores repeat.
+  - **Spec drift:**
+    - `buttonPause` has width 96 in `COMPONENTS` and DESIGN.md, and its unused padding is dropped.
+    - `ModalController` takes the scrim spec, so the title uses `menuScrimStart`.
+    - `open()` with no panel up is an invariant.
+    - The unused `isPaused` getter is removed.
+  - **Other:** the DEV debug panel moved to the top-right, and the deviation list was renumbered.
+- **Verification:**
+  - `npm test` 258/258 (`isSavingBlocked` asserts added to the blocked-saving test). Typecheck, lint and build are clean, and `dist/` is clean.
+  - Browser: `review110.mjs` 11/11.
+    - Storage failing → Continue from memory resumes the game (bar 5 kept); later saves work again.
+    - Blocked saving → the game stays paused with the toast.
+    - No Farm tooltip after a menu closes elsewhere; no hand cursor over the scrim.
+    - A sheep under the Pause button shows only the Pause tooltip.
+    - Blur drops a pan; the context menu is blocked on the title.
+    - No console errors.
+  - `probe110.mjs` 60/60 and `pan.mjs` 15/15 re-ran green.
 
 ### File List
 
 - `src/view/scenes/TitleScene.ts` (new)
 - `src/view/field/TitleFlock.ts` (new)
+- `src/view/scenes/BootScene.ts` (modified in review: context menu disabled once)
+- `src/view/safetyNet.ts` (modified in review: `guarded` moved here)
+- `src/save/saveStore.ts` (modified in review: `isSavingBlocked`)
+- `tests/save/saveStore.test.ts` (modified in review: `isSavingBlocked`)
 - `src/view/field/PenCamera.ts` (new: field camera, centre and pinned pan)
 - `src/view/widgets/Tooltip.ts` (modified: fixed to the screen)
 - `_bmad-output/game-architecture.md` (modified: right-drag pan)
@@ -540,3 +597,4 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
 | 2026-10-06 | Implemented: TitleScene (load decision, Continue / New Game / Credits, start-over confirm, decorative sheep), the pause menu with placeholder sub-panels and confirm (`ModalController`), the Esc chain and modal checks in InputController, the Pause button, and the `Button` depth and cursor fixes. UX docs updated. 258 tests; browser probe 47/47. Status → review. |
 | 2026-10-06 | Rylan: added **Main Menu** as the last pause-menu button (it saves and returns to the title, with no confirm). `GameScene.quitToTitle()` stops HUD and Overlay with the game. EXPERIENCE.md and epics.md updated. 258 tests; browser probe 60/60 on two runs. Status stays review. |
 | 2026-10-06 | Rylan: field camera. Every game opens with the pen centred above the bar; right-drag pans, pinned so the pen stays in view (`PenCamera`, `InputController` pan, camera-aware `SheepHover`, screen-fixed `Tooltip`). Docs updated. 258 tests; camera probe passes at 1280 and 960; full probe 60/60. Status stays review. |
+| 2026-10-06 | Code review: 1 decision (Rylan: Main Menu keeps an unsaved game in memory for Continue; stays paused after a sim error) and 15 patches applied, 0 deferred, 6 dismissed. 258 tests; browser probes 11/11, 60/60, 15/15. Status → done. |

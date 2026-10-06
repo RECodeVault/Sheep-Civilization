@@ -45,6 +45,9 @@ export const STRINGS = Object.freeze({
   // [ASSUMPTION] Not in the Voice table (Rylan asked for it 2026-10-06): the last pause-menu button,
   // back to the title screen.
   mainMenu: 'Main Menu',
+  // [ASSUMPTION] Not in the Voice table: Main Menu could not save after a sim error, so the game stays
+  // open (code review decision, Rylan 2026-10-06).
+  quitSaveFailed: "Your flock couldn't be saved, so it stays here.",
   // Start-over confirm (UX-DR18; EXPERIENCE Voice): the only confirmation in the game.
   startOverQuestion: 'Start over? Your flock will be lost.',
   cancel: 'Cancel',

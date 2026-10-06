@@ -1,5 +1,5 @@
 # generated: 2026-10-05T14:42:07-07:00
-# last_updated: 2026-10-06T14:11:16-07:00
+# last_updated: 2026-10-06T14:41:04-07:00
 # project: sheep-civilization
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: '2026-10-05T14:42:07-07:00'
-last_updated: '2026-10-06T14:11:16-07:00'
+last_updated: '2026-10-06T14:41:04-07:00'
 project: sheep-civilization
 project_key: NOKEY
 tracking_system: file-system
@@ -53,7 +53,7 @@ development_status:
   1-7-drop-food-and-sheep-eat: done
   1-8-losing-the-flock: done
   1-9-save-resume-and-hidden-tab-pause: done
-  1-10-title-screen-pause-menu-and-start-over-confirm: review
+  1-10-title-screen-pause-menu-and-start-over-confirm: done
   epic-1-retrospective: optional
   # Epic 2: Life, Death & Contagion
   epic-2: backlog

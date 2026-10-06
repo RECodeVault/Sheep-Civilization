@@ -46,7 +46,8 @@ export function installDebugOverlay(game: Phaser.Game): void {
   const ps = panel.style;
   ps.position = 'fixed';
   ps.top = `${SPACING[2]}px`;
-  ps.left = `${SPACING[2]}px`;
+  // Top-right: the game's Pause button sits at the top-left.
+  ps.right = `${SPACING[2]}px`;
   ps.zIndex = '999';
   ps.display = 'none';
   ps.padding = `${SPACING[2]}px`;

@@ -20,9 +20,8 @@ const TOOLTIP_DEPTH = 200;
 const POPUP_LIFT_PX = 4;
 const FARM: Command = Object.freeze({ type: 'Farm' });
 // [ASSUMPTION] Added 2026-10-06 (Rylan): the Pause button sits in the top-left corner of the field,
-// clear of the toasts (top-centre), the era badge (top-right) and the Better Place (x ≈ 450–590).
-// Width: "Pause" in label type plus 12 px padding each side, rounded up (measured in the browser).
-const PAUSE_W = 96;
+// clear of the toasts (top-centre) and the era badge (top-right). Size from COMPONENTS.buttonPause.
+const PAUSE = COMPONENTS.buttonPause;
 
 /**
  * The bottom bar, launched by GameScene in parallel and drawn above it. Reads the sim once per frame
@@ -36,6 +35,8 @@ export class HudScene extends Phaser.Scene {
   private popups!: FloatPopups;
   private tooltip!: Tooltip;
   private tooltipFor: Button | null = null;
+  // Whether a modal was up last frame, to clear stale button hover once when one opens.
+  private wasModal = false;
   private readonly view: HudView = { farmProgress: 0, farmPipsPerFood: 0 };
 
   constructor() {
@@ -45,11 +46,12 @@ export class HudScene extends Phaser.Scene {
   create(): void {
     this.gameScene = this.scene.get('GameScene') as GameScene;
     this.tooltipFor = null;
+    this.wasModal = false;
     this.bar = new BottomBar(this, this.farm);
-    this.pauseButton = new Button(this, COMPONENTS.buttonPause, {
+    this.pauseButton = new Button(this, PAUSE, {
       x: LAYOUT.safeMargin,
       y: LAYOUT.safeMargin,
-      width: PAUSE_W,
+      width: PAUSE.width,
       label: STRINGS.pauseLabel,
       tooltip: STRINGS.pauseTooltip,
       labelAlign: 'center',
@@ -78,7 +80,13 @@ export class HudScene extends Phaser.Scene {
       const state = this.gameScene.simState;
       const v = selectHudView(state, this.view);
       this.bar.farmProgress.set(v.farmProgress, v.farmPipsPerFood);
-      this.updateTooltip(this.game.loop.time, this.gameScene.modalOpen);
+      const modal = this.gameScene.modalOpen;
+      if (modal && !this.wasModal) {
+        this.pauseButton.clearHover();
+        this.bar.farmButton.clearHover();
+      }
+      this.wasModal = modal;
+      this.updateTooltip(this.game.loop.time, modal);
     } catch (err) {
       reportError('ui', err);
     }
@@ -103,6 +111,14 @@ export class HudScene extends Phaser.Scene {
       reportError('ui', err);
     }
   };
+
+  /**
+   * True while the pointer is on a HUD control. The field camera can pan the pen under the Pause
+   * button, so GameScene's sheep hover (which reads the raw pointer) skips while this is true.
+   */
+  get pointerOverControl(): boolean {
+    return this.pauseButton.isHovered || this.bar.farmButton.isHovered;
+  }
 
   /** The top-left Pause button (UX-DR76: pause is mouse-reachable); the same menu as Esc. */
   private readonly pause = (): void => {
