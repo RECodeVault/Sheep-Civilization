@@ -27,8 +27,10 @@ export class Tooltip {
         fontSize: `${TYPE.fontSize}px`,
         fontStyle: String(TYPE.fontWeight),
         color: COLORS[SPEC.textColor],
-        // Crisp under FIT scaling (DESIGN.md Typography). src/view may read window.
-        resolution: window.devicePixelRatio || 1,
+        // Resolution 1 on purpose: the game draws into a fixed 1280×720 framebuffer with nearest
+        // filtering (pixelArt), so a devicePixelRatio texture would be point-sampled down and look
+        // rougher, not crisper. True HiDPI text needs a higher renderer resolution (architecture).
+        resolution: 1,
       })
       .setDepth(depth);
     this.hide();

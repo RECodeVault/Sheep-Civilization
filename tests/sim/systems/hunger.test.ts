@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { TICK_MS } from '../../../src/config/constants';
 import { TUNING } from '../../../src/config/tuning';
+import { hungerOf } from '../../../src/sim/selectors';
 import { createSheep, type GameState } from '../../../src/sim/state';
 import { step } from '../../../src/sim/step';
 import { innerFence, newGame, runFor } from '../helpers';
@@ -31,7 +32,7 @@ describe('updateHunger', () => {
     expect(events[0]).toMatchObject({ type: 'SheepDied', cause: 'starved' });
   });
 
-  it('drains by the derived amount every tick and never goes below 0', () => {
+  it('drains by the derived amount every tick', () => {
     const state = gameWith([TUNING.fullnessMax]);
     let prev = state.sheep[0].fullness;
     for (let t = 0; t < 100; t++) {
@@ -39,7 +40,6 @@ describe('updateHunger', () => {
       const f = state.sheep[0].fullness;
       expect(f).toBeLessThan(prev);
       expect(prev - f).toBeCloseTo(DRAIN_PER_TICK, 9);
-      expect(f).toBeGreaterThanOrEqual(0);
       prev = f;
     }
   });
@@ -60,6 +60,44 @@ describe('updateHunger', () => {
     expect(events.map((e) => e.id)).toEqual([a.id, c.id]);
     expect(state.sheep.map((s) => s.id)).toEqual([b.id]);
     expect(state.stats.died).toBe(2);
+  });
+
+  it('a sheep that empties is at exactly 0 when it dies, never below', () => {
+    const state = gameWith([DRAIN_PER_TICK / 2]);
+    const s = state.sheep[0];
+    runFor(state, TICK_MS);
+    expect(state.sheep).toHaveLength(0);
+    expect(s.fullness).toBe(0);
+  });
+
+  it('crosses the hunger bands on their exact inclusive ticks despite float drift', () => {
+    // From fullnessMax: Hungry from the tick it reaches fedAbove; Starving only after starvingBelow.
+    const ticksTo = (f: number) => ((TUNING.fullnessMax - f) / TUNING.fullnessMax) * (TUNING.starveMs / TICK_MS);
+    const fedTicks = ticksTo(TUNING.fedAbove);
+    const hungryTicks = ticksTo(TUNING.starvingBelow);
+    const state = gameWith([TUNING.fullnessMax]);
+    const s = state.sheep[0];
+    runFor(state, (fedTicks - 1) * TICK_MS);
+    expect(hungerOf(s.fullness)).toBe('fed');
+    runFor(state, TICK_MS);
+    expect(hungerOf(s.fullness)).toBe('hungry');
+    runFor(state, (hungryTicks - fedTicks) * TICK_MS);
+    expect(hungerOf(s.fullness)).toBe('hungry');
+    runFor(state, TICK_MS);
+    expect(hungerOf(s.fullness)).toBe('starving');
+  });
+
+  it('every half-point start value lands in the band its exact Fullness says, every tick', () => {
+    const exactBand = (f: number) => (f > TUNING.fedAbove ? 'fed' : f < TUNING.starvingBelow ? 'starving' : 'hungry');
+    for (let start = 0.5; start <= TUNING.fullnessMax; start += 0.5) {
+      const state = gameWith([start]);
+      const s = state.sheep[0];
+      for (let t = 1; state.sheep.length > 0; t++) {
+        step(state);
+        const exact = Math.round((start - t * DRAIN_PER_TICK) * 1e9) / 1e9;
+        if (state.sheep.length > 0) expect(hungerOf(s.fullness), `start ${start}, tick ${t}`).toBe(exactBand(exact));
+      }
+    }
   });
 
   it('kills a sheep that is already empty on the next tick', () => {

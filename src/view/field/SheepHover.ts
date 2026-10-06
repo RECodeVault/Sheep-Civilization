@@ -35,7 +35,8 @@ export class SheepHover {
     // Story 2.7: hide while dragging.
     const p = this.input.activePointer;
     // The input manager tracks whether the pointer is over the canvas; no listeners to clean up.
-    const hit = this.input.manager.isOver ? this.hitTest(items, p.x, p.y) : -1;
+    // World coordinates, like the sprites, so a camera shake or scroll cannot misalign the hit test.
+    const hit = this.input.manager.isOver ? this.hitTest(items, p.worldX, p.worldY) : -1;
     if (hit < 0) {
       this.clear();
       return;

@@ -9,10 +9,17 @@ export function fenceBounds(_state: GameState): Rect {
 
 export type Hunger = 'fed' | 'hungry' | 'starving';
 
-/** FR2: Fed above `fedAbove`, Starving below `starvingBelow`, Hungry in between. Never stored. */
+/**
+ * Float tolerance for Fullness comparisons. The per-tick drain (100/1 200) is not exact, so a value
+ * that should be exactly 50 or 25 reads 50.0000000000016 or 24.9999999999993, and an empty sheep
+ * reads about 1e-13. Values this close to a bound count as on it. Numerical, not a balance value.
+ */
+export const FULLNESS_EPSILON = 1e-6;
+
+/** FR2: Fed above `fedAbove`, Starving below `starvingBelow`, Hungry in between (inclusive). Never stored. */
 export function hungerOf(fullness: number): Hunger {
-  if (fullness > TUNING.fedAbove) return 'fed';
-  if (fullness < TUNING.starvingBelow) return 'starving';
+  if (fullness > TUNING.fedAbove + FULLNESS_EPSILON) return 'fed';
+  if (fullness < TUNING.starvingBelow - FULLNESS_EPSILON) return 'starving';
   return 'hungry';
 }
 

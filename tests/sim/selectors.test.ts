@@ -56,7 +56,8 @@ describe('publicSheep / selectPublicSheep', () => {
     selectPublicSheep(state, out);
     expect(out[0]).toBe(first);
     expect(out[0].hunger).toBe('hungry');
-    expect(out.map((p) => p.stage)).toEqual(['adult', 'adult', 'adult']);
+    expect(out).toHaveLength(state.sheep.length);
+    expect(out.every((p) => p.stage === 'adult')).toBe(true);
     expect(out).toEqual(state.sheep.map((x) => publicSheep(x, state)));
   });
 });

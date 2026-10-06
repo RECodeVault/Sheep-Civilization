@@ -4,7 +4,7 @@ baseline_commit: daf6955b6246a6bdd7d59d02df2f2240801f2311
 
 # Story 1.5: Hunger and Starvation
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -176,6 +176,21 @@ so that I feel the pressure to pay attention.
   - [x] 11.3 Debug **Load** a save (restart path), then hover again: one tooltip only, with no duplicate listeners.
   - [x] 11.4 Run the gate: `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`. Confirm the debug overlay is still absent from `dist/` (Story 1.4's grep).
   - [x] 11.5 Headless checks follow Story 1.4's method: `playwright-core` in the scratchpad, never a project dependency. Remove any temporary probe and grep-verify that it is gone from `src/` and `dist/`.
+
+### Review Findings
+
+Code review 2026-10-06 (Blind Hunter + Edge Case Hunter + Acceptance Auditor) on `daf6955..07e36d4`. The auditor judged AC 1–6 met and the four declared deviations justified, and re-ran the gate green. 12 findings were dismissed as noise or already handled.
+
+- [x] [Review][Patch] (Decision 2026-10-06, Rylan: render at resolution 1, the 1280×720 framebuffer's own scale; truly crisp HiDPI text would need a renderer-resolution change in the architecture) The tooltip `Text` at `resolution: devicePixelRatio` is drawn smaller into a fixed 1280×720 framebuffer with NEAREST filtering (`pixelArt: true`). On DPR > 1 this drops texels, so the text is less crisp than at resolution 1, which contradicts the story's "crisp under FIT scaling" intent. DPR is also read only once. [src/view/widgets/Tooltip.ts:31]
+- [x] [Review][Patch] Hunger bands drift one tick off the spec's inclusive bounds because of float drain: from 60, tick 420 reads 24.999999999999307 (Starving a tick early); from 100, tick 600 reads 50.00000000000165 (Fed a tick too long). Apply the shared `FULLNESS_EPSILON` in `hungerOf` [src/sim/selectors.ts:14]
+- [x] [Review][Patch] The NFR1 note's Feed all instructions are wrong: sheep start at Fullness 60 (dead at 72 s), "every 2 minutes" is borderline at exactly 120 s, and "close the overlay" conflicts with pressing an overlay button [_bmad-output/implementation-artifacts/deferred-work.md]
+- [x] [Review][Patch] `killSheep` replaces `state.sheep` (by design, N1), but nothing in its header tells future callers (2.1, 2.5, 4.3) to iterate a captured array [src/sim/systems/carcass.ts:17]
+- [x] [Review][Patch] The drain test is named "never goes below 0" but never reaches 0, and the `Math.max(0, …)` clamp is redundant with the epsilon branch [src/sim/systems/hunger.ts:19]
+- [x] [Review][Patch] Hover hit-tests `activePointer.x/y` (screen) against world sprite positions; use `worldX/worldY` so a later camera shake or scroll (Story 5.8 juice) cannot misalign it [src/view/field/SheepHover.ts:38]
+- [x] [Review][Patch] The selectors test hard-codes three adults instead of deriving from the flock size [tests/sim/selectors.test.ts:62]
+- [x] [Review][Defer] A non-finite or missing `fullness` (or `bornAt`) from a loaded save makes a sheep immortal (`NaN <= ε` is false) and leaves `hungerOf` returning 'hungry' forever [src/sim/systems/hunger.ts:19] — deferred to Story 1.9 save validation
+- [x] [Review][Defer] A tooltip wider or taller than the canvas is pinned at the left or top margin and overflows the opposite edge; there is no wrap. It is unreachable with current copy [src/view/widgets/Tooltip.ts:55] — deferred to Story 1.6 / 5.3 (longer copy)
+- [x] [Review][Defer] `SheepSprite` caches only `shownHunger`, so once stage frames exist a sheep that ages with unchanged hunger will not swap frames [src/view/field/SheepSprite.ts:sync] — deferred to Story 2.1
 
 ## Dev Notes
 
@@ -395,6 +410,24 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
   - The hunger frames are placeholders.
   - A new **Feed all** debug button exists, and the NFR1 note in `deferred-work.md` says to use it.
 
+### Review Follow-up (2026-10-06)
+
+The one decision is resolved (Rylan: tooltip text at resolution 1). All 7 patches were applied. 3 items are deferred to `deferred-work.md`.
+
+- **Hunger bands:**
+  - `FULLNESS_EPSILON` (1e-6) now lives in `selectors.ts` and is shared: `hungerOf` treats values within ε of 50 and 25 as on the bound, and `updateHunger` imports it for the empty check.
+  - Two new tests: exact band-crossing ticks from `fullnessMax`, and every half-point start value checked tick by tick against the exact band. Both were confirmed to fail against the old `hungerOf`.
+  - A Node sweep over 200 start values shows 0 mismatches. Rounding Fullness every tick was tried and rejected, because its error accumulates.
+- **Drain clamp:** `Math.max(0, …)` was removed, because the ε branch sets 0. The misnamed test was renamed, and a new test checks that a sheep dies at exactly 0.
+- **`killSheep` header:** it now documents that callers must loop over a captured array and rebuild the grid after a death.
+- **Hover:** it uses `activePointer.worldX/worldY`.
+- **Tooltip `Text`:** `resolution: 1`, with a comment explaining why DPR made the text rougher under `pixelArt` in a fixed 1280×720 framebuffer. This replaces the story's Task 6.4 instruction, by Rylan's decision.
+- **Selectors test:** it derives from the flock size.
+- **`deferred-work.md` NFR1 note:** it now gives the correct Feed all timing (within 60 s, then about every 90 s; reopen the overlay with backtick).
+- **Verification:**
+  - `npm test` 116/116; typecheck, lint and build are clean.
+  - Headless browser re-run 26/26 with the temporary probe; it was removed afterwards and `src/main.ts` matches HEAD.
+
 ### File List
 
 - `src/sim/systems/hunger.ts` (new)
@@ -430,3 +463,4 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
 | Date | Change |
 |---|---|
 | 2026-10-06 | Implemented hunger drain and starvation (`updateHunger`), the single death pipeline (`killSheep`, carcass gated off), derived hunger and stage selectors, hunger sprite frames, the reusable `Tooltip` widget with sheep hover, and a Feed all debug button. Tests 113/113; browser checks 26/26. Status → review. |
+| 2026-10-06 | Code review: 1 decision (tooltip resolution 1), 7 patches applied (shared Fullness epsilon in `hungerOf`, drain clamp cleanup, `killSheep` caller note, world-coordinate hover, test fixes, NFR1 Feed all wording), 3 deferred. Tests 116/116. Status → done. |
