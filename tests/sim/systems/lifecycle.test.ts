@@ -11,6 +11,8 @@ import { innerFence, newGame } from '../helpers';
 function gameWithAges(ages: readonly number[]): GameState {
   const state = newGame(42);
   state.sheep.length = 0;
+  // Forget the discarded new-game flock, so peakFlock counts only these sheep.
+  state.stats.peakFlock = 0;
   const r = innerFence(state);
   ages.forEach((age, i) => {
     createSheep(state, { x: r.left + 40 * i, y: r.top, bornAt: state.time - age });
@@ -67,8 +69,21 @@ describe('updateLifecycle', () => {
     const events = runFed(state, 1);
     expect(events).toEqual([
       { type: 'SheepDied', id: s.id, cause: 'oldAge', x: s.x, y: s.y },
-      { type: 'Lost', survivedMs: state.time, peakFlock: state.stats.peakFlock },
+      { type: 'Lost', survivedMs: TICK_MS, peakFlock: 1 },
     ]);
-    expect(state.lostAt).toBe(state.time);
+    expect(state.lostAt).toBe(TICK_MS);
+  });
+
+  it('a whole flock of elders dying on one tick: every SheepDied, then one Lost', () => {
+    const state = gameWithAges([TUNING.oldAgeMs - TICK_MS, TUNING.oldAgeMs - TICK_MS]);
+    const [a, b] = state.sheep;
+    const events = runFed(state, 1);
+    expect(events).toEqual([
+      { type: 'SheepDied', id: a.id, cause: 'oldAge', x: a.x, y: a.y },
+      { type: 'SheepDied', id: b.id, cause: 'oldAge', x: b.x, y: b.y },
+      { type: 'Lost', survivedMs: TICK_MS, peakFlock: 2 },
+    ]);
+    expect(state.sheep).toEqual([]);
+    expect(state.stats.died).toBe(2);
   });
 });

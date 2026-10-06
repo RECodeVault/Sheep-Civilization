@@ -26,8 +26,8 @@
     },
     "adult-idle": {
       "frame": {
-        "x": 3,
-        "y": 35,
+        "x": 41,
+        "y": 3,
         "w": 32,
         "h": 26
       },
@@ -50,7 +50,7 @@
     },
     "adult-starving": {
       "frame": {
-        "x": 41,
+        "x": 79,
         "y": 3,
         "w": 32,
         "h": 26
@@ -74,8 +74,8 @@
     },
     "elder-hungry": {
       "frame": {
-        "x": 41,
-        "y": 35,
+        "x": 117,
+        "y": 3,
         "w": 32,
         "h": 26
       },
@@ -98,8 +98,8 @@
     },
     "elder-idle": {
       "frame": {
-        "x": 3,
-        "y": 67,
+        "x": 155,
+        "y": 3,
         "w": 32,
         "h": 26
       },
@@ -122,8 +122,8 @@
     },
     "elder-starving": {
       "frame": {
-        "x": 41,
-        "y": 67,
+        "x": 193,
+        "y": 3,
         "w": 32,
         "h": 26
       },
@@ -137,6 +137,78 @@
       },
       "sourceSize": {
         "w": 32,
+        "h": 26
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "lamb-hungry": {
+      "frame": {
+        "x": 231,
+        "y": 3,
+        "w": 22,
+        "h": 26
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 22,
+        "h": 26
+      },
+      "sourceSize": {
+        "w": 22,
+        "h": 26
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "lamb-idle": {
+      "frame": {
+        "x": 259,
+        "y": 3,
+        "w": 22,
+        "h": 26
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 22,
+        "h": 26
+      },
+      "sourceSize": {
+        "w": 22,
+        "h": 26
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "lamb-starving": {
+      "frame": {
+        "x": 287,
+        "y": 3,
+        "w": 22,
+        "h": 26
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 22,
+        "h": 26
+      },
+      "sourceSize": {
+        "w": 22,
         "h": 26
       },
       "pivot": {
@@ -146,7 +218,7 @@
     },
     "fence-post": {
       "frame": {
-        "x": 79,
+        "x": 315,
         "y": 3,
         "w": 6,
         "h": 22
@@ -162,78 +234,6 @@
       "sourceSize": {
         "w": 6,
         "h": 22
-      },
-      "pivot": {
-        "x": 0.5,
-        "y": 0.5
-      }
-    },
-    "lamb-hungry": {
-      "frame": {
-        "x": 91,
-        "y": 3,
-        "w": 22,
-        "h": 16
-      },
-      "rotated": false,
-      "trimmed": false,
-      "spriteSourceSize": {
-        "x": 0,
-        "y": 0,
-        "w": 22,
-        "h": 16
-      },
-      "sourceSize": {
-        "w": 22,
-        "h": 16
-      },
-      "pivot": {
-        "x": 0.5,
-        "y": 0.5
-      }
-    },
-    "lamb-idle": {
-      "frame": {
-        "x": 91,
-        "y": 25,
-        "w": 22,
-        "h": 16
-      },
-      "rotated": false,
-      "trimmed": false,
-      "spriteSourceSize": {
-        "x": 0,
-        "y": 0,
-        "w": 22,
-        "h": 16
-      },
-      "sourceSize": {
-        "w": 22,
-        "h": 16
-      },
-      "pivot": {
-        "x": 0.5,
-        "y": 0.5
-      }
-    },
-    "lamb-starving": {
-      "frame": {
-        "x": 79,
-        "y": 47,
-        "w": 22,
-        "h": 16
-      },
-      "rotated": false,
-      "trimmed": false,
-      "spriteSourceSize": {
-        "x": 0,
-        "y": 0,
-        "w": 22,
-        "h": 16
-      },
-      "sourceSize": {
-        "w": 22,
-        "h": 16
       },
       "pivot": {
         "x": 0.5,
@@ -242,8 +242,8 @@
     },
     "fence-rail-h": {
       "frame": {
-        "x": 79,
-        "y": 69,
+        "x": 327,
+        "y": 3,
         "w": 16,
         "h": 4
       },
@@ -266,8 +266,8 @@
     },
     "fence-rail-v": {
       "frame": {
-        "x": 107,
-        "y": 47,
+        "x": 349,
+        "y": 3,
         "w": 4,
         "h": 16
       },
@@ -290,8 +290,8 @@
     },
     "food-piece": {
       "frame": {
-        "x": 101,
-        "y": 69,
+        "x": 327,
+        "y": 13,
         "w": 8,
         "h": 6
       },
@@ -314,8 +314,8 @@
     },
     "munch-crumb": {
       "frame": {
-        "x": 79,
-        "y": 31,
+        "x": 341,
+        "y": 13,
         "w": 2,
         "h": 2
       },
@@ -343,8 +343,8 @@
     "image": "sheep-world.png",
     "format": "RGBA8888",
     "size": {
-      "w": 116,
-      "h": 96
+      "w": 356,
+      "h": 32
     },
     "scale": 1
   }

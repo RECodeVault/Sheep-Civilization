@@ -30,14 +30,14 @@ export function innerFence(state: GameState): { left: number; right: number; top
   return { left: f.x + i, right: f.x + f.width - i, top: f.y + i, bottom: f.y + f.height - i };
 }
 
-/** Adds adults at rng positions inside the inner fence until the flock has `count` sheep. */
+/** Adds adults (aged like the founders, at the current time) inside the inner fence until the flock has `count` sheep. */
 export function fillFlock(state: GameState, count: number): void {
   const r = innerFence(state);
   while (state.sheep.length < count) {
     createSheep(state, {
       x: rngRange(state, r.left, r.right),
       y: rngRange(state, r.top, r.bottom),
-      bornAt: -TUNING.startAdultAgeMs,
+      bornAt: state.time - TUNING.startAdultAgeMs,
     });
   }
 }

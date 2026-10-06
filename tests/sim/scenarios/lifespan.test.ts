@@ -10,6 +10,8 @@ import { newGame } from '../helpers';
 /** Steps tick by tick until `untilMs` with every sheep kept full, recording events with their time. */
 function runFedUntil(state: GameState, untilMs: number, log: { t: number; e: SimEvent }[]): void {
   while (state.time < untilMs) {
+    // A lost game no longer advances time: fail instead of looping for ever.
+    if (state.lostAt !== undefined) throw new Error(`lost at ${state.lostAt} ms, before ${untilMs} ms`);
     for (const s of state.sheep) s.fullness = TUNING.fullnessMax;
     step(state);
     drainEvents((e) => log.push({ t: state.time, e }));

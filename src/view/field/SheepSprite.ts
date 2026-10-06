@@ -5,7 +5,8 @@ import { ATLAS, FRAME } from '../assetKeys';
 import type { PooledEntitySprite } from './EntityLayer';
 
 // Placeholder art is shown at 2×: an adult or elder is 32×26 (about 64×52 on the 1280×720 canvas, as
-// in the mockup). A lamb is smaller because its art is (22×16), so its hit box shrinks with it.
+// in the mockup). The lamb is drawn smaller at the bottom of a 22×26 frame, so with the shared centre
+// origin its feet (and so depth sorting) line up with an adult's, and nothing jumps when it grows up.
 const SHEEP_SCALE = 2;
 
 // Facing changes only when a sheep moves more than this sideways in one tick (a quarter of walk

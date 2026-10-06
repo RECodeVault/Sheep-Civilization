@@ -4,7 +4,7 @@ baseline_commit: 41e37d1c581f18c3bddf466a61b854c1848d9278
 
 # Story 2.1: Life Stages and the GDD Starting Flock
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -20,8 +20,8 @@ so that every sheep has a lifespan I must plan around.
 2. **Old-age death (FR7, AR17).** Given an elder whose age reaches 420 s (`TUNING.oldAgeMs`), when the sim steps, then it dies through `killSheep(state, id, 'oldAge')`. This happens on the first tick where `age >= oldAgeMs`, not a tick earlier or later. `stats.died` increments, `SheepDied { cause: 'oldAge' }` is emitted, and if it was the last sheep, `Lost` follows.
 3. **Stage visuals (UX-DR58, GDD Art).** Given sheep on the field, when they render, then lambs use a smaller sprite, adults the normal sprite and elders a greyer sprite. Each stage has its own Fed / Hungry / Starving frames (UX-DR57). A sheep that ages while its hunger stays the same switches frame on the frame where its stage changes. The hover tooltip shows the stage ("Lamb · Fed", "Elder · Hungry").
 4. **GDD starting flock (FR6).** Given `createNewGame(seed)`, when a new game starts, then the flock is 2 adults aged 60 s (`bornAt = -startAdultAgeMs`) plus 1 newborn lamb (`bornAt = 0`), all at Fullness 60. The Farm bar is empty (`farmProgress = 0`) and there is no breeding food (the field does not exist yet: Story 2.2 adds it at 0). This replaces the Epic 1 interim flock of 3 adults.
-5. **Save schema (AC conditional).** The `GameState` shape does **not** change in this story, so `SAVE_SCHEMA_VERSION` stays `2` and no migration is added. Existing v2 saves (including interim 3-adult flocks) load and age normally.
-6. **Founders' lifespan scenario.** Given a seeded test that keeps the flock fed, when `runFor` reaches ~6 min, then both founding adults became elders at 240 s game time (~4 min) and died of old age at 360 s (~6 min). The lamb is still alive and an adult at that point, and becomes an elder at 300 s.
+5. **Save schema (AC conditional).** The `GameState` shape does **not** change in this story, so `SAVE_SCHEMA_VERSION` stays `2` and no migration is added. Existing v2 saves (including interim 3-adult flocks) load and age normally. *Review note (2026-10-06): an interim save past 360 s game time has every founder past 420 s, so they all die of old age on the first tick and the game is lost at once. Accepted by Rylan: the game is unreleased and only dev saves are affected.*
+6. **Founders' lifespan scenario.** Given a seeded test that keeps the flock fed, when `runFor` reaches ~6 min, then both founding adults became elders at 240 s game time (~4 min) and died of old age at 360 s (~6 min). The lamb is still alive at that point. *Review note (2026-10-06): it is an elder by then, since it turns elder at 300 s (FR7); the earlier wording "and an adult" was wrong. The scenario asserts the FR7 order.*
 7. **No system runs after a loss within a tick** (deferred item from 1.8, "Systems after the loss tick"). `step()` stops running the remaining systems once `state.lostAt` is set mid-tick.
 8. `npm test`, `npm run typecheck` and `npm run lint` all pass.
 
@@ -86,6 +86,21 @@ so that every sheep has a lifespan I must plan around.
     - Debug overlay (backtick) ×16, keeping them fed: the lamb swaps to the adult frame at ~60 s, the founders turn grey at ~4 min and vanish at ~6 min with no console errors. There is no carcass yet (Story 2.4 turns `carcassesEnabled` on).
     - The tooltip updates the stage live.
   - [x] 6.2 Continue an existing v2 save made before this change: it loads, and its adults age and eventually die of old age.
+
+### Review Findings
+
+- [x] [Review][Decision] Pre-change saves past 360 s lose the whole flock on the first tick — Resolved (Rylan, 2026-10-06): accept. The game is unreleased and only dev saves are affected; record the decision and correct the AC 5 wording (becomes a patch).
+- [x] [Review][Decision] Lamb feet float and draw order uses centre y — Resolved (Rylan, 2026-10-06): pad the lamb art to a 22×26 canvas with the lamb at the bottom, so feet and depth line up with adults; accept the taller hit box (becomes a patch).
+- [x] [Review][Patch] Pad lamb frames to 22×26, bottom-aligned [assets/art/sheep/lamb-*.png]
+- [x] [Review][Patch] Record the old-save decision and correct AC 5 wording [2-1-life-stages-and-the-gdd-starting-flock.md]
+- [x] [Review][Patch] AC 7 test passes without the guard; make it discriminating [tests/sim/step.test.ts]
+- [x] [Review][Patch] `runFedUntil` hangs instead of failing if the game is lost early [tests/sim/scenarios/lifespan.test.ts]
+- [x] [Review][Patch] `gameWithAges` keeps the discarded flock's `peakFlock`; `Lost` payload asserted against itself [tests/sim/systems/lifecycle.test.ts]
+- [x] [Review][Patch] No test for the whole flock (two elders) dying of old age on one tick [tests/sim/systems/lifecycle.test.ts]
+- [x] [Review][Patch] `fillFlock` uses a fixed `bornAt` instead of `state.time - startAdultAgeMs` [tests/sim/helpers.ts:40]
+- [x] [Review][Patch] Stale "Feed all keeps a long run alive" comment now that every sheep dies by 420 s [src/debug/DebugOverlay.ts:115]
+- [x] [Review][Patch] Story record overstates checks: AC 6 wording, Task 6.1 lamb tooltip and Task 6.2 pre-change save never verified, muddled tooltip line in the Debug Log — run the missing browser checks and correct the record [2-1-life-stages-and-the-gdd-starting-flock.md]
+- [x] [Review][Defer] Dev long runs (NFR1 soak) cannot pass ~7 min until births exist [src/debug/DebugOverlay.ts:111] — deferred, no births until Story 2.3
 
 ## Dev Notes
 
@@ -209,10 +224,17 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
 - **Browser probe** (scratchpad `p2.mjs`/`p3.mjs`): `playwright-core`, system Chrome (SwiftShader), DEV server on port 5199, real mouse clicks, no code hooks. All checks passed:
   - **New Game:** 2 adults plus a visibly smaller lamb inside the pen, Farm bar 0/8.
   - **Ageing a real save:** after the 10 s autosave, the saved ages were edited (founder A 299 s, founder B 418 s, lamb 59 s; all full), the page reloaded and Continue clicked. Note this resumed a v2 save made by this build, not one from before the change.
-    - About 0.75 s in: B grey (elder), the tooltip live ("Adult · Fed").
+    - About 0.75 s in: B grey (it was already an elder at 418 s). The pointer was aimed at the lamb, but an adult stood in front of it, so the tooltip showed that adult ("Adult · Fed").
     - About 4 s later: B gone (old age); A grey; the lamb swapped to the adult frame and size.
   - No console errors.
   - Not observed: the lamb's own tooltip. The probe's hover landed where an adult stood in front of the lamb, so the screenshot shows an adult's tooltip. The stage text is driven by `pub.stage`, unchanged since 1.5.
+
+- **Code review fixes** (scratchpad `p4.mjs`, same probe setup). All checks passed:
+  - **Lamb tooltip:** with the lamb placed clear of the others, hovering it shows "Lamb · Fed". This replaces the unobserved check above.
+  - **Feet alignment:** a lamb standing beside an adult at the same y now shares its ground line (22×26 padded frame).
+  - **Pre-change save:** a save in the pre-change shape (3 adults, `bornAt -60 000`, built from a new-build save by setting the lamb's `bornAt`) at t ≈ 10 s. It shows Continue, resumes with 3 adults, and runs for 3 s.
+  - No console errors in either run.
+  - The AC 7 test was checked red by temporarily removing the guard (1 failure), then restored.
 
 ### Completion Notes List
 
@@ -225,14 +247,22 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
 - AC 6: `tests/sim/scenarios/lifespan.test.ts` (with the timing correction noted above).
 - AC 7: `step()` stops after a mid-tick loss. Test in `tests/sim/step.test.ts`.
   - It is a regression guard rather than a red test: with today's systems a loss always empties the flock, so lifecycle has nothing left to act on.
-- AC 8: `npm test` passes all 264 tests, and `npm run typecheck` and `npm run lint` pass.
+- AC 8: `npm test` passes all 266 tests, and `npm run typecheck` and `npm run lint` pass.
 - Two items in `deferred-work.md` are marked resolved.
+- **Code review (2026-10-06):** 2 decisions (accept the old-save loss; pad the lamb canvas), 9 patches applied, 1 deferred (long dev runs, logged in `deferred-work.md`), 4 dismissed.
+  - Lamb frames are now 22×26 with the lamb bottom-aligned (Task 4.1 originally said about 22×18).
+  - `step()` delegates to an exported `stepWith(state, systems)`, so the AC 7 test can inject a losing system and a spy. It now fails without the guard.
+  - The lifecycle tests assert literal `Lost` payloads and cover a whole flock of elders dying on one tick.
+  - `runFedUntil` throws on an early loss instead of hanging.
+  - `fillFlock` ages sheep relative to `state.time`.
 
 ### File List
 
 - `src/config/tuning.ts` (modified)
 - `src/sim/state.ts` (modified)
 - `src/sim/step.ts` (modified)
+- `src/debug/DebugOverlay.ts` (modified, comment)
+- `tests/sim/helpers.ts` (modified)
 - `src/sim/selectors.ts` (modified, comment)
 - `src/sim/systems/lifecycle.ts` (new)
 - `src/view/assetKeys.ts` (modified)
@@ -252,3 +282,4 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
 ### Change Log
 
 - 2026-10-06: Implemented Story 2.1. Life stages with old-age death (lifecycle system), the GDD starting flock, stage-aware lamb/elder sprites, and no systems after a mid-tick loss. Status → review.
+- 2026-10-06: Code review fixes. Lamb art padded to 22×26 (feet aligned), a discriminating mid-tick-loss test via `stepWith`, stricter lifecycle tests, the `fillFlock` age fix, the debug comment, and record corrections. Status → done.

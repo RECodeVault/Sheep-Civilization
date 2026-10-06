@@ -112,7 +112,8 @@ export function installDebugOverlay(game: Phaser.Game): void {
     activeScene()?.debugMutate(addSheep);
     refreshSim();
   });
-  // Sheep starve 72 s into a new game: keeps a long run (e.g. the NFR1 check) alive until feeding.
+  // Sheep starve 72 s into a new game; Feed all keeps them fed. It cannot stop old age: every sheep
+  // dies by 420 s, and added sheep 360 s after the click, so a long run ends there until births (2.3).
   const feedButton = button(row2, 'Feed all', () => {
     activeScene()?.debugMutate((s) => {
       for (const sheep of s.sheep) sheep.fullness = TUNING.fullnessMax;

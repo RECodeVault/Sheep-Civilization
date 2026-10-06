@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { TICK_MS } from '../../src/config/constants';
 import { TUNING } from '../../src/config/tuning';
 import { clearEvents } from '../../src/sim/events';
-import { step } from '../../src/sim/step';
+import { step, stepWith } from '../../src/sim/step';
 import { killSheep } from '../../src/sim/systems/carcass';
 import { newGame, runFor } from './helpers';
 
@@ -40,6 +40,23 @@ describe('step', () => {
   });
 
   it('runs no later system once a system loses the game mid-tick', () => {
+    // A stand-in system that loses the game, then a spy: the spy must not run on that tick.
+    const state = newGame();
+    let spyRuns = 0;
+    const lose = (s: typeof state): void => {
+      for (const id of s.sheep.map((x) => x.id)) killSheep(s, id, 'starved');
+    };
+    const spy = (): void => {
+      spyRuns++;
+    };
+    stepWith(state, [spy, spy]);
+    expect(spyRuns).toBe(2);
+    stepWith(state, [spy, lose, spy]);
+    expect(spyRuns).toBe(3);
+    expect(state.lostAt).toBe(state.time);
+  });
+
+  it('a sheep that starves and reaches old age on one tick dies once, of starvation', () => {
     // The last sheep both starves and reaches old age on the same tick: hunger (first) loses the
     // game, so lifecycle must not run on the lost state. One death, then Lost, nothing after.
     const state = newGame();

@@ -140,3 +140,6 @@ Real issues found in reviews that are not actionable in the story where they wer
   - **2.7 / 3.1:** the Better Place and the Market were placed in canvas terms (upper-left x ≈ 450–590; right edge). They are world objects now, so place them relative to the pen, and consider pinning the camera to the pen plus both targets so a drag can always reach them.
   - **3.3:** when the fence grows, re-clamp (or re-centre) the camera; `PenCamera` centres a pen too big to fit.
 
+## Deferred from: code review of 2-1-life-stages-and-the-gdd-starting-flock (2026-10-06)
+
+- **Long dev runs end by ~7 min (Story 2.3):** every sheep now dies of old age by 420 s, and "+10 sheep" gives all ten the same `bornAt`, so they die on one tick 360 s after the click. With no births until Story 2.3, the NFR1 100-sheep, 5-minute run above must start within ~1 min of adding sheep (or re-add them), and nothing can soak longer than ~6 min. Once births exist, or if needed earlier, give the debug overlay a way to keep sheep young (for example a "rejuvenate" button that resets `bornAt`).
