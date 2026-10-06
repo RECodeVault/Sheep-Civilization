@@ -4,7 +4,7 @@ baseline_commit: 243313ff8652f81111fd3a0dd4ddeddb5ea562d3
 
 # Story 1.6: HUD Bottom Bar, Farm Button and Food Meter
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -190,6 +190,46 @@ so that I can grow food to feed my flock.
   - [x] 9.8 **Performance:** with the debug overlay at ×1 and 100 sheep (use **Feed all**), the FPS stays at the 1.5 baseline while idle. HUD `update()` does no `setText` or redraw when food is unchanged.
   - [x] 9.9 **Gate:** `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`. Grep `dist/` for overlay strings ("Feed all"), as in Story 1.4.
   - [x] 9.10 **Headless checks** (if used) follow Story 1.4/1.5's method: scratchpad `playwright-core`, a temporary probe hook removed afterwards, `src/main.ts` byte-identical to its committed version, and the dev server stopped by PID.
+
+### Review Findings
+
+Code review 2026-10-06 (Blind Hunter + Edge Case Hunter + Acceptance Auditor) on `243313f..f35a97a`.
+- The auditor judged AC 1–6 met and all 8 declared deviations justified.
+- 10 findings were dismissed as noise or already handled.
+- The Edge Case Hunter checked the restart and relaunch path (listeners, tweens, texture keys) and found it clean.
+
+- [x] [Review][Patch] **The HUD reads state before the sim ticks, so the food meter is one frame behind its popup.**
+  - Phaser updates scenes in **reverse** array order (`SceneManager.update` loops `i = length - 1 → 0`; Phaser skill `scenes` gotcha 16). So `HudScene.update` runs before `GameScene.update`.
+  - The comments in `HudScene.ts` and `main.ts` (and this story's Task 5.1 / gotcha 1) claim the opposite.
+  - Fix: read the view after the sim ticks, for example in a `PRE_RENDER` handler. Correct the comments. [src/view/scenes/HudScene.ts:55]
+- [x] [Review][Patch] **HUD handler errors are misreported or unguarded.**
+  - `onSim` runs inside `GameScene.tick` → `drainEvents`, so a HUD throw is reported as `'sim'` and drops that frame's ticks.
+  - `farm()` from the F key runs inside `KeyboardPlugin.update` with no try/catch.
+  - Wrap both and report as `'ui'`. [src/view/scenes/HudScene.ts:65]
+- [x] [Review][Patch] **Hover and tooltip stick when the pointer leaves the canvas from the Farm button.**
+  - Leaving the canvas emits only `GAME_OUT`; there is no gameobject out event while `pollRate` is -1.
+  - So `hovered` and `hoverSince` stay set, and the tooltip appears with the mouse outside the game.
+  - Clear hover and press on `GAME_OUT`. [src/view/widgets/Button.ts:169]
+- [x] [Review][Patch] **The tooltip shows during a press when down arrives before over.**
+  - This happens on the first input after load or a restart, and on touch.
+  - `processDownEvents` runs before `processOverEvents`, so `onOver` re-arms the hover timer that `onDown` just cleared.
+  - Do not arm hover while pressed. [src/view/widgets/Button.ts:171]
+- [x] [Review][Patch] **The F key does not hide a showing Farm tooltip** (Task 5.4 "hide on press"). The F path should suppress the tooltip the way a pointer press does. [src/view/scenes/HudScene.ts:65]
+- [x] [Review][Defer] **Commands queued while paused apply in one burst.** Squash with no result while paused, then N stacked identical popups on resume, and an unbounded queue. [src/view/scenes/HudScene.ts:65] — deferred to Story 1.10 (pausing), extends the existing "Commands and pausing" item
+- [x] [Review][Defer] **Unvalidated or fractional `food` from a save reaches the HUD.**
+  - It shows "+0.5", "NaN/20" or "null/20".
+  - NaN defeats `FoodMeter.set`'s early-out.
+  - A string food jumps to the cap.
+  [src/view/hud/FoodMeter.ts:73] — deferred to Story 1.9 save validation
+- [x] [Review][Defer] **HudScene is not stopped when GameScene stops without restarting.** It would read a dead scene's state and report every frame. [src/view/scenes/GameScene.ts:72] — deferred to Story 1.10 (Title / lose flows)
+- [x] [Review][Defer] **Gaps in the Button disabled state.**
+  - No tooltip while disabled (UX-DR31 needs the reason tooltip).
+  - A button re-enabled under the pointer gets no tooltip until re-entry.
+  - The cursor is not updated under the pointer.
+  - F ignores `enabled`.
+  [src/view/widgets/Button.ts:136] — deferred to Story 2.3 (Breed tool greyed state)
+- [x] [Review][Defer] **The Farm tooltip text is fixed at construction.** It won't reflect Better Hoe's click value. [src/view/hud/BottomBar.ts:47] — deferred to Story 4.7
+- [x] [Review][Defer] **Baked box textures are never evicted.** Every new `Panel` size bakes a new texture. [src/view/widgets/box.ts:24] — deferred to Stories 1.8 / 1.10 / 3.2 (keep panel sizes fixed or add eviction)
 
 ## Dev Notes
 
@@ -436,6 +476,26 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
   - The pip and button art are placeholders.
   - Pop SFX (UX-DR77) arrives with `AudioDirector` in Story 5.6. The reduced-motion popup fade arrives with Story 5.7.
 
+### Review Follow-up (2026-10-06)
+
+All 5 patches were applied, and 6 items were deferred to `deferred-work.md`.
+
+- **Same-frame meter:**
+  - `HudScene` now reads the sim on the scene `PRE_RENDER` event. That fires after every scene has updated, because Phaser updates scenes in reverse array order.
+  - The listener is removed on SHUTDOWN, because scene events persist across restarts.
+  - The comments in `HudScene.ts` and `main.ts` are corrected. The story's Task 5.1 and gotcha 1 wrongly said that array order is update order.
+- **Error guards:**
+  - `onSim` (which runs inside GameScene's tick) and `farm()` (which runs inside Phaser's input step) each catch their errors and report them as `'ui'`.
+  - A forced popup throw no longer shows as a `sim` error and no longer stops ticks.
+- **Leaving the canvas:** `Button` listens for `GAME_OUT` and clears hover and press, removing the listener on SHUTDOWN.
+- **Down before over:** `onOver` does not arm the tooltip while a press is in progress.
+- **F hides the tooltip:** new `Button.suppressTooltip()`, called from `farm()` and `onDown`.
+- **Verification:**
+  - New headless checks pass 10/10: the meter's `setText` and the `Farmed` event land on the same game frame (frame 23 / 23); F hides the tooltip; leaving the canvas from the button leaves no tooltip and the normal visual; down then over arms no tooltip; a popup throw is logged as `[ui]` and the sim keeps ticking (600 ms advanced, Farm applied); after 3 Loads there is exactly one `prerender` and one `gameout` listener.
+  - The original probe still passes 37/37.
+  - `npm test` 122/122; typecheck, lint and build are clean.
+  - No `__probeGame` and no overlay strings in `dist/`. `src/main.ts` was restored, and the server was stopped by PID.
+
 ### File List
 
 - `src/view/scenes/HudScene.ts` (new)
@@ -472,3 +532,4 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
 | Date | Change |
 |---|---|
 | 2026-10-06 | Implemented the HUD: `HudScene`, the bottom bar, the `Button`/`Panel` widgets (baked box textures), the Farm button (fires on press), the food meter, pooled float popups, the `Farmed` sim event, `selectHudView`, and the keyboard part of `InputController` (F, no repeat). Tooltip wraps. Tests 122/122; browser checks 37/37. Status → review. |
+| 2026-10-06 | Code review: 5 patches applied (HUD reads state on PRE_RENDER so the meter updates on the same frame; `ui` error guards on `onSim`/`farm`; GAME_OUT clears button hover; no tooltip mid-press; F hides the tooltip). 6 deferred, 10 dismissed. Tests 122/122; browser checks 37/37 + 10/10. Status → done. |

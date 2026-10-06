@@ -41,3 +41,22 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Tooltip wider than the canvas (Stories 1.6, 5.3):** `Tooltip.showAt` clamps right, then left, so a box wider (or taller) than the canvas minus the margins is pinned at the left or top margin and runs off the other edge. There is no `wordWrap`. Current copy cannot reach it; button tooltips and name lines might.
   - **Resolved in Story 1.6:** the tooltip `Text` wraps at a 360 px box width (`wordWrap`), so long copy grows downward instead of running off the canvas.
 - **Stage-aware sheep frames (Story 2.1):** `SheepSprite.sync` re-sets its frame only when `hunger` changes (`shownHunger`). When lamb and elder frames arrive, cache the (stage, hunger) pair, or a sheep that ages while its hunger is steady keeps the old frame.
+
+## Deferred from: code review of 1-6-hud-bottom-bar-farm-button-and-food-meter (2026-10-06)
+
+- **Paused Farm bursts (Story 1.10):** this extends "Commands and pausing" above.
+  - While the clock is paused, each Farm press squashes at once with no result.
+  - On resume, all queued Farms apply in one tick and spawn N identical popups stacked at the same spot (up to the 8-popup pool), and the queue is unbounded.
+  - Decide whether to ignore Farm while paused, and whether to merge a tick's `Farmed` events into one popup.
+- **Unvalidated `food` in a save (Story 1.9):** add `food` to the save validation's finite-number checks, and require a non-negative integer.
+  - A fractional value shows a raw popup ("+0.5", or "+0.9999999999999996").
+  - `NaN` or a missing value shows "NaN/20" / "undefined/20", and `FoodMeter.set` redoes its pips and text every frame.
+  - A string value ("5") jumps straight to the cap.
+- **HudScene lifetime (Story 1.10):** GameScene relaunches the HUD on every restart, but nothing stops it if GameScene stops for good (Title, lose flows). It would keep calling `dispatch` and reading `simState` on a dead scene. Stop or sleep `HudScene` together with GameScene.
+- **Button disabled state (Story 2.3):** the generic `Button` has several gaps that the greyed Breed tool will need fixed.
+  - It shows no tooltip while disabled, but UX-DR31 needs the reason ("No room. Buy land.").
+  - A button re-enabled under the pointer gets no tooltip until the pointer re-enters.
+  - The hand cursor is not updated while the pointer is over a button that changes state.
+  - The F path (`HudScene.farm`) does not check `enabled`.
+- **Farm tooltip value (Story 4.7):** `BottomBar` builds the tooltip once from `TUNING.farmFoodPerClick`, and `Button.tooltip` is readonly. Better Hoe must be able to update it.
+- **Baked box textures (Stories 1.8, 1.10, 3.2):** `boxTexture` caches one texture per size and style in the game `TextureManager` and never evicts. Keep `Panel` sizes fixed, or remove stale keys when a panel resizes.

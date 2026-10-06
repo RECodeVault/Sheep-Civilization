@@ -125,6 +125,11 @@ export class Button {
     this.zone.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, this.onOut, this);
     this.zone.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, this.onDown, this);
     this.zone.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, this.onUp, this);
+    // Leaving the canvas emits only GAME_OUT (no gameobject out), so clear hover and press here too.
+    scene.input.on(Phaser.Input.Events.GAME_OUT, this.onOut, this);
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      scene.input.off(Phaser.Input.Events.GAME_OUT, this.onOut, this);
+    });
 
     this.refresh();
   }
@@ -151,6 +156,11 @@ export class Button {
     return this.hoverSinceMs;
   }
 
+  /** Hides the tooltip until the pointer next enters (a press, from the pointer or a key). */
+  suppressTooltip(): void {
+    this.hoverSinceMs = -1;
+  }
+
   /** Bottom-centre flatten (juice). Restarts cleanly on rapid presses. */
   squash(): void {
     const tweens = this.scene.tweens;
@@ -168,7 +178,8 @@ export class Button {
 
   private onOver(): void {
     this.hovered = true;
-    if (this.enabled) this.hoverSinceMs = this.scene.game.loop.time;
+    // Phaser processes a down before an over (first input after load, touch): no tooltip mid-press.
+    if (this.enabled && !this.pressed) this.hoverSinceMs = this.scene.game.loop.time;
     this.refresh();
   }
 
@@ -182,7 +193,7 @@ export class Button {
   private onDown(pointer: Phaser.Input.Pointer): void {
     if (!this.enabled || !pointer.leftButtonDown()) return;
     this.pressed = true;
-    this.hoverSinceMs = -1;
+    this.suppressTooltip();
     this.refresh();
     if (this.options.activateOn === 'press') this.options.onActivate();
   }

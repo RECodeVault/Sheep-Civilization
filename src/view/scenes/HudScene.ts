@@ -20,7 +20,7 @@ const FARM: Command = Object.freeze({ type: 'Farm' });
 
 /**
  * The bottom bar, launched by GameScene in parallel and drawn above it. Reads the sim once per frame
- * through `selectHudView`, sends commands through `GameScene.dispatch`, and never steps the sim.
+ * (on PRE_RENDER, after the sim has ticked) through `selectHudView`, sends commands through `GameScene.dispatch`, and never steps the sim.
  * GameScene relaunches it on every restart, so every listener is removed on SHUTDOWN.
  */
 export class HudScene extends Phaser.Scene {
@@ -44,34 +44,55 @@ export class HudScene extends Phaser.Scene {
 
     bus.on('sim', this.onSim, this);
     bus.on('farm:pressed', this.farm, this);
+    // Phaser updates scenes in REVERSE array order (SceneManager.update), so HudScene's update()
+    // would run before GameScene ticks and show last frame's food. PRE_RENDER fires after every
+    // scene has updated, so the meter shows a change on the frame it happens (UX-DR29).
+    this.events.on(Phaser.Scenes.Events.PRE_RENDER, this.refresh, this);
+    // Scene events persist across restarts, so this one is removed explicitly too.
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       bus.off('sim', this.onSim, this);
       bus.off('farm:pressed', this.farm, this);
+      this.events.off(Phaser.Scenes.Events.PRE_RENDER, this.refresh, this);
     });
   }
 
-  update(): void {
+  private readonly refresh = (): void => {
     try {
-      // GameScene updates first (scene order), so this frame's ticks are already applied.
       const v = selectHudView(this.gameScene.simState, this.view);
       this.bar.foodMeter.set(v.food, v.foodCap);
       this.updateTooltip(this.game.loop.time);
     } catch (err) {
       reportError('ui', err);
     }
-  }
-
-  /** The one Farm action, for a click and the F key alike. The sim decides what it yields. */
-  private readonly farm = (): void => {
-    this.bar.farmButton.squash();
-    this.gameScene.dispatch(FARM);
   };
 
+  /**
+   * The one Farm action, for a click and the F key alike. The sim decides what it yields. Guarded:
+   * it runs inside Phaser's input step, where a throw would stop the game loop.
+   */
+  private readonly farm = (): void => {
+    try {
+      const b = this.bar.farmButton;
+      b.squash();
+      // A press hides the tooltip, from the key as from the pointer (Task 5.4).
+      b.suppressTooltip();
+      this.gameScene.dispatch(FARM);
+    } catch (err) {
+      reportError('ui', err);
+    }
+  };
+
+  // Runs inside GameScene's tick (drainEvents → bus): a throw must not count as a sim error or drop
+  // the frame's remaining ticks.
   private readonly onSim = (e: SimEvent): void => {
     if (e.type !== 'Farmed' || e.resource !== 'food') return;
-    const b = this.bar.farmButton;
-    if (e.added > 0) this.popups.spawn(b.x + b.width / 2, b.y - POPUP_LIFT_PX, STRINGS.farmPopup(e.added));
-    else this.bar.foodMeter.bump();
+    try {
+      const b = this.bar.farmButton;
+      if (e.added > 0) this.popups.spawn(b.x + b.width / 2, b.y - POPUP_LIFT_PX, STRINGS.farmPopup(e.added));
+      else this.bar.foodMeter.bump();
+    } catch (err) {
+      reportError('ui', err);
+    }
   };
 
   private updateTooltip(now: number): void {

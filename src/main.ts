@@ -69,7 +69,8 @@ async function start(): Promise<void> {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
-    // Array order is update and render order: HudScene runs after GameScene and draws on top.
+    // Array order is render order (HudScene draws on top). Updates run in REVERSE order, so HudScene
+    // reads the sim on PRE_RENDER, not in update().
     scene: [BootScene, PreloadScene, GameScene, HudScene],
   });
   attachGame(game);
