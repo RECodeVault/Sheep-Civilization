@@ -11,10 +11,14 @@ import { bus } from '../bus';
 import { EntityLayer } from '../field/EntityLayer';
 import { Fence } from '../field/Fence';
 import { ObjectPool } from '../field/ObjectPool';
+import { SheepHover } from '../field/SheepHover';
 import { SheepSprite } from '../field/SheepSprite';
 import { markGameStarted, reportError } from '../safetyNet';
+import { Tooltip } from '../widgets/Tooltip';
 
 const SHEEP_POOL_SIZE = 120;
+// Above every sheep (sheep depth = y ≤ 720). The tooltip sits here until HudScene exists (Story 1.6).
+const TOOLTIP_DEPTH = 10_000;
 
 /** Optional scene data: a state to resume instead of a new game (debug load now, Story 1.9 later). */
 export interface GameSceneData {
@@ -30,6 +34,7 @@ export class GameScene extends Phaser.Scene {
   private pendingCommands: Command[] = [];
   private readonly publicSheep: PublicSheep[] = [];
   private sheepLayer!: EntityLayer<PublicSheep, SheepSprite>;
+  private sheepHover!: SheepHover;
   // Bound once so the per-tick drain allocates no closure.
   private readonly forwardEvent = (e: SimEvent): void => {
     bus.emit('sim', e);
@@ -56,6 +61,7 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(COLORS.pasture);
     new Fence(this, fenceBounds(this.state));
     this.sheepLayer = new EntityLayer(new ObjectPool(() => new SheepSprite(this), SHEEP_POOL_SIZE));
+    this.sheepHover = new SheepHover(this.input, this.sheepLayer, new Tooltip(this, TOOLTIP_DEPTH));
     this.render();
   }
 
@@ -76,6 +82,7 @@ export class GameScene extends Phaser.Scene {
       const ticks = this.clock.advance(this.game.loop.rawDelta);
       for (let t = 0; t < ticks; t++) this.tick();
       this.render();
+      this.sheepHover.update(this.publicSheep, this.game.loop.time);
     } catch (err) {
       // The remaining ticks of this frame are dropped, so a bad state throws once per frame at most.
       reportError('sim', err);

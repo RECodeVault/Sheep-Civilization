@@ -7,15 +7,36 @@ export function fenceBounds(_state: GameState): Rect {
   return TUNING.startFence;
 }
 
-/** The only sheep shape the view may consume. Later stories add stage, hunger, gait, activity. */
+export type Hunger = 'fed' | 'hungry' | 'starving';
+
+/** FR2: Fed above `fedAbove`, Starving below `starvingBelow`, Hungry in between. Never stored. */
+export function hungerOf(fullness: number): Hunger {
+  if (fullness > TUNING.fedAbove) return 'fed';
+  if (fullness < TUNING.starvingBelow) return 'starving';
+  return 'hungry';
+}
+
+export type Stage = 'lamb' | 'adult' | 'elder';
+
+/** FR7: stage from age (`state.time - bornAt`). Never stored. Story 2.1 adds the stage rules. */
+export function stageOf(s: Sheep, state: GameState): Stage {
+  const age = state.time - s.bornAt;
+  if (age < TUNING.lambUntilMs) return 'lamb';
+  if (age < TUNING.elderFromMs) return 'adult';
+  return 'elder';
+}
+
+/** The only sheep shape the view may consume. Later stories add name, infected, gait, activity. */
 export interface PublicSheep {
   id: number;
   x: number;
   y: number;
+  stage: Stage;
+  hunger: Hunger;
 }
 
-export function publicSheep(s: Sheep, _state: GameState): PublicSheep {
-  return { id: s.id, x: s.x, y: s.y };
+export function publicSheep(s: Sheep, state: GameState): PublicSheep {
+  return { id: s.id, x: s.x, y: s.y, stage: stageOf(s, state), hunger: hungerOf(s.fullness) };
 }
 
 /**
@@ -28,12 +49,14 @@ export function selectPublicSheep(state: GameState, out: PublicSheep[]): PublicS
     const s = sheep[i];
     let p = out[i];
     if (p === undefined) {
-      p = { id: 0, x: 0, y: 0 };
+      p = { id: 0, x: 0, y: 0, stage: 'adult', hunger: 'fed' };
       out[i] = p;
     }
     p.id = s.id;
     p.x = s.x;
     p.y = s.y;
+    p.stage = stageOf(s, state);
+    p.hunger = hungerOf(s.fullness);
   }
   out.length = sheep.length;
   return out;

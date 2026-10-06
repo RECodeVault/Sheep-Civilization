@@ -1,6 +1,6 @@
 {
   "frames": {
-    "adult-idle": {
+    "adult-hungry": {
       "frame": {
         "x": 3,
         "y": 3,
@@ -24,24 +24,48 @@
         "y": 0.5
       }
     },
-    "fence-post": {
+    "adult-idle": {
       "frame": {
         "x": 41,
         "y": 3,
-        "w": 6,
-        "h": 22
+        "w": 32,
+        "h": 26
       },
       "rotated": false,
       "trimmed": false,
       "spriteSourceSize": {
         "x": 0,
         "y": 0,
-        "w": 6,
-        "h": 22
+        "w": 32,
+        "h": 26
       },
       "sourceSize": {
-        "w": 6,
-        "h": 22
+        "w": 32,
+        "h": 26
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "adult-starving": {
+      "frame": {
+        "x": 79,
+        "y": 3,
+        "w": 32,
+        "h": 26
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 26
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 26
       },
       "pivot": {
         "x": 0.5,
@@ -50,8 +74,8 @@
     },
     "fence-rail-h": {
       "frame": {
-        "x": 41,
-        "y": 31,
+        "x": 117,
+        "y": 3,
         "w": 16,
         "h": 4
       },
@@ -72,10 +96,34 @@
         "y": 0.5
       }
     },
+    "fence-post": {
+      "frame": {
+        "x": 139,
+        "y": 3,
+        "w": 6,
+        "h": 22
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 22
+      },
+      "sourceSize": {
+        "w": 6,
+        "h": 22
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
     "fence-rail-v": {
       "frame": {
-        "x": 53,
-        "y": 3,
+        "x": 117,
+        "y": 13,
         "w": 4,
         "h": 16
       },
@@ -103,8 +151,8 @@
     "image": "sheep-world.png",
     "format": "RGBA8888",
     "size": {
-      "w": 60,
-      "h": 38
+      "w": 148,
+      "h": 32
     },
     "scale": 1
   }

@@ -3,7 +3,7 @@
 
 export type DeathCause = 'starved' | 'oldAge' | 'virus' | 'abomination';
 
-// Story 1.5 emits SheepDied; Story 5.3 adds `name`.
+// killSheep (systems/carcass.ts) emits SheepDied; Story 5.3 adds `name`.
 export type SimEvent = { type: 'SheepDied'; id: number; cause: DeathCause; x: number; y: number };
 
 const queue: SimEvent[] = [];

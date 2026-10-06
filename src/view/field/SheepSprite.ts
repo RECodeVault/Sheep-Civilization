@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { TICK_MS } from '../../config/constants';
-import type { PublicSheep } from '../../sim/selectors';
+import type { Hunger, PublicSheep } from '../../sim/selectors';
 import { ATLAS, FRAME } from '../assetKeys';
 import type { PooledEntitySprite } from './EntityLayer';
 
@@ -10,6 +10,14 @@ const SHEEP_SCALE = 2;
 // Facing changes only when a sheep moves more than this sideways in one tick (a quarter of walk
 // speed), so grazing and small separation nudges in a crowd do not flip it back and forth.
 const FACING_DEADBAND_PX = 1.5;
+
+// FR2 / UX-DR57: the body carries the hunger state (normal, drooping, thin). One set for every stage
+// until Story 2.1 adds lamb and elder frames.
+const HUNGER_FRAME: Readonly<Record<Hunger, string>> = Object.freeze({
+  fed: FRAME.adultIdle,
+  hungry: FRAME.adultHungry,
+  starving: FRAME.adultStarving,
+});
 
 /**
  * Draws a sheep between its previous and current tick positions (fixed-step interpolation), so the
@@ -24,6 +32,8 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
   private currX = 0;
   private currY = 0;
   private lastTick = 0;
+  /** The hunger whose frame is showing; null forces the next sync to set it. */
+  private shownHunger: Hunger | null = null;
 
   constructor(scene: Phaser.Scene) {
     // The placeholder adult frame faces right; flipX makes it face left.
@@ -43,6 +53,10 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
   }
 
   sync(pub: PublicSheep, alpha: number, simTime: number): void {
+    if (pub.hunger !== this.shownHunger) {
+      this.shownHunger = pub.hunger;
+      this.setFrame(HUNGER_FRAME[pub.hunger]);
+    }
     if (this.fresh) {
       // A newly bound (possibly reused) sprite starts at rest, never sliding in from an old spot.
       this.fresh = false;
@@ -89,6 +103,7 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
   reset(): void {
     this.boundId = 0;
     this.fresh = true;
+    this.shownHunger = null;
     this.setFlipX(false);
     this.setActive(false).setVisible(false);
   }

@@ -46,6 +46,11 @@ export class EntityLayer<TPublic extends { id: number }, TSprite extends PooledE
     this.live.forEach(this.sweep);
   }
 
+  /** The sprite currently bound to `id`, if any (read-only lookup, e.g. for hover hit tests). */
+  spriteFor(id: number): TSprite | undefined {
+    return this.live.get(id);
+  }
+
   get size(): number {
     return this.live.size;
   }

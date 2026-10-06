@@ -13,4 +13,4 @@ Third-party assets used in Sheep Civilization, with their licences. The in-game 
 
 | Asset | Author | Licence | Source | Files |
 |---|---|---|---|---|
-| Placeholder sprites: adult sheep, fence post and rails, food pips | Sheep Civilization project (original) | Same as the project | Drawn as placeholders in the DESIGN.md palette; to be replaced by free-pack art | `art/sheep/adult-idle.png`, `art/world/fence-{post,rail-h,rail-v}.png`, `art/ui/pip-{food,empty}.png` |
+| Placeholder sprites: adult sheep (idle, hungry, starving), fence post and rails, food pips | Sheep Civilization project (original) | Same as the project | Drawn as placeholders in the DESIGN.md palette; to be replaced by free-pack art | `art/sheep/adult-{idle,hungry,starving}.png`, `art/world/fence-{post,rail-h,rail-v}.png`, `art/ui/pip-{food,empty}.png` |

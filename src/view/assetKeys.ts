@@ -8,6 +8,8 @@ export const ATLAS = Object.freeze({
 
 export const FRAME = Object.freeze({
   adultIdle: 'adult-idle',
+  adultHungry: 'adult-hungry',
+  adultStarving: 'adult-starving',
   fencePost: 'fence-post',
   fenceRailH: 'fence-rail-h',
   fenceRailV: 'fence-rail-v',

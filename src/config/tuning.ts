@@ -10,6 +10,18 @@ export interface Rect {
 }
 
 export const TUNING = Object.freeze({
+  // FR1: Fullness runs 0–100 per sheep; a sheep dies at 0.
+  fullnessMax: 100,
+  // GDD Hunger: "100 → 0 over 120 s". The per-tick drain is derived from these two.
+  starveMs: 120_000,
+  // FR2: Fed above 50, Starving below 25, Hungry in between (both bounds inclusive).
+  fedAbove: 50,
+  starvingBelow: 25,
+  // Architecture N1 Epic 1 staging: killSheep spawns no carcass until Story 2.4 turns this on.
+  carcassesEnabled: false,
+  // FR7 stage thresholds by age: Lamb 0–60 s, Adult 60–300 s, Elder from 300 s.
+  lambUntilMs: 60_000,
+  elderFromMs: 300_000,
   // GDD Starting flock: every founding sheep starts at Fullness 60.
   startFullness: 60,
   // FR3/FR6: the food meter starts at 5 and is capped at 20; one Farm click adds 1.

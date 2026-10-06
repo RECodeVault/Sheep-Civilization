@@ -106,6 +106,13 @@ export function installDebugOverlay(game: Phaser.Game): void {
     activeScene()?.debugMutate(addSheep);
     refreshSim();
   });
+  // Sheep starve 72 s into a new game: keeps a long run (e.g. the NFR1 check) alive until feeding.
+  const feedButton = button(row2, 'Feed all', () => {
+    activeScene()?.debugMutate((s) => {
+      for (const sheep of s.sheep) sheep.fullness = TUNING.fullnessMax;
+    });
+    refreshSim();
+  });
 
   const row3 = buttonRow(panel);
   const dumpButton = button(row3, 'Dump state', () => {
@@ -135,7 +142,16 @@ export function installDebugOverlay(game: Phaser.Game): void {
     setStatus('test rejection raised');
   });
 
-  const simButtons = [...speedButtons, pauseButton, foodButton, sheepButton, dumpButton, copyButton, loadButton];
+  const simButtons = [
+    ...speedButtons,
+    pauseButton,
+    foodButton,
+    sheepButton,
+    feedButton,
+    dumpButton,
+    copyButton,
+    loadButton,
+  ];
 
   (document.getElementById('game-container') ?? document.body).appendChild(panel);
 

@@ -20,7 +20,7 @@ describe('step', () => {
     expect(a).toStrictEqual(b);
   });
 
-  it('movement emits no events', () => {
+  it('emits no events before any sheep starves', () => {
     expect(runFor(newGame(), 2_000)).toEqual([]);
   });
 
