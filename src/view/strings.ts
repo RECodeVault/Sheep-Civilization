@@ -22,7 +22,13 @@ export const STRINGS = Object.freeze({
   farmLabel: 'Farm',
   farmKey: 'F',
   farmTooltip: 'Farm: fill the bar for 1 food (F)',
-  // Float popup (UX-DR44), e.g. "+1" when a full Farm bar drops a piece.
+  // Farm Breeding Food button (UX-DR28, UX-DR75, UX-DR96). The Voice-table label is "Farm Breeding
+  // Food"; the button shows it on two lines (mockups/hud.html), since one line does not fit beside
+  // the key hint.
+  farmBreedingLabel: 'Farm Breeding\nFood',
+  farmBreedingKey: 'G',
+  farmBreedingTooltip: 'Farm Breeding Food: fill the bar for 1 breeding food (G)',
+  // Float popup (UX-DR44), e.g. "+1" when a full Farm or breeding bar drops a piece.
   farmPopup: (n: number): string => `+${n}`,
   // Meter value (UX-DR29), e.g. "3/8" for the Farm bar.
   meterValue: (n: number, cap: number): string => `${n}/${cap}`,

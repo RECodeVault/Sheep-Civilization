@@ -288,10 +288,34 @@
         "y": 0.5
       }
     },
-    "food-piece": {
+    "breeding-piece": {
       "frame": {
         "x": 327,
         "y": 13,
+        "w": 8,
+        "h": 7
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 7
+      },
+      "sourceSize": {
+        "w": 8,
+        "h": 7
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "food-piece": {
+      "frame": {
+        "x": 359,
+        "y": 3,
         "w": 8,
         "h": 6
       },
@@ -305,6 +329,30 @@
       },
       "sourceSize": {
         "w": 8,
+        "h": 6
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "ready-heart": {
+      "frame": {
+        "x": 373,
+        "y": 3,
+        "w": 7,
+        "h": 6
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 7,
+        "h": 6
+      },
+      "sourceSize": {
+        "w": 7,
         "h": 6
       },
       "pivot": {
@@ -343,7 +391,7 @@
     "image": "sheep-world.png",
     "format": "RGBA8888",
     "size": {
-      "w": 356,
+      "w": 383,
       "h": 32
     },
     "scale": 1

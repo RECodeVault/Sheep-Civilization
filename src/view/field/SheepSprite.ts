@@ -13,6 +13,12 @@ const SHEEP_SCALE = 2;
 // speed), so grazing and small separation nudges in a crowd do not flip it back and forth.
 const FACING_DEADBAND_PX = 1.5;
 
+// UX-DR30a ready marker: a small heart floating just above a ready sheep's head. Drawn above every
+// sheep (sheep depth = y ≤ 720) and below GameScene's munch crumbs and tooltip (10 000 − 1 and up);
+// the world-overlay layer itself arrives with pings in Story 2.6.
+const READY_DEPTH = 9_998;
+const READY_GAP_PX = 2;
+
 // FR7 / UX-DR58: the stage picks the art (lamb smaller, elder greyer); FR2 / UX-DR57: the hunger
 // state picks the pose within it (normal, drooping, thin). Elders are grey in their art, not by tint:
 // tint is the infection cue (Story 2.5), and an infected elder needs both.
@@ -38,12 +44,21 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
   /** The stage and hunger whose frame is showing; null forces the next sync to set it. */
   private shownStage: Stage | null = null;
   private shownHunger: Hunger | null = null;
+  /** The ready heart, owned by this sprite and pooled with it; shown while the sheep is ready (FR8a). */
+  private readonly readyHeart: Phaser.GameObjects.Image;
+  private shownReady = false;
 
   constructor(scene: Phaser.Scene) {
     // The placeholder adult frame faces right; flipX makes it face left.
     super(scene, 0, 0, ATLAS.sheepWorld, FRAME.adultIdle);
     this.setScale(SHEEP_SCALE);
     scene.add.existing(this);
+    this.readyHeart = scene.add
+      .image(0, 0, ATLAS.sheepWorld, FRAME.readyHeart)
+      .setScale(SHEEP_SCALE)
+      .setOrigin(0.5, 1)
+      .setDepth(READY_DEPTH)
+      .setVisible(false);
     this.reset();
   }
 
@@ -95,11 +110,19 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
     }
     const x = this.prevX + (this.currX - this.prevX) * alpha;
     const y = this.prevY + (this.currY - this.prevY) * alpha;
-    if (this.x !== x || this.y !== y) {
+    const moved = this.x !== x || this.y !== y;
+    if (moved) {
       this.setPosition(x, y);
       // Lower sheep draw in front.
       this.setDepth(y);
     }
+    const shown = pub.ready !== this.shownReady;
+    if (shown) {
+      this.shownReady = pub.ready;
+      this.readyHeart.setVisible(pub.ready);
+    }
+    // Follows the drawn (interpolated) position. Only adults are ready, so the frame height is steady.
+    if (pub.ready && (moved || shown)) this.readyHeart.setPosition(x, y - this.displayHeight / 2 - READY_GAP_PX);
   }
 
   playExit(): void {
@@ -111,6 +134,8 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
     this.fresh = true;
     this.shownStage = null;
     this.shownHunger = null;
+    this.shownReady = false;
+    this.readyHeart.setVisible(false);
     this.setFlipX(false);
     this.setActive(false).setVisible(false);
   }

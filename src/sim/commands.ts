@@ -5,10 +5,10 @@ import { emit } from './events';
 import { rngRange } from './rng';
 import { innerFence } from './selectors';
 import type { GameState } from './state';
-import { createFoodPiece } from './systems/feeding';
+import { createBreedingPiece, createFoodPiece } from './systems/feeding';
 
-// Later stories append FarmBreeding, ClearCarcass, Breed, Sell, Sacrifice, Buy, …
-export type Command = { type: 'Farm' };
+// Later stories append ClearCarcass, Breed, Sell, Sacrifice, Buy, …
+export type Command = { type: 'Farm' } | { type: 'FarmBreeding' };
 
 export function applyCommand(state: GameState, cmd: Command): void {
   // FR38: a lost game takes no more commands. The sim is the authority; view guards are for feel.
@@ -17,9 +17,11 @@ export function applyCommand(state: GameState, cmd: Command): void {
     case 'Farm':
       farm(state);
       return;
+    case 'FarmBreeding':
+      farmBreeding(state);
+      return;
     default:
-      // Narrow on the discriminant: a one-variant union does not narrow `cmd` itself to never.
-      assertNever(cmd.type);
+      assertNever(cmd);
   }
 }
 
@@ -43,4 +45,25 @@ function farm(state: GameState): void {
     added++;
   }
   emit({ type: 'Farmed', resource: 'food', added });
+}
+
+/**
+ * FR8 (changed 2026-10-06): Farm Breeding Food works like Farm. A click fills pips of the breeding
+ * bar, and every full bar drops one breeding piece at a random reachable spot in the pen; adults eat
+ * them to become ready (FR8a). No stock, no cap. Never boosted (2.8), and Better Hoe does not apply.
+ */
+function farmBreeding(state: GameState): void {
+  // The same corrupt-bar guard as farm(): a bad value from a loaded save starts the bar over.
+  const b = state.breedingProgress;
+  if (!(Number.isInteger(b) && b >= 0 && b < TUNING.breedingPipsPerFood)) state.breedingProgress = 0;
+  state.breedingProgress += TUNING.breedingPipsPerClick;
+  let added = 0;
+  while (state.breedingProgress >= TUNING.breedingPipsPerFood) {
+    state.breedingProgress -= TUNING.breedingPipsPerFood;
+    const r = innerFence(state);
+    const p = createBreedingPiece(state, rngRange(state, r.left, r.right), rngRange(state, r.top, r.bottom));
+    emit({ type: 'BreedingFoodDropped', id: p.id, x: p.x, y: p.y });
+    added++;
+  }
+  emit({ type: 'Farmed', resource: 'breedingFood', added });
 }

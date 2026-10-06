@@ -1,33 +1,49 @@
-// Feeding (FR5): food pieces in the pen (dropped by full Farm bars, FR3), who walks to which piece,
-// and eating.
-// Feeding owns the `seekFood` and `eating` activities; movement only reads them.
+// Feeding (FR5, FR8a): food pieces (dropped by full Farm bars, FR3) and breeding pieces (dropped by
+// full breeding bars, FR8) in the pen, who walks to which piece, and eating.
+// Feeding owns the `seekFood`, `seekBreedingFood` and `eating` activities; movement only reads them.
 //
 // Claim model: a seeker keeps its `targetId` until it eats the piece or the piece is gone, so sheep
 // never jitter between pieces. Each piece has at most one seeker and each sheep at most one piece.
+// Food comes first: food claims run before breeding claims and may take a hungry sheep off its way to
+// a breeding piece, and a hungry sheep does not start for breeding food while food lies in the pen.
 import { TUNING } from '../../config/tuning';
 import { emit } from '../events';
-import { innerFence, pieceIndex } from '../selectors';
-import { nextId, type FoodPiece, type GameState, type SheepActivity } from '../state';
+import { breedingPieceIndex, innerFence, pieceIndex, stageOf } from '../selectors';
+import { nextId, type BreedingPiece, type FoodPiece, type GameState, type Sheep } from '../state';
+
+/** A piece in one of the two piece arrays; both have the same shape. */
+type Piece = FoodPiece | BreedingPiece;
+type Eligible = (s: Sheep, state: GameState) => boolean;
 
 // Module-scope scratch, grown on demand, so a tick allocates nothing: claimed[i] marks piece i.
 let claimed = new Uint8Array(64);
 
 /** Creates a food piece, clamped to where a sheep centre can reach it (a full Farm bar, FR3; debug). */
 export function createFoodPiece(state: GameState, x: number, y: number): FoodPiece {
-  // Sheep centres never come within fenceInset of a rail, so a piece there could never be eaten.
-  const r = innerFence(state);
-  const p: FoodPiece = {
-    id: nextId(state),
-    x: Math.min(r.right, Math.max(r.left, x)),
-    y: Math.min(r.bottom, Math.max(r.top, y)),
-  };
+  const p = clampedPiece(state, x, y);
   state.foodPieces.push(p);
   return p;
 }
 
+/** Creates a breeding piece, clamped like a food piece (a full breeding bar, FR8; debug). */
+export function createBreedingPiece(state: GameState, x: number, y: number): BreedingPiece {
+  const p = clampedPiece(state, x, y);
+  state.breedingPieces.push(p);
+  return p;
+}
+
+function clampedPiece(state: GameState, x: number, y: number): Piece {
+  // Sheep centres never come within fenceInset of a rail, so a piece there could never be eaten.
+  const r = innerFence(state);
+  return {
+    id: nextId(state),
+    x: Math.min(r.right, Math.max(r.left, x)),
+    y: Math.min(r.bottom, Math.max(r.top, y)),
+  };
+}
+
 export function updateFeeding(state: GameState): void {
   const sheep = state.sheep;
-  const pieces = state.foodPieces;
   const reach2 = TUNING.eatReachPx * TUNING.eatReachPx;
 
   // Passes 1 and 2: release stale claims, finish munching, and eat on arrival.
@@ -37,31 +53,52 @@ export function updateFeeding(state: GameState): void {
       if (state.time >= s.restUntil) s.activity = 'wander';
       continue;
     }
-    if (s.activity !== 'seekFood') continue;
-    const k = s.targetId === undefined ? -1 : pieceIndex(state, s.targetId);
-    if (k < 0) {
+    const food = s.activity === 'seekFood';
+    if (!food && s.activity !== 'seekBreedingFood') continue;
+    const k = s.targetId === undefined ? -1 : food ? pieceIndex(state, s.targetId) : breedingPieceIndex(state, s.targetId);
+    // A breeding claim is released once the sheep can no longer use the piece (it turned elder on the
+    // way, or is already ready), so the piece stays for an adult that can.
+    if (k < 0 || (!food && !canUseBreedingFood(s, state))) {
       s.activity = 'wander';
       delete s.targetId;
       continue;
     }
+    const pieces = food ? state.foodPieces : state.breedingPieces;
     const p = pieces[k];
     const dx = p.x - s.x;
     const dy = p.y - s.y;
     if (dx * dx + dy * dy > reach2) continue;
-    s.fullness = Math.min(TUNING.fullnessMax, s.fullness + TUNING.foodPieceFullness);
     // Removal is an event, not per-tick work.
     pieces.splice(k, 1);
-    emit({ type: 'FoodEaten', sheepId: s.id, pieceId: p.id, x: p.x, y: p.y });
+    if (food) {
+      s.fullness = Math.min(TUNING.fullnessMax, s.fullness + TUNING.foodPieceFullness);
+      emit({ type: 'FoodEaten', sheepId: s.id, pieceId: p.id, x: p.x, y: p.y });
+    } else {
+      // FR8a: ready to breed; breeding food gives no Fullness.
+      s.breedReady = true;
+      emit({ type: 'BreedingFoodEaten', sheepId: s.id, pieceId: p.id, x: p.x, y: p.y });
+    }
     s.activity = 'eating';
     delete s.targetId;
     s.restUntil = state.time + TUNING.eatMs;
   }
 
-  // Pass 3: claims. Nothing to do without pieces or without a sheep that may seek.
-  let eligible = 0;
-  for (let i = 0; i < sheep.length; i++) if (isEligible(sheep[i].activity, sheep[i].fullness)) eligible++;
+  // Pass 3: food claims. Pass 4: breeding claims, after food, from the sheep still free.
+  claimPieces(state, state.foodPieces, true, mayEatFood);
+  claimPieces(state, state.breedingPieces, false, mayEatBreedingFood);
+}
+
+/**
+ * FR5: the oldest unclaimed piece picks its nearest eligible sheep, which then takes its own nearest
+ * unclaimed piece (often the same one). Strict `<` gives ties to the lower index: deterministic.
+ */
+function claimPieces(state: GameState, pieces: readonly Piece[], food: boolean, eligibleFn: Eligible): void {
+  const sheep = state.sheep;
   const n = pieces.length;
-  if (eligible === 0 || n === 0) return;
+  if (n === 0) return;
+  let eligible = 0;
+  for (let i = 0; i < sheep.length; i++) if (eligibleFn(sheep[i], state)) eligible++;
+  if (eligible === 0) return;
 
   if (n > claimed.length) {
     let size = claimed.length;
@@ -69,19 +106,18 @@ export function updateFeeding(state: GameState): void {
     claimed = new Uint8Array(size);
   }
   claimed.fill(0, 0, n);
+  const seeking = food ? 'seekFood' : 'seekBreedingFood';
   let unclaimed = n;
   for (let i = 0; i < sheep.length; i++) {
     const s = sheep[i];
-    if (s.activity !== 'seekFood' || s.targetId === undefined) continue;
-    const k = pieceIndex(state, s.targetId);
+    if (s.activity !== seeking || s.targetId === undefined) continue;
+    const k = food ? pieceIndex(state, s.targetId) : breedingPieceIndex(state, s.targetId);
     if (k >= 0 && claimed[k] === 0) {
       claimed[k] = 1;
       unclaimed--;
     }
   }
 
-  // FR5: the oldest unclaimed piece picks its nearest eligible sheep, which then takes its own nearest
-  // unclaimed piece (often the same one). Strict `<` gives ties to the lower index: deterministic.
   let oldest = 0;
   while (eligible > 0 && unclaimed > 0) {
     while (claimed[oldest] === 1) oldest++;
@@ -90,7 +126,7 @@ export function updateFeeding(state: GameState): void {
     let bestD = Infinity;
     for (let i = 0; i < sheep.length; i++) {
       const s = sheep[i];
-      if (!isEligible(s.activity, s.fullness)) continue;
+      if (!eligibleFn(s, state)) continue;
       const d = dist2(s.x, s.y, p.x, p.y);
       if (d < bestD) {
         bestD = d;
@@ -113,13 +149,33 @@ export function updateFeeding(state: GameState): void {
     claimed[pick] = 1;
     unclaimed--;
     eligible--;
-    s.activity = 'seekFood';
+    // A sheep on its way to a breeding piece drops it for food: its old target is simply replaced.
+    s.activity = seeking;
     s.targetId = pieces[pick].id;
   }
 }
 
-function isEligible(activity: SheepActivity, fullness: number): boolean {
-  return activity === 'wander' && fullness < TUNING.seekBelowFullness;
+/** FR5: a free (or breeding-food-bound) sheep below seekBelowFullness may claim food. */
+function mayEatFood(s: Sheep): boolean {
+  return (s.activity === 'wander' || s.activity === 'seekBreedingFood') && s.fullness < TUNING.seekBelowFullness;
+}
+
+/**
+ * FR8a: a free adult that is not ready may claim breeding food, unless it is hungry while food lies
+ * in the pen (food first). Story 2.3 adds "and not on breeding cooldown"; Story 4.1: the Abomination
+ * is never an adult (it stays a lamb).
+ */
+function mayEatBreedingFood(s: Sheep, state: GameState): boolean {
+  return (
+    s.activity === 'wander' &&
+    canUseBreedingFood(s, state) &&
+    !(s.fullness < TUNING.seekBelowFullness && state.foodPieces.length > 0)
+  );
+}
+
+/** FR8a: only an adult that is not ready yet gets anything from a breeding piece. */
+function canUseBreedingFood(s: Sheep, state: GameState): boolean {
+  return !s.breedReady && stageOf(s, state) === 'adult';
 }
 
 function dist2(ax: number, ay: number, bx: number, by: number): number {

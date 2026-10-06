@@ -5,10 +5,10 @@ import { rngRange, seedFromNumber } from './rng';
 import { fenceBounds } from './selectors';
 
 /**
- * The sheep's explicit state machine; feeding.ts owns the seekFood/eating transitions. Later stories
- * add seekCarcass (2.5), stalking (4.3) and dragged (2.7).
+ * The sheep's explicit state machine; feeding.ts owns the seekFood/seekBreedingFood/eating
+ * transitions. Later stories add seekCarcass (2.5), stalking (4.3) and dragged (2.7).
  */
-export type SheepActivity = 'wander' | 'seekFood' | 'eating';
+export type SheepActivity = 'wander' | 'seekFood' | 'seekBreedingFood' | 'eating';
 
 export interface Sheep {
   id: number;
@@ -25,11 +25,23 @@ export interface Sheep {
    * munching (`eating`).
    */
   restUntil: number;
-  /** Id of the food piece a `seekFood` sheep walks to. Omitted (deleted) when there is none. */
+  /**
+   * Id of the piece a `seekFood` (food piece) or `seekBreedingFood` (breeding piece) sheep walks to.
+   * Omitted (deleted) when there is none.
+   */
   targetId?: number;
+  /** Ate a breeding piece and can be paired by the Breed tool (FR8a). Cleared on turning elder. */
+  breedReady: boolean;
 }
 
 export interface FoodPiece {
+  id: number;
+  x: number;
+  y: number;
+}
+
+/** A breeding-food piece in the pen (FR8): an adult that eats it becomes ready to breed. */
+export interface BreedingPiece {
   id: number;
   x: number;
   y: number;
@@ -63,6 +75,9 @@ export interface GameState {
   /** Pips in the current Farm bar, 0 to `TUNING.farmPipsPerFood − 1` (FR3). */
   farmProgress: number;
   foodPieces: FoodPiece[];
+  /** Pips in the current breeding bar, 0 to `TUNING.breedingPipsPerFood − 1` (FR8). */
+  breedingProgress: number;
+  breedingPieces: BreedingPiece[];
   carcasses: Carcass[];
   stats: Stats;
   /** Change-detection cache for EraChanged only; display reads currentEra(state). */
@@ -88,6 +103,7 @@ export function createSheep(state: GameState, o: { x: number; y: number; bornAt:
     activity: 'wander',
     heading: rngRange(state, 0, 2 * Math.PI),
     restUntil: 0,
+    breedReady: false,
   };
   state.sheep.push(s);
   // The one place a sheep is added, so the peak covers new games, births and debug sheep alike.
@@ -103,6 +119,8 @@ export function createNewGame(seed: number): GameState {
     sheep: [],
     farmProgress: 0,
     foodPieces: [],
+    breedingProgress: 0,
+    breedingPieces: [],
     carcasses: [],
     stats: { died: 0, sold: 0, sacrificed: 0, moneyEarned: 0, peakFlock: 0 },
     lastEra: 'pasture',

@@ -80,6 +80,83 @@ describe('applyCommand', () => {
   });
 });
 
+describe('applyCommand FarmBreeding (FR8: an 8-pip bar that drops breeding pieces)', () => {
+  function farmBreeding(state: GameState, times: number): void {
+    for (let i = 0; i < times; i++) applyCommand(state, { type: 'FarmBreeding' });
+  }
+
+  it('fills a pip per press and drops nothing until the bar is full', () => {
+    const state = newGame();
+    drained();
+    farmBreeding(state, TUNING.breedingPipsPerFood - 1);
+    expect(state.breedingProgress).toBe((TUNING.breedingPipsPerFood - 1) * TUNING.breedingPipsPerClick);
+    expect(state.breedingPieces).toEqual([]);
+    const events = drained();
+    expect(events).toHaveLength(TUNING.breedingPipsPerFood - 1);
+    for (const e of events) expect(e).toEqual({ type: 'Farmed', resource: 'breedingFood', added: 0 });
+  });
+
+  it('turns a full bar into one breeding piece inside the inner fence, and empties the bar', () => {
+    const state = newGame();
+    farmBreeding(state, TUNING.breedingPipsPerFood - 1);
+    drained();
+    farmBreeding(state, 1);
+    expect(state.breedingProgress).toBe(0);
+    expect(state.breedingPieces).toHaveLength(1);
+    const p = state.breedingPieces[0];
+    const r = innerFence(state);
+    expect(p.x).toBeGreaterThanOrEqual(r.left);
+    expect(p.x).toBeLessThanOrEqual(r.right);
+    expect(p.y).toBeGreaterThanOrEqual(r.top);
+    expect(p.y).toBeLessThanOrEqual(r.bottom);
+    // BreedingFoodDropped first, so the field has the piece before the HUD reacts to Farmed.
+    expect(drained()).toEqual([
+      { type: 'BreedingFoodDropped', id: p.id, x: p.x, y: p.y },
+      { type: 'Farmed', resource: 'breedingFood', added: 1 },
+    ]);
+  });
+
+  it('has no cap: every full bar drops another piece', () => {
+    const state = newGame();
+    farmBreeding(state, TUNING.breedingPipsPerFood * 5);
+    expect(state.breedingPieces).toHaveLength(5);
+    expect(state.breedingProgress).toBe(0);
+  });
+
+  it('changes nothing but the breeding bar until a bar completes: no food, no rng draw, no id', () => {
+    const state = newGame();
+    state.farmProgress = TUNING.farmPipsPerFood - 1;
+    const before = structuredClone(state);
+    farmBreeding(state, 1);
+    expect({ ...state, breedingProgress: before.breedingProgress }).toStrictEqual(before);
+  });
+
+  it('leaves the Farm bar and food pieces alone on a press that drops a breeding piece', () => {
+    const state = newGame();
+    state.farmProgress = TUNING.farmPipsPerFood - 1;
+    farmBreeding(state, TUNING.breedingPipsPerFood);
+    expect(state.breedingPieces).toHaveLength(1);
+    expect(state.farmProgress).toBe(TUNING.farmPipsPerFood - 1);
+    expect(state.foodPieces).toEqual([]);
+  });
+
+  it.each([Number.NaN, -1, 1.5, 1e20])('starts a corrupt bar (%s) over instead of breaking or hanging', (bad) => {
+    const state = newGame();
+    state.breedingProgress = bad;
+    farmBreeding(state, 1);
+    expect(state.breedingProgress).toBe(TUNING.breedingPipsPerClick);
+    expect(state.breedingPieces).toEqual([]);
+  });
+
+  it('places the pieces deterministically per seed', () => {
+    const a = newGame(77);
+    farmBreeding(a, TUNING.breedingPipsPerFood * 3);
+    const b = newGame(77);
+    farmBreeding(b, TUNING.breedingPipsPerFood * 3);
+    expect(a.breedingPieces).toEqual(b.breedingPieces);
+  });
+});
+
 describe('applyCommand on a lost game', () => {
   it('ignores Farm: no pip, no piece, no event', () => {
     const state = newGame();
@@ -89,6 +166,18 @@ describe('applyCommand on a lost game', () => {
     state.farmProgress = TUNING.farmPipsPerFood - 1;
     const before = structuredClone(state);
     applyCommand(state, { type: 'Farm' });
+    expect(state).toStrictEqual(before);
+    expect(drained()).toEqual([]);
+  });
+
+  it('ignores FarmBreeding: no pip, no piece, no event', () => {
+    const state = newGame();
+    for (const id of state.sheep.map((s) => s.id)) killSheep(state, id, 'starved');
+    drained();
+    // One pip short of a full bar, so an unguarded FarmBreeding would visibly drop a piece.
+    state.breedingProgress = TUNING.breedingPipsPerFood - 1;
+    const before = structuredClone(state);
+    applyCommand(state, { type: 'FarmBreeding' });
     expect(state).toStrictEqual(before);
     expect(drained()).toEqual([]);
   });

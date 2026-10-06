@@ -3,7 +3,7 @@ import { TICK_MS } from '../../../src/config/constants';
 import { TUNING } from '../../../src/config/tuning';
 import { createSheep, type GameState, type Sheep } from '../../../src/sim/state';
 import { step } from '../../../src/sim/step';
-import { createFoodPiece } from '../../../src/sim/systems/feeding';
+import { createBreedingPiece, createFoodPiece } from '../../../src/sim/systems/feeding';
 import { updateMovement } from '../../../src/sim/systems/movement';
 import { fillFlock, innerFence, newGame, runFor } from '../helpers';
 
@@ -194,6 +194,26 @@ describe('updateMovement seekFood / eating', () => {
       prev = d;
     }
     // 50 px at 6 px per tick: there after 9 ticks, and it stays on the piece instead of orbiting it.
+    expect(prev).toBeLessThan(1e-6);
+  });
+
+  it('walks a breeding-food seeker straight to its breeding piece the same way', () => {
+    const c = centre(newGame());
+    const state = gameWith([{ x: c.x - 50, y: c.y - 7 }]);
+    const s = state.sheep[0];
+    const p = createBreedingPiece(state, c.x, c.y);
+    s.activity = 'seekBreedingFood';
+    s.targetId = p.id;
+    let prev = Math.hypot(p.x - s.x, p.y - s.y);
+    for (let t = 0; t < 20; t++) {
+      const bx = s.x;
+      const by = s.y;
+      updateMovement(state);
+      expect(Math.hypot(s.x - bx, s.y - by)).toBeLessThanOrEqual(MAX_STEP + 1e-9);
+      const d = Math.hypot(p.x - s.x, p.y - s.y);
+      expect(d).toBeLessThanOrEqual(prev + 1e-9);
+      prev = d;
+    }
     expect(prev).toBeLessThan(1e-6);
   });
 

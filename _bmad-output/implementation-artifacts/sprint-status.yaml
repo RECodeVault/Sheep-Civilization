@@ -1,5 +1,5 @@
 # generated: 2026-10-05T14:42:07-07:00
-# last_updated: 2026-10-06T15:12:15-07:00
+# last_updated: 2026-10-06T15:55:59-07:00
 # project: sheep-civilization
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: '2026-10-05T14:42:07-07:00'
-last_updated: '2026-10-06T15:12:15-07:00'
+last_updated: '2026-10-06T15:55:59-07:00'
 project: sheep-civilization
 project_key: NOKEY
 tracking_system: file-system
@@ -58,7 +58,7 @@ development_status:
   # Epic 2: Life, Death & Contagion
   epic-2: in-progress
   2-1-life-stages-and-the-gdd-starting-flock: done
-  2-2-farm-breeding-food: backlog
+  2-2-farm-breeding-food: done
   2-3-breed-two-adults: backlog
   2-4-carcasses-and-death-announcements: backlog
   2-5-carcass-eating-and-the-virus: backlog

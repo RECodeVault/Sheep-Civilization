@@ -5,6 +5,7 @@ import {
   hungerOf,
   isLost,
   publicSheep,
+  selectBreedingPieces,
   selectFoodPieces,
   selectHudView,
   selectLoseView,
@@ -58,7 +59,20 @@ describe('publicSheep / selectPublicSheep', () => {
     const state = newGame();
     const s = state.sheep[0];
     s.fullness = TUNING.starvingBelow - 1;
-    expect(publicSheep(s, state)).toEqual({ id: s.id, x: s.x, y: s.y, stage: 'adult', hunger: 'starving' });
+    expect(publicSheep(s, state)).toEqual({ id: s.id, x: s.x, y: s.y, stage: 'adult', hunger: 'starving', ready: false });
+  });
+
+  it('exposes breedReady as ready', () => {
+    const state = newGame();
+    const s = state.sheep[0];
+    s.breedReady = true;
+    expect(publicSheep(s, state).ready).toBe(true);
+    const out: PublicSheep[] = [];
+    selectPublicSheep(state, out);
+    expect(out.map((p) => p.ready)).toEqual([true, false, false]);
+    s.breedReady = false;
+    selectPublicSheep(state, out);
+    expect(out[0].ready).toBe(false);
   });
 
   it('fills stage and hunger into the objects already in out', () => {
@@ -79,18 +93,39 @@ describe('publicSheep / selectPublicSheep', () => {
 describe('selectHudView', () => {
   it('fills the Farm bar from state and TUNING into the given object', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: -1, farmPipsPerFood: -1 };
+    const out: HudView = { farmProgress: -1, farmPipsPerFood: -1, breedingProgress: -1, breedingPipsPerFood: -1 };
     expect(selectHudView(state, out)).toBe(out);
-    expect(out).toEqual({ farmProgress: 0, farmPipsPerFood: TUNING.farmPipsPerFood });
+    expect(out).toEqual({
+      farmProgress: 0,
+      farmPipsPerFood: TUNING.farmPipsPerFood,
+      breedingProgress: 0,
+      breedingPipsPerFood: TUNING.breedingPipsPerFood,
+    });
   });
 
   it('reflects a Farm on the next read', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0 };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0 };
     selectHudView(state, out);
     applyCommand(state, { type: 'Farm' });
     selectHudView(state, out);
     expect(out.farmProgress).toBe(TUNING.farmPipsPerClick);
+  });
+
+  it('reflects a FarmBreeding on the next read', () => {
+    const state = newGame();
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0 };
+    selectHudView(state, out);
+    applyCommand(state, { type: 'FarmBreeding' });
+    selectHudView(state, out);
+    expect(out.breedingProgress).toBe(TUNING.breedingPipsPerClick);
+  });
+});
+
+describe('selectBreedingPieces', () => {
+  it('returns the live breeding pieces array without copying', () => {
+    const state = newGame();
+    expect(selectBreedingPieces(state)).toBe(state.breedingPieces);
   });
 });
 

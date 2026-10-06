@@ -10,7 +10,7 @@ const START_FLOCK = TUNING.startFlockAdults + TUNING.startFlockLambs;
 describe('createNewGame', () => {
   it('has exactly the GameState fields', () => {
     expect(Object.keys(newGame()).sort()).toEqual(
-      ['carcasses', 'farmProgress', 'foodPieces', 'lastEra', 'nextId', 'rng', 'sheep', 'stats', 'time'].sort(),
+      ['breedingPieces', 'breedingProgress', 'carcasses', 'farmProgress', 'foodPieces', 'lastEra', 'nextId', 'rng', 'sheep', 'stats', 'time'].sort(),
     );
   });
 
@@ -23,8 +23,13 @@ describe('createNewGame', () => {
       expect(s.bornAt).toBe(i < TUNING.startFlockAdults ? -TUNING.startAdultAgeMs : 0);
       expect(stageOf(s, state)).toBe(i < TUNING.startFlockAdults ? 'adult' : 'lamb');
       expect(s.activity).toBe('wander');
+      // FR6: nobody is ready to breed at the start.
+      expect(s.breedReady).toBe(false);
     });
     expect(state.farmProgress).toBe(0);
+    // FR6: an empty breeding bar and no breeding pieces.
+    expect(state.breedingProgress).toBe(0);
+    expect(state.breedingPieces).toEqual([]);
     expect(state.foodPieces).toEqual([]);
     expect(state.carcasses).toEqual([]);
     expect(state.lastEra).toBe('pasture');

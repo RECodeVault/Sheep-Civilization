@@ -27,7 +27,7 @@ const FIELD_BOTTOM = LAYOUT.canvasHeight - LAYOUT.hudBarHeight;
 
 /**
  * The single owner of gameplay pointer and keyboard input (AR8). 1.6 added F, 1.10 the Esc chain,
- * the modal check and right-drag panning. Since 2026-10-06 food comes only from the Farm bar, so a
+ * the modal check and right-drag panning, 2.2 G. Since 2026-10-06 food comes only from the Farm bar, so a
  * left click on the field does nothing yet: 2.4 adds pointer clicks (`idle` mode, the 6 px
  * click/drag threshold, carcass clearing; field hits must use the camera's world point), 2.3 breed
  * mode and 2.7 drag. Turns input into commands or UI events; never touches GameState.
@@ -48,6 +48,7 @@ export class InputController {
   // step an earlier keydown is dispatched again (KeyboardPlugin.update). Each handler ignores an
   // event object it already handled.
   private lastFarmKey: KeyboardEvent | null = null;
+  private lastFarmBreedingKey: KeyboardEvent | null = null;
   private lastEscKey: KeyboardEvent | null = null;
 
   constructor(input: Phaser.Input.InputPlugin, hooks: InputHooks) {
@@ -64,6 +65,7 @@ export class InputController {
     // Event listeners, not addKey(): addKey captures the key, which would preventDefault it for the
     // whole page.
     this.keyboard.on('keydown-F', this.onFarmKey, this);
+    this.keyboard.on('keydown-G', this.onFarmBreedingKey, this);
     this.keyboard.on('keydown-ESC', this.onEscKey, this);
   }
 
@@ -103,6 +105,7 @@ export class InputController {
   destroy(): void {
     this.input.off('pointerdown', this.onPointerDown, this);
     this.keyboard?.off('keydown-F', this.onFarmKey, this);
+    this.keyboard?.off('keydown-G', this.onFarmBreedingKey, this);
     this.keyboard?.off('keydown-ESC', this.onEscKey, this);
   }
 
@@ -113,6 +116,15 @@ export class InputController {
     // UX-DR20: shortcuts are ignored while a modal is up.
     if (this.hooks.modalOpen()) return;
     bus.emit('farm:pressed', undefined);
+  }
+
+  private onFarmBreedingKey(event: KeyboardEvent): void {
+    // As onFarmKey, with its own duplicate guard: one action per press (FR43), Ctrl/Cmd/Alt+G left
+    // to the browser, nothing under a modal.
+    if (event === this.lastFarmBreedingKey || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+    this.lastFarmBreedingKey = event;
+    if (this.hooks.modalOpen()) return;
+    bus.emit('farmBreeding:pressed', undefined);
   }
 
   private onPointerDown(pointer: Phaser.Input.Pointer): void {

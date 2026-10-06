@@ -1,6 +1,6 @@
 {
   "frames": {
-    "pip-empty": {
+    "pip-breeding": {
       "frame": {
         "x": 3,
         "y": 3,
@@ -24,10 +24,34 @@
         "y": 0.5
       }
     },
-    "pip-food": {
+    "pip-empty": {
       "frame": {
         "x": 3,
         "y": 23,
+        "w": 7,
+        "h": 14
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 7,
+        "h": 14
+      },
+      "sourceSize": {
+        "w": 7,
+        "h": 14
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "pip-food": {
+      "frame": {
+        "x": 3,
+        "y": 43,
         "w": 7,
         "h": 14
       },
@@ -56,7 +80,7 @@
     "format": "RGBA8888",
     "size": {
       "w": 13,
-      "h": 40
+      "h": 60
     },
     "scale": 1
   }

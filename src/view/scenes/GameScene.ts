@@ -9,12 +9,13 @@ import { clearEvents, drainEvents, type SimEvent } from '../../sim/events';
 import {
   fenceBounds,
   isLost,
+  selectBreedingPieces,
   selectFoodPieces,
   selectLoseView,
   selectPublicSheep,
   type PublicSheep,
 } from '../../sim/selectors';
-import { createNewGame, type FoodPiece, type GameState } from '../../sim/state';
+import { createNewGame, type BreedingPiece, type FoodPiece, type GameState } from '../../sim/state';
 import { step } from '../../sim/step';
 import { ATLAS, FRAME } from '../assetKeys';
 import { bus } from '../bus';
@@ -35,6 +36,8 @@ import type { OverlayScene } from './OverlayScene';
 const SHEEP_POOL_SIZE = 120;
 // Architecture N3: pre-sized, grows on demand (pieces never spoil, so the count is unbounded).
 const FOOD_POOL_SIZE = 60;
+// Breeding pieces (FR8) never spoil either.
+const BREEDING_POOL_SIZE = 30;
 // UX-DR78 munch crumbs: a short hay burst where a piece was eaten. Visual only (Math.random inside
 // the emitter is fine); the munch SFX arrives with AudioDirector in Story 5.6.
 const MUNCH_CRUMBS = 6;
@@ -80,6 +83,7 @@ export class GameScene extends Phaser.Scene {
   private inputController!: InputController;
   private penCamera!: PenCamera;
   private foodLayer!: EntityLayer<FoodPiece, FoodSprite>;
+  private breedingLayer!: EntityLayer<BreedingPiece, FoodSprite>;
   private munch!: Phaser.GameObjects.Particles.ParticleEmitter;
   // Bound once so the per-tick drain allocates no closure.
   private readonly forwardEvent = (e: SimEvent): void => {
@@ -88,7 +92,7 @@ export class GameScene extends Phaser.Scene {
   // Field juice for sim events. Runs inside the tick's drain: a view error must not count as a sim
   // error or drop the frame's remaining ticks.
   private readonly onSim = (e: SimEvent): void => {
-    if (e.type !== 'FoodEaten') return;
+    if (e.type !== 'FoodEaten' && e.type !== 'BreedingFoodEaten') return;
     try {
       this.munch.explode(MUNCH_CRUMBS, e.x, e.y);
     } catch (err) {
@@ -120,6 +124,9 @@ export class GameScene extends Phaser.Scene {
     this.penCamera = new PenCamera(this.cameras.main);
     this.penCamera.centreOn(fenceBounds(this.state));
     this.foodLayer = new EntityLayer(new ObjectPool(() => new FoodSprite(this), FOOD_POOL_SIZE));
+    this.breedingLayer = new EntityLayer(
+      new ObjectPool(() => new FoodSprite(this, FRAME.breedingPiece), BREEDING_POOL_SIZE),
+    );
     this.sheepLayer = new EntityLayer(new ObjectPool(() => new SheepSprite(this), SHEEP_POOL_SIZE));
     // One emitter for every munch; above the sheep, below the tooltip.
     this.munch = this.add
@@ -361,6 +368,7 @@ export class GameScene extends Phaser.Scene {
 
   private render(): void {
     this.foodLayer.sync(selectFoodPieces(this.state), this.clock.alpha, this.state.time);
+    this.breedingLayer.sync(selectBreedingPieces(this.state), this.clock.alpha, this.state.time);
     selectPublicSheep(this.state, this.publicSheep);
     this.sheepLayer.sync(this.publicSheep, this.clock.alpha, this.state.time);
   }

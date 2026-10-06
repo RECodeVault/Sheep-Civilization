@@ -20,6 +20,16 @@ describe('encodeSave / decodeSave', () => {
     expect(decodeSave(encodeSave(state, NOW))).toStrictEqual(state);
   });
 
+  it('decodes a version-2 save (before breeding food) with an empty bar, no pieces and nobody ready', () => {
+    const state = newGame(7);
+    const v2 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+    delete v2.breedingProgress;
+    delete v2.breedingPieces;
+    for (const s of v2.sheep as Record<string, unknown>[]) delete s.breedReady;
+    const raw = JSON.stringify({ schemaVersion: 2, savedAt: NOW.toISOString(), state: v2 });
+    expect(decodeSave(raw)).toStrictEqual(state);
+  });
+
   it('wraps the state in the versioned envelope with an ISO savedAt', () => {
     const state = newGame(7);
     const file: unknown = JSON.parse(encodeSave(state, NOW));

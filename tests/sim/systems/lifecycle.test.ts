@@ -47,6 +47,30 @@ describe('updateLifecycle', () => {
     expect(state.stats.died).toBe(1);
   });
 
+  it('clears breedReady on exactly the tick a ready adult turns elder (FR8a)', () => {
+    // After one step this adult is aged elderFromMs − TICK_MS; after two, exactly elderFromMs.
+    const state = gameWithAges([TUNING.elderFromMs - 2 * TICK_MS, TUNING.lambUntilMs]);
+    const [ageing, young] = state.sheep;
+    ageing.breedReady = true;
+    young.breedReady = true;
+    runFed(state, 1);
+    expect(ageing.breedReady).toBe(true);
+    runFed(state, 1);
+    expect(state.time - ageing.bornAt).toBe(TUNING.elderFromMs);
+    expect(ageing.breedReady).toBe(false);
+    expect(young.breedReady).toBe(true);
+  });
+
+  it('clears breedReady on a lamb (a corrupt save): only adults can be ready', () => {
+    const state = gameWithAges([0, TUNING.lambUntilMs]);
+    const [lamb, adult] = state.sheep;
+    lamb.breedReady = true;
+    adult.breedReady = true;
+    runFed(state, 1);
+    expect(lamb.breedReady).toBe(false);
+    expect(adult.breedReady).toBe(true);
+  });
+
   it('leaves lambs, adults and younger elders alone', () => {
     const state = gameWithAges([0, TUNING.lambUntilMs, TUNING.elderFromMs, TUNING.oldAgeMs - 10 * TICK_MS]);
     const ids = state.sheep.map((s) => s.id);

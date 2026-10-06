@@ -20,8 +20,11 @@ export const FRAME = Object.freeze({
   fenceRailH: 'fence-rail-h',
   fenceRailV: 'fence-rail-v',
   foodPiece: 'food-piece',
+  breedingPiece: 'breeding-piece',
+  readyHeart: 'ready-heart',
   munchCrumb: 'munch-crumb',
   pipFood: 'pip-food',
+  pipBreeding: 'pip-breeding',
   pipEmpty: 'pip-empty',
 } as const);
 

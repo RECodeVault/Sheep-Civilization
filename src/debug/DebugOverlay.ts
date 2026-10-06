@@ -17,7 +17,7 @@ import { decodeSave, encodeSave } from '../save/saveFile';
 import { rngRange } from '../sim/rng';
 import { fenceBounds, innerFence } from '../sim/selectors';
 import { createSheep, type GameState } from '../sim/state';
-import { createFoodPiece } from '../sim/systems/feeding';
+import { createBreedingPiece, createFoodPiece } from '../sim/systems/feeding';
 import type { GameScene } from '../view/scenes/GameScene';
 
 const SPEEDS = [1, 4, 16] as const;
@@ -108,6 +108,16 @@ export function installDebugOverlay(game: Phaser.Game): void {
     });
     refreshSim();
   });
+  const breedingButton = button(row2, `+${ADD_FOOD} breeding`, () => {
+    activeScene()?.debugMutate((s) => {
+      // As +food: Math.random spots, so the seeded rng stream is untouched; the pieces bounce in on bind.
+      const r = innerFence(s);
+      for (let i = 0; i < ADD_FOOD; i++) {
+        createBreedingPiece(s, r.left + Math.random() * (r.right - r.left), r.top + Math.random() * (r.bottom - r.top));
+      }
+    });
+    refreshSim();
+  });
   const sheepButton = button(row2, `+${ADD_SHEEP} sheep`, () => {
     activeScene()?.debugMutate(addSheep);
     refreshSim();
@@ -153,6 +163,7 @@ export function installDebugOverlay(game: Phaser.Game): void {
     ...speedButtons,
     pauseButton,
     foodButton,
+    breedingButton,
     sheepButton,
     feedButton,
     dumpButton,

@@ -10,6 +10,7 @@ import { busyGame, isBusy } from './busy';
 type Raw = Record<string, unknown> & {
   sheep: Record<string, unknown>[];
   foodPieces: Record<string, unknown>[];
+  breedingPieces: Record<string, unknown>[];
   carcasses: Record<string, unknown>[];
   stats: Record<string, unknown>;
 };
@@ -60,6 +61,14 @@ describe('validateState', () => {
     expect(validateState(r).ok).toBe(true);
   });
 
+  it('accepts a sheep seeking breeding food, and a full-minus-one breeding bar', () => {
+    const r = raw();
+    r.sheep[1].activity = 'seekBreedingFood';
+    r.sheep[1].targetId = r.breedingPieces[0].id;
+    r.breedingProgress = TUNING.breedingPipsPerFood - 1;
+    expect(validateState(r).ok).toBe(true);
+  });
+
   it('does not mutate its input', () => {
     const r = raw();
     r.sheep[0].fullness = Number.NaN;
@@ -93,6 +102,19 @@ describe('validateState', () => {
     ['a fractional farmProgress', (r) => (r.farmProgress = 1.5), 'farmProgress'],
     ['a negative farmProgress', (r) => (r.farmProgress = -1), 'farmProgress'],
     ['a full farmProgress', (r) => (r.farmProgress = TUNING.farmPipsPerFood), 'farmProgress'],
+    ['a missing breedingProgress', (r) => delete r.breedingProgress, 'breedingProgress'],
+    ['a fractional breedingProgress', (r) => (r.breedingProgress = 1.5), 'breedingProgress'],
+    ['a negative breedingProgress', (r) => (r.breedingProgress = -1), 'breedingProgress'],
+    ['a full breedingProgress', (r) => (r.breedingProgress = TUNING.breedingPipsPerFood), 'breedingProgress'],
+    ['breedingPieces that is not an array', (r) => ((r as Record<string, unknown>).breedingPieces = {}), 'breedingPieces'],
+    ['a breeding piece outside the inner fence', (r) => (r.breedingPieces[0].x = inner.right + 1), 'breedingPieces[0].x'],
+    ['a NaN breeding piece y', (r) => (r.breedingPieces[0].y = Number.NaN), 'breedingPieces[0].y'],
+    ['a breeding piece sharing a food piece id', (r) => (r.breedingPieces[0].id = r.foodPieces[0].id), 'breedingPieces[0].id'],
+    ['two breeding pieces with one id', (r) => (r.breedingPieces[1].id = r.breedingPieces[0].id), 'breedingPieces[1].id'],
+    ['a fractional breeding piece id', (r) => (r.breedingPieces[0].id = 2.5), 'breedingPieces[0].id'],
+    ['a missing breeding piece id', (r) => delete r.breedingPieces[0].id, 'breedingPieces[0].id'],
+    ['a missing breedReady', (r) => delete r.sheep[0].breedReady, 'sheep[0].breedReady'],
+    ['a string breedReady', (r) => (r.sheep[0].breedReady = 'yes'), 'sheep[0].breedReady'],
     ['an unknown lastEra', (r) => (r.lastEra = 'space-age'), 'lastEra'],
     ['missing stats', (r) => delete (r as Record<string, unknown>).stats, 'stats'],
     ['a negative stats.died', (r) => (r.stats.died = -1), 'stats.died'],

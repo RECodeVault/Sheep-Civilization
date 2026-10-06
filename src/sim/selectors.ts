@@ -1,6 +1,6 @@
 // Read-only views of GameState. The view layer reads state only through these.
 import { TUNING, type Rect } from '../config/tuning';
-import type { FoodPiece, GameState, Sheep } from './state';
+import type { BreedingPiece, FoodPiece, GameState, Sheep } from './state';
 
 /** The fenced area sheep live in. Epic 3 makes it depend on the land tier. */
 export function fenceBounds(_state: GameState): Rect {
@@ -58,10 +58,12 @@ export interface PublicSheep {
   y: number;
   stage: Stage;
   hunger: Hunger;
+  /** Ready to breed (FR8a). Not secret: the Abomination never grows past a lamb, so it is never ready. */
+  ready: boolean;
 }
 
 export function publicSheep(s: Sheep, state: GameState): PublicSheep {
-  return { id: s.id, x: s.x, y: s.y, stage: stageOf(s, state), hunger: hungerOf(s.fullness) };
+  return { id: s.id, x: s.x, y: s.y, stage: stageOf(s, state), hunger: hungerOf(s.fullness), ready: s.breedReady };
 }
 
 /**
@@ -74,7 +76,7 @@ export function selectPublicSheep(state: GameState, out: PublicSheep[]): PublicS
     const s = sheep[i];
     let p = out[i];
     if (p === undefined) {
-      p = { id: 0, x: 0, y: 0, stage: 'adult', hunger: 'fed' };
+      p = { id: 0, x: 0, y: 0, stage: 'adult', hunger: 'fed', ready: false };
       out[i] = p;
     }
     p.id = s.id;
@@ -82,6 +84,7 @@ export function selectPublicSheep(state: GameState, out: PublicSheep[]): PublicS
     p.y = s.y;
     p.stage = stageOf(s, state);
     p.hunger = hungerOf(s.fullness);
+    p.ready = s.breedReady;
   }
   out.length = sheep.length;
   return out;
@@ -94,22 +97,39 @@ export function pieceIndex(state: GameState, id: number): number {
   return -1;
 }
 
+/** Index of the breeding piece with `id` in state.breedingPieces, or -1. A plain loop, like pieceIndex. */
+export function breedingPieceIndex(state: GameState, id: number): number {
+  const pieces = state.breedingPieces;
+  for (let i = 0; i < pieces.length; i++) if (pieces[i].id === id) return i;
+  return -1;
+}
+
+/** Breeding pieces hold no secrets either: the live array, as selectFoodPieces. */
+export function selectBreedingPieces(state: GameState): readonly BreedingPiece[] {
+  return state.breedingPieces;
+}
+
 /** Food pieces hold no secrets: the view reads the live array (no copy, no allocation). */
 export function selectFoodPieces(state: GameState): readonly FoodPiece[] {
   return state.foodPieces;
 }
 
-/** What the HUD shows. Later stories add breeding food, money, flock, capacity, threats and boost. */
+/** What the HUD shows. Later stories add money, flock, capacity, threats and boost. */
 export interface HudView {
   /** Pips in the current Farm bar, out of farmPipsPerFood (FR3). */
   farmProgress: number;
   farmPipsPerFood: number;
+  /** Pips in the current breeding bar, out of breedingPipsPerFood (FR8). */
+  breedingProgress: number;
+  breedingPipsPerFood: number;
 }
 
 /** Fills `out` in place (no allocation) and returns it. HudScene calls this once per frame. */
 export function selectHudView(state: GameState, out: HudView): HudView {
   out.farmProgress = state.farmProgress;
   out.farmPipsPerFood = TUNING.farmPipsPerFood;
+  out.breedingProgress = state.breedingProgress;
+  out.breedingPipsPerFood = TUNING.breedingPipsPerFood;
   return out;
 }
 

@@ -13,7 +13,7 @@ export type ValidationResult = { ok: true; state: GameState } | { ok: false; rea
 
 type Obj = Record<string, unknown>;
 
-const ACTIVITIES: readonly SheepActivity[] = ['wander', 'seekFood', 'eating'];
+const ACTIVITIES: readonly SheepActivity[] = ['wander', 'seekFood', 'seekBreedingFood', 'eating'];
 const ERAS: readonly Era[] = ['pasture', 'village', 'town', 'wool-empire'];
 const STAT_COUNTS = ['died', 'sold', 'sacrificed', 'peakFlock'] as const;
 const RNG_MAX = 0xffffffff;
@@ -75,10 +75,12 @@ function check(x: unknown): void {
   const nextId = int(s, 'nextId', 'state', 1);
   int(s, 'rng', 'state', 0, RNG_MAX);
   int(s, 'farmProgress', 'state', 0, TUNING.farmPipsPerFood - 1);
+  int(s, 'breedingProgress', 'state', 0, TUNING.breedingPipsPerFood - 1);
   if (!ERAS.includes(s.lastEra as Era)) fail('state.lastEra is not a known era');
 
   const sheep = array(s, 'sheep');
   const pieces = array(s, 'foodPieces');
+  const breedingPieces = array(s, 'breedingPieces');
   const carcasses = array(s, 'carcasses');
 
   if (!isObj(s.stats)) fail('stats is not an object');
@@ -121,6 +123,7 @@ function check(x: unknown): void {
     const full = finite(o, 'fullness', p);
     if (full < 0 || full > TUNING.fullnessMax) fail(`${p}.fullness is outside [0, ${TUNING.fullnessMax}]`);
     if (!ACTIVITIES.includes(o.activity as SheepActivity)) fail(`${p}.activity is not a known activity`);
+    if (typeof o.breedReady !== 'boolean') fail(`${p}.breedReady is not a boolean`);
     // A stale target is fine (feeding reverts the sheep to wander); a malformed one is not.
     if ('targetId' in o) int(o, 'targetId', p, 1);
     within(sx, f.x, f.x + f.width, `${p}.x`);
@@ -132,6 +135,15 @@ function check(x: unknown): void {
     const p = `foodPieces[${i}]`;
     claimId(o, p);
     // createFoodPiece clamps to the inner fence, so a piece outside it could never be reached.
+    within(finite(o, 'x', p), inner.left, inner.right, `${p}.x`);
+    within(finite(o, 'y', p), inner.top, inner.bottom, `${p}.y`);
+  }
+
+  for (let i = 0; i < breedingPieces.length; i++) {
+    const o = breedingPieces[i];
+    const p = `breedingPieces[${i}]`;
+    claimId(o, p);
+    // Clamped like food pieces, so one outside the inner fence could never be reached.
     within(finite(o, 'x', p), inner.left, inner.right, `${p}.x`);
     within(finite(o, 'y', p), inner.top, inner.bottom, `${p}.y`);
   }

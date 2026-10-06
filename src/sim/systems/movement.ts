@@ -5,7 +5,7 @@ import { TUNING } from '../../config/tuning';
 import { assertNever } from '../../core/types';
 import { queryNeighbours, rebuildGrid } from '../grid';
 import { rng, rngRange } from '../rng';
-import { fenceBounds, pieceIndex } from '../selectors';
+import { breedingPieceIndex, fenceBounds, pieceIndex } from '../selectors';
 import type { GameState } from '../state';
 
 const TAU = 2 * Math.PI;
@@ -75,13 +75,16 @@ export function updateMovement(state: GameState): void {
           }
         }
         break;
-      case 'seekFood': {
-        // Straight at the claimed piece, slowing onto it so a 6 px step never overshoots or orbits.
-        // A missing piece means no walk this tick; feeding releases the claim next tick. `walking`
-        // stays false, so the crowd-turn below never rewrites the seek heading.
-        const k = s.targetId === undefined ? -1 : pieceIndex(state, s.targetId);
+      case 'seekFood':
+      case 'seekBreedingFood': {
+        // Straight at the claimed piece (food or breeding), slowing onto it so a 6 px step never
+        // overshoots or orbits. A missing piece means no walk this tick; feeding releases the claim
+        // next tick. `walking` stays false, so the crowd-turn below never rewrites the seek heading.
+        const food = s.activity === 'seekFood';
+        const k =
+          s.targetId === undefined ? -1 : food ? pieceIndex(state, s.targetId) : breedingPieceIndex(state, s.targetId);
         if (k < 0) break;
-        const p = state.foodPieces[k];
+        const p = food ? state.foodPieces[k] : state.breedingPieces[k];
         const dx = p.x - s.x;
         const dy = p.y - s.y;
         const d = Math.sqrt(dx * dx + dy * dy);

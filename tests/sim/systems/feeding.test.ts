@@ -3,7 +3,7 @@ import { TICK_MS } from '../../../src/config/constants';
 import { TUNING } from '../../../src/config/tuning';
 import { drainEvents, type SimEvent } from '../../../src/sim/events';
 import { createSheep, type GameState, type Sheep } from '../../../src/sim/state';
-import { createFoodPiece, updateFeeding } from '../../../src/sim/systems/feeding';
+import { createBreedingPiece, createFoodPiece, updateFeeding } from '../../../src/sim/systems/feeding';
 import { innerFence, newGame, runFor } from '../helpers';
 
 /** A game with no founders: sheep at the given spots and Fullness (default: hungry enough to seek). */
@@ -190,5 +190,167 @@ describe('feeding over time', () => {
     const events = runFor(state, 5_000);
     expect(events.some((e) => e.type === 'FoodEaten' && e.sheepId === eater.id)).toBe(true);
     expect(eater.fullness).toBeGreaterThan(before);
+  });
+});
+
+describe('createBreedingPiece', () => {
+  it('clamps into the inner fence, takes a fresh id and goes to breedingPieces', () => {
+    const state = gameWith([]);
+    const r = innerFence(state);
+    const id = state.nextId;
+    const p = createBreedingPiece(state, r.right + 30, r.top - 30);
+    expect(p).toEqual({ id, x: r.right, y: r.top });
+    expect(state.breedingPieces).toEqual([p]);
+    expect(state.foodPieces).toEqual([]);
+  });
+});
+
+describe('updateFeeding breeding food (FR8a)', () => {
+  const FED = TUNING.seekBelowFullness;
+
+  it('sends a fed adult to a breeding piece; on arrival it becomes ready, Fullness unchanged', () => {
+    const c = mid(newGame());
+    const state = gameWith([{ x: c.x + TUNING.eatReachPx / 2, y: c.y, fullness: FED }]);
+    const s = state.sheep[0];
+    const p = createBreedingPiece(state, c.x, c.y);
+    drained();
+    updateFeeding(state); // claim
+    expect(s).toMatchObject({ activity: 'seekBreedingFood', targetId: p.id });
+    updateFeeding(state); // within reach: eat
+    expect(s.breedReady).toBe(true);
+    expect(s.fullness).toBe(FED);
+    expect(state.breedingPieces).toEqual([]);
+    expect(s.activity).toBe('eating');
+    expect('targetId' in s).toBe(false);
+    expect(drained()).toEqual([{ type: 'BreedingFoodEaten', sheepId: s.id, pieceId: p.id, x: p.x, y: p.y }]);
+    state.time = s.restUntil;
+    updateFeeding(state);
+    expect(s.activity).toBe('wander');
+  });
+
+  it('ignores lambs, elders and ready adults', () => {
+    const c = mid(newGame());
+    const state = gameWith([
+      { x: c.x - 60, y: c.y, fullness: FED },
+      { x: c.x, y: c.y - 40, fullness: FED },
+      { x: c.x + 60, y: c.y, fullness: FED },
+    ]);
+    const [lamb, elder, ready] = state.sheep;
+    lamb.bornAt = state.time;
+    elder.bornAt = state.time - TUNING.elderFromMs;
+    ready.breedReady = true;
+    const p = createBreedingPiece(state, c.x, c.y);
+    for (let t = 0; t < 3; t++) updateFeeding(state);
+    expect(state.sheep.every((x) => x.activity === 'wander')).toBe(true);
+    expect(state.breedingPieces).toEqual([p]);
+  });
+
+  it('food comes first: a hungry adult takes the food piece, not the breeding piece', () => {
+    const c = mid(newGame());
+    const state = gameWith([{ x: c.x, y: c.y }]);
+    const s = state.sheep[0];
+    // The breeding piece is the closer one.
+    createBreedingPiece(state, c.x + 5, c.y);
+    const food = createFoodPiece(state, c.x + 80, c.y);
+    updateFeeding(state);
+    expect(s).toMatchObject({ activity: 'seekFood', targetId: food.id });
+  });
+
+  it('a hungry adult with no food on the field may take breeding food', () => {
+    const c = mid(newGame());
+    const state = gameWith([{ x: c.x, y: c.y }]);
+    const p = createBreedingPiece(state, c.x + 50, c.y);
+    updateFeeding(state);
+    expect(state.sheep[0]).toMatchObject({ activity: 'seekBreedingFood', targetId: p.id });
+  });
+
+  it('a fed adult (Fullness at seekBelowFullness) still takes breeding food while food lies on the field', () => {
+    const c = mid(newGame());
+    const state = gameWith([{ x: c.x, y: c.y, fullness: FED }]);
+    createFoodPiece(state, c.x + 80, c.y);
+    const p = createBreedingPiece(state, c.x + 50, c.y);
+    updateFeeding(state);
+    expect(state.sheep[0]).toMatchObject({ activity: 'seekBreedingFood', targetId: p.id });
+  });
+
+  it('a sheep on its way to breeding food switches to food once it is hungry and food is there', () => {
+    const c = mid(newGame());
+    const state = gameWith([{ x: c.x, y: c.y, fullness: FED }]);
+    const s = state.sheep[0];
+    const bp = createBreedingPiece(state, c.x + 100, c.y);
+    updateFeeding(state);
+    expect(s).toMatchObject({ activity: 'seekBreedingFood', targetId: bp.id });
+    s.fullness = FED - 1;
+    const food = createFoodPiece(state, c.x - 100, c.y);
+    updateFeeding(state);
+    expect(s).toMatchObject({ activity: 'seekFood', targetId: food.id });
+    expect(state.breedingPieces).toEqual([bp]);
+  });
+
+  it('gives two breeding pieces to two adults, one each', () => {
+    const c = mid(newGame());
+    const state = gameWith([
+      { x: c.x - 60, y: c.y, fullness: FED },
+      { x: c.x + 60, y: c.y, fullness: FED },
+    ]);
+    const a = createBreedingPiece(state, c.x - 50, c.y);
+    const b = createBreedingPiece(state, c.x + 50, c.y);
+    updateFeeding(state);
+    expect(state.sheep[0]).toMatchObject({ activity: 'seekBreedingFood', targetId: a.id });
+    expect(state.sheep[1]).toMatchObject({ activity: 'seekBreedingFood', targetId: b.id });
+  });
+
+  it('reverts a stale breeding claim to wander with targetId omitted', () => {
+    const c = mid(newGame());
+    const state = gameWith([{ x: c.x, y: c.y, fullness: FED }]);
+    const s = state.sheep[0];
+    s.activity = 'seekBreedingFood';
+    s.targetId = 9999;
+    updateFeeding(state);
+    expect(s.activity).toBe('wander');
+    expect('targetId' in s).toBe(false);
+  });
+
+  it('releases the claim when the seeker turns elder on the way: the piece stays for an adult', () => {
+    const c = mid(newGame());
+    const state = gameWith([{ x: c.x - 100, y: c.y, fullness: FED }]);
+    const s = state.sheep[0];
+    const p = createBreedingPiece(state, c.x + 100, c.y);
+    updateFeeding(state);
+    expect(s).toMatchObject({ activity: 'seekBreedingFood', targetId: p.id });
+    s.bornAt = state.time - TUNING.elderFromMs;
+    // Even standing on the piece, an elder must not eat it.
+    s.x = p.x;
+    s.y = p.y;
+    drained();
+    updateFeeding(state);
+    expect(s.activity).toBe('wander');
+    expect('targetId' in s).toBe(false);
+    expect(s.breedReady).toBe(false);
+    expect(state.breedingPieces).toEqual([p]);
+    expect(drained()).toEqual([]);
+  });
+
+  it('releases the claim of a seeker that is already ready (a corrupt save) without eating', () => {
+    const c = mid(newGame());
+    const state = gameWith([{ x: c.x, y: c.y, fullness: FED }]);
+    const s = state.sheep[0];
+    const p = createBreedingPiece(state, c.x, c.y);
+    s.activity = 'seekBreedingFood';
+    s.targetId = p.id;
+    s.breedReady = true;
+    updateFeeding(state);
+    expect(s.activity).toBe('wander');
+    expect(state.breedingPieces).toEqual([p]);
+  });
+
+  it('walks to a breeding piece and eats it over time, then the piece is gone', () => {
+    const c = mid(newGame());
+    const state = gameWith([{ x: c.x - 80, y: c.y, fullness: TUNING.fullnessMax }]);
+    state.sheep[0].restUntil = 0;
+    createBreedingPiece(state, c.x, c.y);
+    runFor(state, 3_000);
+    expect(state.sheep[0].breedReady).toBe(true);
+    expect(state.breedingPieces).toEqual([]);
   });
 });

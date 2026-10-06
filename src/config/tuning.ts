@@ -31,6 +31,11 @@ export const TUNING = Object.freeze({
   // raises the pips per click and the boost (2.8) doubles them.
   farmPipsPerFood: 8,
   farmPipsPerClick: 1,
+  // FR8 (changed 2026-10-06): Farm Breeding Food works like Farm. A click fills breedingPipsPerClick
+  // pips of an 8-pip bar; every full bar drops 1 breeding piece in the pen, which an adult eats to
+  // become ready (FR8a). No stock, no cap. Never boosted, and Better Hoe does not apply.
+  breedingPipsPerFood: 8,
+  breedingPipsPerClick: 1,
   // FR5: sheep below 90 Fullness may seek food (feeding.ts pairs each piece with its nearest such
   // sheep); a piece is worth +35, capped at fullnessMax.
   seekBelowFullness: 90,

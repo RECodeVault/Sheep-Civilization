@@ -19,7 +19,9 @@ export const AUTOSAVE_MS = 10_000;
 // version-1 save was ever persisted (saving starts in 1.9), so older debug saves are simply rejected.
 // Optional fields whose absence keeps the old meaning need no bump: `lostAt` (1.8) is omitted while
 // playing, so a version-2 save without it is still a game in progress.
-export const SAVE_SCHEMA_VERSION = 2;
+// 3 since Story 2.2: the breeding bar `breedingProgress`, `breedingPieces` and sheep `breedReady`
+// added (a version-2 save migrates with an empty bar, no pieces and nobody ready).
+export const SAVE_SCHEMA_VERSION = 3;
 
 /*
  * Colour-usage rules (DESIGN.md Colors, Do's and Don'ts — UX-DR2):
@@ -276,12 +278,22 @@ export const COMPONENTS = defineComponents({
     segmentCount: 8,
     valueTypography: 'numeric',
   },
-  breedingMeter: {
+  // DESIGN.md replaced breeding-meter with these on 2026-10-06: breeding food is a bar that drops
+  // breeding pieces, and a sheep that eats one shows the ready marker (FR8, FR8a).
+  breedingProgress: {
     trackColor: 'woolShade',
     fillColor: 'heart',
-    segmentCount: 10,
-    costMarkerColor: 'heartDeep',
+    segmentCount: 8,
     valueTypography: 'numeric',
+  },
+  breedingPiece: {
+    fillColor: 'heart',
+    outlineColor: 'heartDeep',
+  },
+  readyMarker: {
+    fillColor: 'heart',
+    outlineColor: 'bark',
+    size: 14,
   },
   moneyCounter: {
     textColor: 'bark',
