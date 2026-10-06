@@ -6,6 +6,7 @@ import { STRINGS } from '../strings';
 import { textStyle } from '../widgets/box';
 import { Button } from '../widgets/Button';
 import { Panel } from '../widgets/Panel';
+import type { Modal } from './MenuPanel';
 
 const SPEC = COMPONENTS.losePanel;
 const BUTTON = COMPONENTS.buttonMenu;
@@ -21,10 +22,10 @@ const BUTTON_GAP = SPACING[6];
 
 /**
  * The `lose-panel` (UX-DR19): a dusk panel with "The flock is gone." in display type, the time
- * survived and peak flock in halo, and one Restart menu button. Built once, hidden; `show` fills the
- * stats line. Lives in OverlayScene, over the menu scrim.
+ * survived and peak flock in halo, and one Restart menu button. Built once, hidden; `setView` fills
+ * the stats line. Lives in OverlayScene, over the menu scrim.
  */
-export class LosePanel {
+export class LosePanel implements Modal {
   private readonly panel: Panel;
   private readonly title: Phaser.GameObjects.Text;
   private readonly stats: Phaser.GameObjects.Text;
@@ -56,9 +57,9 @@ export class LosePanel {
     this.setVisible(false);
   }
 
-  show(view: LoseView): void {
+  /** Fills the stats line; OverlayScene's ModalController shows and hides the panel. */
+  setView(view: LoseView): void {
     this.stats.setText(STRINGS.loseStats(formatGameTime(view.survivedMs), view.peakFlock));
-    this.setVisible(true);
   }
 
   setVisible(visible: boolean): void {

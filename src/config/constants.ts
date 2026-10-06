@@ -201,6 +201,19 @@ export const COMPONENTS = defineComponents({
     width: 280,
     height: 52,
   },
+  // [ASSUMPTION] Added 2026-10-06 (Rylan): a Pause button at the top-left of the field, so the pause
+  // menu is mouse-reachable (UX-DR76). It opens a menu, so it wears the menu-button look; 40 px tall
+  // (hit-min).
+  buttonPause: {
+    backgroundColor: 'wool',
+    borderColor: 'bark',
+    textColor: 'bark',
+    hoverBackgroundColor: 'hay',
+    typography: 'label',
+    rounded: 'md',
+    height: 40,
+    padding: SPACING[3],
+  },
   shopToggle: {
     backgroundColor: 'wood',
     textColor: 'wool',

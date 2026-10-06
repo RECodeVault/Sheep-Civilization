@@ -30,4 +30,29 @@ export const STRINGS = Object.freeze({
   loseTitle: 'The flock is gone.',
   loseStats: (time: string, peak: number): string => `Survived ${time} · Peak flock ${peak}`,
   restart: 'Restart',
+  // Title screen (UX-DR12, UX-DR95): the logo, then Continue (only with a save), New Game, Credits.
+  gameTitle: 'Sheep Civilization',
+  continue: 'Continue',
+  newGame: 'New Game',
+  credits: 'Credits',
+  // Pause menu (UX-DR14, UX-DR95): Resume, Volume, Stats, Restart (above), Credits, Main Menu; Back
+  // in sub-panels.
+  paused: 'Paused',
+  resume: 'Resume',
+  volume: 'Volume',
+  stats: 'Stats',
+  back: 'Back',
+  // [ASSUMPTION] Not in the Voice table (Rylan asked for it 2026-10-06): the last pause-menu button,
+  // back to the title screen.
+  mainMenu: 'Main Menu',
+  // Start-over confirm (UX-DR18; EXPERIENCE Voice): the only confirmation in the game.
+  startOverQuestion: 'Start over? Your flock will be lost.',
+  cancel: 'Cancel',
+  startOver: 'Start over',
+  // [ASSUMPTION] Not in the Voice table (approved by Rylan 2026-10-06): the Volume, Stats and Credits
+  // placeholders until Stories 5.7, 5.4 and 5.9.
+  comingSoon: 'Coming soon.',
+  // [ASSUMPTION] Not in the Voice table: the top-left Pause button (added 2026-10-06, Rylan).
+  pauseLabel: 'Pause',
+  pauseTooltip: 'Pause (Esc)',
 } as const);

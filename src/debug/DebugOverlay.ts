@@ -29,8 +29,8 @@ const ADD_SHEEP = 10;
 export function installDebugOverlay(game: Phaser.Game): void {
   let visible = false;
   // The speed the developer chose (0 = paused) and the one to restore on Resume. Debug pause is
-  // clock.speed = 0. Story 1.10's gameplay pause stops accumulation its own way and must not reset
-  // these speeds.
+  // clock.speed = 0. The gameplay pause (GameScene.setPaused) stops accumulation its own way and never
+  // resets these speeds.
   let wantSpeed = 1;
   let resumeSpeed = 1;
   // A GameScene restart (Load save) builds a new clock at ×1; the chosen speed is re-applied to it.

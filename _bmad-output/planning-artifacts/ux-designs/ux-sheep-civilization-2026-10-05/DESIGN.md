@@ -132,6 +132,14 @@ components:
     rounded: '{rounded.md}'
     width: 280px
     height: 52px
+  button-pause:
+    backgroundColor: '{colors.wool}'
+    borderColor: '{colors.bark}'
+    textColor: '{colors.bark}'
+    hoverBackgroundColor: '{colors.hay}'
+    typography: '{typography.label}'
+    rounded: '{rounded.md}'
+    height: 40px
   shop-toggle:
     backgroundColor: '{colors.wood}'
     textColor: '{colors.wool}'
@@ -369,7 +377,7 @@ The base canvas is `{spacing.canvas-width}` × `{spacing.canvas-height}` (16:9),
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                    [toasts, top-centre]          [era badge] │
+│ [PAUSE]            [toasts, top-centre]          [era badge] │
 │ ┌ shop  ┐ ( Better Place )                        ┌────────┐ │
 │ │ panel │  x ≈ 450–590                            │ MARKET │ │
 │ │ (when │                                         │ stall  │ │
@@ -385,6 +393,7 @@ The base canvas is `{spacing.canvas-width}` × `{spacing.canvas-height}` (16:9),
 - **Market stall:** on the right edge of the field, outside the fence. (confirmed 2026-10-05)
 - **Better Place:** a fixed hole in the upper-left quadrant of the field, just right of the shop panel's footprint (about x 450–590) so the open shop never covers it, and kept far from the Market so that a misdrop takes a real drag mistake, not a twitch. (upper-left confirmed 2026-10-05; exact position [ASSUMPTION])
 - **Shop panel:** `{components.shop-panel.width}` wide, rising from the bottom bar on the left. It never covers the Market or the Better Place. (confirmed 2026-10-05)
+- **Pause button:** top-left corner of the field, at the safe margin, clear of the Better Place. (added 2026-10-06, Rylan)
 - **Toasts** stack top-centre so the open shop never covers them [ASSUMPTION]. The transient era banner plays across the upper field, the era badge sits top-right in game and stays there under the pause and confirm modals [ASSUMPTION], and captions sit bottom-centre above the bar.
 - The in-game layout with the shop open is drawn in [mockups/hud.html](./mockups/hud.html).
 - The Pasture fence starts small and expands in place with each Land tier. The fence boundary is the visual statement of capacity.
@@ -417,6 +426,7 @@ Each component's behaviour is in EXPERIENCE.md, under Component Patterns. The ke
 - **Disabled button** (`button-disabled`): a flat `disabled` fill with no drop offset. It stays legible; it does not just go transparent.
 - **Menu button** (`button-menu`): 280 × 52 `wool` with a bark outline. On hover it fills with `hay`. Used on the start, pause, lose and credits screens.
 - **Destructive menu button** (`button-menu-destructive`): the menu button in `awning` with a `wool` label. It is used only for **Start over** in the start-over confirm, which is a `panel` with the `Cancel` menu button to its left (Cancel left, Start over right). [ASSUMPTION]
+- **Pause button** (`button-pause`): a small menu-style `wool` button reading "Pause" at the top-left of the field, 40 px tall. On hover it fills with `hay`; its tooltip is "Pause (Esc)". It opens the pause menu, so pausing never needs the keyboard. (added 2026-10-06, Rylan) [ASSUMPTION for size and copy]
 - **Shop toggle** (`shop-toggle`): a `wood` button reading "Shop". While the panel is open it shows the `hay` fill.
 - **Panel** (`panel`): the `wool` 9-slice with a bark outline, used by every modal and sub-panel (Volume, Stats, Credits). The pause panel is headed "Paused" in `title`. [ASSUMPTION]
 - **Shop panel** (`shop-panel`) and **shop item row** (`shop-item-row`): a `wool` panel with a `wood` border, headed "Shop" in `label` so all rows fit above the bar. Each row shows the icon, the name and price on its first line, and a one-line effect (strings from the GDD) in `caption` type on its second. An unaffordable row greys its name, effect and price to `disabled-ink` but stays readable. A locked Land tier shows "Needs Land {n}" on its effect line. [ASSUMPTION]

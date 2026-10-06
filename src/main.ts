@@ -6,6 +6,7 @@ import { GameScene } from './view/scenes/GameScene';
 import { HudScene } from './view/scenes/HudScene';
 import { OverlayScene } from './view/scenes/OverlayScene';
 import { PreloadScene } from './view/scenes/PreloadScene';
+import { TitleScene } from './view/scenes/TitleScene';
 import { attachGame, installSafetyNet, reportError } from './view/safetyNet';
 
 const CONTAINER_ID = 'game-container';
@@ -72,7 +73,7 @@ async function start(): Promise<void> {
     },
     // Array order is render order (HudScene above the field, OverlayScene's modals above both).
     // Updates run in REVERSE order, so HudScene reads the sim on PRE_RENDER, not in update().
-    scene: [BootScene, PreloadScene, GameScene, HudScene, OverlayScene],
+    scene: [BootScene, PreloadScene, TitleScene, GameScene, HudScene, OverlayScene],
   });
   attachGame(game);
 

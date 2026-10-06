@@ -12,8 +12,8 @@ describe('design tokens', () => {
     expect(COLOR_INT.duskDeep).toBe(0x22152a);
   });
 
-  it('mirrors all 35 DESIGN.md components and references only known colour tokens', () => {
-    expect(Object.keys(COMPONENTS)).toHaveLength(35);
+  it('mirrors all 36 DESIGN.md components (button-pause added 2026-10-06) and references only known colour tokens', () => {
+    expect(Object.keys(COMPONENTS)).toHaveLength(36);
     for (const spec of Object.values(COMPONENTS)) {
       for (const [field, value] of Object.entries(spec)) {
         if (field.endsWith('Color') || field.endsWith('Background') || field.endsWith('Text')) {

@@ -1,4 +1,4 @@
-import type Phaser from 'phaser';
+import Phaser from 'phaser';
 import type { Hunger, PublicSheep, Stage } from '../../sim/selectors';
 import { STRINGS } from '../strings';
 import { HOVER_DELAY_MS, type Tooltip } from '../widgets/Tooltip';
@@ -35,12 +35,16 @@ export function sheepIndexAt(
   return best;
 }
 
+// Reused for the pointer's world point: no allocation per frame.
+const WORLD = new Phaser.Math.Vector2();
+
 /**
  * Shows the sheep tooltip (FR42, UX-DR43) for the sheep under the pointer. Reads the pointer and the
  * rendered sprites only: it sends no commands and never touches GameState. Allocates nothing per frame.
  */
 export class SheepHover {
   private readonly input: Phaser.Input.InputPlugin;
+  private readonly camera: Phaser.Cameras.Scene2D.Camera;
   private readonly layer: EntityLayer<PublicSheep, SheepSprite>;
   private readonly tooltip: Tooltip;
   private hoveredId = 0;
@@ -48,8 +52,14 @@ export class SheepHover {
   private shownStage: Stage | null = null;
   private shownHunger: Hunger | null = null;
 
-  constructor(input: Phaser.Input.InputPlugin, layer: EntityLayer<PublicSheep, SheepSprite>, tooltip: Tooltip) {
+  constructor(
+    input: Phaser.Input.InputPlugin,
+    camera: Phaser.Cameras.Scene2D.Camera,
+    layer: EntityLayer<PublicSheep, SheepSprite>,
+    tooltip: Tooltip,
+  ) {
     this.input = input;
+    this.camera = camera;
     this.layer = layer;
     this.tooltip = tooltip;
   }
@@ -59,8 +69,15 @@ export class SheepHover {
     // Story 2.7: hide while dragging.
     const p = this.input.activePointer;
     // The input manager tracks whether the pointer is over the canvas; no listeners to clean up.
-    // World coordinates, like the sprites, so a camera shake or scroll cannot misalign the hit test.
-    const hit = this.input.manager.isOver ? sheepIndexAt(items, this.layer, p.worldX, p.worldY) : -1;
+    // World coordinates, like the sprites. Taken from this camera each frame, not pointer.worldX:
+    // that is only refreshed when this scene hit-tests a pointer event, so it goes stale while the
+    // camera pans (PenCamera) or the pointer sits over the HUD.
+    if (!this.input.manager.isOver) {
+      this.clear();
+      return;
+    }
+    this.camera.getWorldPoint(p.x, p.y, WORLD);
+    const hit = sheepIndexAt(items, this.layer, WORLD.x, WORLD.y);
     if (hit < 0) {
       this.clear();
       return;
@@ -81,11 +98,15 @@ export class SheepHover {
     }
     const spr = this.layer.spriteFor(pub.id);
     if (spr === undefined) return;
+    // The tooltip is fixed to the screen (Tooltip ignores camera scroll), so pass screen coordinates.
     const halfH = spr.displayHeight / 2;
-    this.tooltip.showAt(spr.x, spr.y - halfH, spr.y + halfH);
+    const sx = spr.x - this.camera.scrollX;
+    const sy = spr.y - this.camera.scrollY;
+    this.tooltip.showAt(sx, sy - halfH, sy + halfH);
   }
 
-  private clear(): void {
+  /** Hides the tooltip and forgets the hover (also used while a modal is up). Allocates nothing. */
+  clear(): void {
     this.hoveredId = 0;
     this.shownStage = null;
     this.shownHunger = null;

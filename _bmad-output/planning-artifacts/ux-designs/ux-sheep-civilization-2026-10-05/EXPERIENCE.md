@@ -17,7 +17,7 @@ Mockups illustrate; this spine wins on any conflict.
 - **Platform:** desktop browsers only (Chrome, Firefox and Edge), hosted on GitHub Pages and itch.io. Mobile is not supported.
 - **Input:** mouse first, with optional `F` / `G` / `Esc` keys.
 - **Engine:** Phaser 4 + TypeScript + Vite (per game-architecture.md) on one fixed 16:9 canvas, scaled to fit the window. Everything, including menus, is drawn in-canvas. There is no DOM UI.
-- **Screens:** one fixed gameplay screen with no camera movement.
+- **Screens:** one gameplay screen. Changed 2026-10-06 (Rylan): the field camera starts with the pen centred in the field above the bottom bar, and a right-drag pans it. Panning is pinned, so the whole pen always stays in view. The HUD and menus never move.
 - **Visual reference:** [DESIGN.md](./DESIGN.md). Mechanics and numbers live in the [GDD](../../gdds/gdd-sheep-civilization-2026-10-05/gdd.md) and [epics](../../gdds/gdd-sheep-civilization-2026-10-05/epics.md). The GDD wins over the [brief](../../briefs/brief-sheep-civilization-2026-10-05/brief.md) on conflicts.
 - **Context:** a solo 7-day portfolio build. Must-tier UX ships first, and items tagged *(Should)* follow GDD tiering.
 - **Decisions:** Rylan's decisions are in [.decision-log.md](./.decision-log.md). Anything not decided there or in the sources is tagged [ASSUMPTION].
@@ -37,7 +37,7 @@ Boot/Load ──► Start screen ──► Game (pasture) ◄──► Pause men
 | Start screen | Load | Title, **Continue** (only when a save exists), **New Game**, **Credits**. Sheep wander in the background. | Decorative sheep only |
 | Game | Continue / New Game / Restart | Field, Market stall, Better Place, bottom-bar HUD | Running |
 | Shop panel | Shop toggle | Land I–III, decorations, *(Should)* Better Hoe I–II, Auto-feeder, Medicine | **Running** (decision log) |
-| Pause menu | `Esc` | "Paused" header, then **Resume, Volume, Stats, Restart, Credits** | Paused |
+| Pause menu | `Esc` or the **Pause** button (top-left; added 2026-10-06, Rylan) | "Paused" header, then **Resume, Volume, Stats, Restart, Credits, Main Menu** (Main Menu added 2026-10-06, Rylan: saves and returns to the start screen, no confirm; Continue resumes) | Paused |
 | Volume | Pause | Music slider, SFX slider, Reduced motion toggle, Captions toggle (confirmed) | Paused |
 | Stats *(Should)* | Pause | Alive, sold, died, sacrificed, money earned | Paused |
 | Credits | Start / Pause | Asset pack credits and licences, then Back | Paused in game; none from the start screen [ASSUMPTION] |
@@ -110,6 +110,7 @@ Behaviour only. Visual specs are in DESIGN.md, under Components.
 | Float popup | Rises about 24 px and fades over 600 ms [ASSUMPTION]. Under reduced motion it fades in place. |
 | Menu button / Slider / Toggle | Hover highlights. Click activates. Sliders drag or click-to-set and preview the SFX level with a bleat on release. |
 | Panel / menu scrim | Every modal (start, pause, Volume, Stats, Credits, lose) is one centred panel over the scrim. Clicking the scrim does nothing. [ASSUMPTION] Back returns to the previous modal, and from pause `Esc` resumes. |
+| Pause button | Top-left of the field. Hover highlights and shows "Pause (Esc)"; click opens the pause menu, the same as `Esc`. Under any modal the scrim covers it. (added 2026-10-06, Rylan) |
 | Lose panel | Appears over the stopped field. **Restart** wipes the save and starts a new game directly (no confirm: nothing is left to lose). |
 | Start-over confirm | Shown by New Game when a save exists and by Restart in the pause menu. **Cancel** sits left and **Start over** (destructive style) right [ASSUMPTION]. **Start over** wipes the save and starts a new game; **Cancel** or `Esc` returns to the previous modal. This is the only confirmation in the game: sell, sacrifice and shop purchases never confirm (Q8). |
 
@@ -157,7 +158,7 @@ Behaviour only. Visual specs are in DESIGN.md, under Components.
   - **Invalid click:** clicking an ineligible sheep shakes it and keeps the mode active. Clicking empty field in breed mode drops no food. [ASSUMPTION]
   - **Cancel:** right-click, `Esc`, or clicking Breed again (Q6).
 - **Keys:** `F` farms food and `G` farms breeding food (both repeat on each press, not on hold [ASSUMPTION]). `Esc` resolves in priority order (agreed 2026-10-05): close the start-over confirm, then a sub-panel, then cancel a drag, then exit breed mode, then close the shop, then open or close pause.
-- **Right-click:** cancels breed mode and is otherwise unused. The browser context menu is suppressed on the canvas.
+- **Right-click:** cancels breed mode. **Right-drag** (past the 6 px threshold) pans the field, pinned so the pen stays in view; a press on the bottom bar never pans (added 2026-10-06, Rylan). The browser context menu is suppressed on the canvas.
 - **Hover:** shows the tooltip on sheep and buttons.
 - **Banned:** confirmation dialogs on in-game actions, tutorial pop-ups, and timers that hide what kills a sheep.
 
@@ -184,7 +185,7 @@ Behaviour only. Visual specs are in DESIGN.md, under Components.
 
 ## Input Schemes
 
-- **Mouse (primary, required):** every action is reachable with left-click, drag and right-click.
+- **Mouse (primary, required):** every action is reachable with left-click, drag and right-click, including pausing through the top-left Pause button (added 2026-10-06, Rylan).
 - **Keyboard (optional):** `F` farms food, `G` farms breeding food, and `Esc` follows the priority above. Key hints are printed on the buttons.
 - **Not supported:** touch, gamepad, and key remapping (not in sources; out of scope for 7 days).
 

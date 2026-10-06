@@ -216,6 +216,7 @@ The template's sample scenes are replaced by the structure defined in Project St
 - Pointer down + > 6 px movement → drag; otherwise click on release.
 - **Esc priority:** close confirm → close sub-panel (Volume/Stats/Credits) → cancel drag → exit breed mode → close shop → open/close pause.
 - Breed mode also cancels on right-click or clicking Breed again; it exits after one pair (UX).
+- Right-drag (past the 6 px threshold) pans the field camera (`PenCamera`), pinned so the whole pen stays in view; every game opens centred on the pen above the bar. View state only, never saved (added 2026-10-06).
 
 ### Data Persistence
 

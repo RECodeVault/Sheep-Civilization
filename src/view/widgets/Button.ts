@@ -139,6 +139,9 @@ export class Button {
 
   setDepth(depth: number): this {
     this.root.setDepth(depth);
+    // The hit zone too: Phaser's top-only input picks by depth, so a zone left at 0 under a raised
+    // scrim would never receive the click.
+    this.zone.setDepth(depth);
     return this;
   }
 
@@ -148,6 +151,10 @@ export class Button {
     // Not `visible && enabled`: a disabled button keeps its zone so it can hover for its reason
     // tooltip (UX-DR31); onDown already refuses to press or activate it while disabled.
     if (this.zone.input) this.zone.input.enabled = visible;
+    // Hidden under the pointer (Resume hides the pause panel) Phaser never fires OUT, so the hand
+    // cursor would stay over the field. Shown under a still pointer, a button gets no hover until
+    // the pointer moves; a click still works (Phaser hit-tests on down), so nothing polls for it.
+    if (!visible && this.hovered) this.scene.input.resetCursor();
     if (!visible) {
       this.hovered = false;
       this.pressed = false;

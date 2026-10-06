@@ -2,9 +2,7 @@ import Phaser from 'phaser';
 import { CANVAS_HEIGHT, CANVAS_WIDTH, COLOR_INT, COLORS } from '../../config/constants';
 import { log } from '../../core/log';
 import { ATLAS, atlasUrls } from '../assetKeys';
-import { discardSave, loadSave } from '../../save/saveStore';
 import { showToast } from '../safetyNet';
-import { stateCanRun, type GameSceneData } from './GameScene';
 import { STRINGS } from '../strings';
 
 const BAR_WIDTH = 400;
@@ -12,9 +10,8 @@ const BAR_HEIGHT = 16;
 const BAR_OUTLINE = 2;
 const ATLASES = [ATLAS.sheepWorld, ATLAS.ui] as const;
 
-// Loads every runtime asset behind a loading bar on dusk, then starts the game.
-// TitleScene arrives in Story 1.10 and takes over the Continue / New Game choice; until then Preload
-// goes straight to GameScene, resuming a valid save automatically (FR40) or starting a new game.
+// Loads every runtime asset behind a loading bar on dusk, then shows the title, which decides
+// between Continue and New Game (it owns the save load).
 // A failed file is a recoverable boundary failure: log a warning, tell the player once, carry on.
 export class PreloadScene extends Phaser.Scene {
   constructor() {
@@ -59,13 +56,6 @@ export class PreloadScene extends Phaser.Scene {
     } else {
       log.info('boot', 'Assets loaded');
     }
-    // AR9: a save that does not load (or cannot run) was logged; discard it and start fresh.
-    const saved = loadSave();
-    let data: GameSceneData = {};
-    if (saved !== null) {
-      if (stateCanRun(saved)) data = { state: saved };
-      else discardSave();
-    }
-    this.scene.start('GameScene', data);
+    this.scene.start('TitleScene');
   }
 }

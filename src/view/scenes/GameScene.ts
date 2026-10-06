@@ -22,10 +22,12 @@ import { EntityLayer } from '../field/EntityLayer';
 import { Fence } from '../field/Fence';
 import { FoodSprite } from '../field/FoodSprite';
 import { ObjectPool } from '../field/ObjectPool';
+import { PenCamera } from '../field/PenCamera';
 import { SheepHover } from '../field/SheepHover';
 import { SheepSprite } from '../field/SheepSprite';
 import { markGameStarted, reportError, setForceSave } from '../safetyNet';
 import { Tooltip } from '../widgets/Tooltip';
+import type { OverlayScene } from './OverlayScene';
 
 const SHEEP_POOL_SIZE = 120;
 // Architecture N3: pre-sized, grows on demand (pieces never spoil, so the count is unbounded).
@@ -52,22 +54,27 @@ export interface GameSceneData {
 
 // Owns the sim loop: accumulates real frame time into fixed ticks, applies pending commands at the
 // start of each tick, steps the sim, forwards its events, then renders the field from selectors.
-// Pause (hidden tab here, Esc in Story 1.10) = stop advancing the clock, never scene.pause().
-// GameScene never reads storage: the save is loaded before it starts (PreloadScene, TitleScene in
-// 1.10), so a plain restart can never resurrect a wiped save.
+// Pause (hidden tab, or the pause menu) = stop advancing the clock, never scene.pause(): the field
+// stays drawn, frozen behind the scrim. GameScene never reads storage: the save is loaded before it
+// starts (TitleScene), so a plain restart can never resurrect a wiped save.
 export class GameScene extends Phaser.Scene {
   private state!: GameState;
   private clock!: FixedStepClock;
-  // FR41/AR25: true while the tab is hidden; the clock does not advance. Its own flag, so 1.10's Esc
-  // pause can sit beside it (and the debug pause, simClock.speed = 0, stays separate).
+  // FR41/AR25: true while the tab is hidden; the clock does not advance.
   private hidden = false;
-  // The first frame after the tab returns adds no time (no catch-up burst).
+  // UX-DR14: true while any in-game modal is up (pause, a sub-panel, the start-over confirm), set by
+  // OverlayScene. Either flag stops the clock, and neither touches the other: the tab coming back
+  // never closes the pause menu. The debug pause (simClock.speed = 0) stays separate from both.
+  private paused = false;
+  // The first frame after the tab returns or the menu closes adds no time (no catch-up burst).
   private skipDelta = false;
   private stopAutosave: () => void = () => {};
   private pendingCommands: Command[] = [];
   private readonly publicSheep: PublicSheep[] = [];
   private sheepLayer!: EntityLayer<PublicSheep, SheepSprite>;
   private sheepHover!: SheepHover;
+  private inputController!: InputController;
+  private penCamera!: PenCamera;
   private foodLayer!: EntityLayer<FoodPiece, FoodSprite>;
   private munch!: Phaser.GameObjects.Particles.ParticleEmitter;
   // Bound once so the per-tick drain allocates no closure.
@@ -105,14 +112,30 @@ export class GameScene extends Phaser.Scene {
     // Placeholder ground until the era backgrounds arrive in Epic 3 (`pasture` is an art tone).
     this.cameras.main.setBackgroundColor(COLORS.pasture);
     new Fence(this, fenceBounds(this.state));
+    // Every game (new, continued, restarted) opens with the pen centred above the bar (Rylan).
+    this.penCamera = new PenCamera(this.cameras.main);
+    this.penCamera.centreOn(fenceBounds(this.state));
     this.foodLayer = new EntityLayer(new ObjectPool(() => new FoodSprite(this), FOOD_POOL_SIZE));
     this.sheepLayer = new EntityLayer(new ObjectPool(() => new SheepSprite(this), SHEEP_POOL_SIZE));
     // One emitter for every munch; above the sheep, below the tooltip.
     this.munch = this.add
       .particles(0, 0, ATLAS.sheepWorld, { frame: FRAME.munchCrumb, emitting: false, ...MUNCH })
       .setDepth(TOOLTIP_DEPTH - 1);
-    this.sheepHover = new SheepHover(this.input, this.sheepLayer, new Tooltip(this, TOOLTIP_DEPTH));
-    const input = new InputController(this.input);
+    this.sheepHover = new SheepHover(this.input, this.cameras.main, this.sheepLayer, new Tooltip(this, TOOLTIP_DEPTH));
+    // The Esc chain (UX-DR73). OverlayScene is launched after this and replaced on every restart,
+    // so it is looked up on each press, never cached.
+    const overlay = (): OverlayScene => this.scene.get('OverlayScene') as OverlayScene;
+    const input = new InputController(this.input, {
+      modalOpen: () => this.modalOpen,
+      esc: [
+        () => overlay().closeConfirm(),
+        () => overlay().closeSubPanel(),
+        // Story 2.7 cancel drag, 2.3 exit breed mode and 3.2 close shop slot in here, in that order.
+        () => overlay().togglePause(),
+      ],
+      panBy: (dx, dy) => this.penCamera.panBy(dx, dy, fenceBounds(this.state)),
+    });
+    this.inputController = input;
     bus.on('sim', this.onSim, this);
     // Saving (FR40): every 10 s and on hide (saveStore), and before the error toast (safety net).
     // A new or loaded game lifts any block left by a sim error in the previous one.
@@ -123,6 +146,7 @@ export class GameScene extends Phaser.Scene {
     // clock clamps long frames, but the rule is ours: no tick while hidden, nothing added on return.
     // game.events outlives this scene, so both handlers are removed on SHUTDOWN.
     this.hidden = document.hidden;
+    this.paused = false;
     this.skipDelta = false;
     this.game.events.on(Phaser.Core.Events.HIDDEN, this.onHidden, this);
     this.game.events.on(Phaser.Core.Events.VISIBLE, this.onVisible, this);
@@ -152,6 +176,25 @@ export class GameScene extends Phaser.Scene {
     return this.state;
   }
 
+  /** True while the pause menu, a sub-panel or the start-over confirm is up (the clock is stopped). */
+  get isPaused(): boolean {
+    return this.paused;
+  }
+
+  /** True while any modal is up, the lose screen included: shortcuts, Farm and tooltips are off. */
+  get modalOpen(): boolean {
+    return this.paused || isLost(this.state);
+  }
+
+  /** OverlayScene's pause menu. Does not touch the hidden-tab flag. */
+  setPaused(paused: boolean): void {
+    if (paused === this.paused) return;
+    this.paused = paused;
+    // No clock.reset(): the leftover accumulator keeps interpolation continuous, so sheep do not
+    // snap back. Nothing queued while paused (Farm is ignored under a modal), so nothing bursts.
+    if (!paused) this.skipDelta = true;
+  }
+
   /** Queues a player command; it is applied at the start of the next tick. */
   dispatch(cmd: Command): void {
     this.pendingCommands.push(cmd);
@@ -172,6 +215,21 @@ export class GameScene extends Phaser.Scene {
     this.scene.restart({});
   }
 
+  /**
+   * Pause → Main Menu (Rylan, 2026-10-06): saves now, then leaves for the title, where Continue
+   * resumes this game. No confirm: nothing is lost. The save goes through writeSave, so it is
+   * validated and refused after a sim error (the last good save stays). HUD and Overlay are stopped
+   * with the game; Phaser queues all three ops, so input handlers may call it.
+   */
+  quitToTitle(): void {
+    this.stopAutosave();
+    setForceSave(null);
+    writeSave(this.state);
+    this.scene.stop('HudScene');
+    this.scene.stop('OverlayScene');
+    this.scene.start('TitleScene');
+  }
+
   update(): void {
     // A throw inside a Phaser frame would stop the game loop for good, so sim and render errors are
     // caught here and reported; the frame finishes and the game keeps running.
@@ -185,14 +243,18 @@ export class GameScene extends Phaser.Scene {
         // FR38: the sim has stopped; the field stays drawn, frozen behind the lose screen. Presses
         // that queued before the loss are dropped (applyCommand would ignore them anyway).
         this.pendingCommands.length = 0;
-      } else if (!this.hidden) {
-        // FR41: nothing advances while the tab is hidden; the first frame back adds no time.
+      } else if (!this.hidden && !this.paused) {
+        // FR41 / UX-DR14: nothing advances while the tab is hidden or the menu is up; the first frame
+        // back adds no time.
         const ticks = this.clock.advance(this.skipDelta ? 0 : this.game.loop.rawDelta);
         this.skipDelta = false;
         for (let t = 0; t < ticks; t++) this.tick();
       }
+      this.inputController.update();
       this.render();
-      this.sheepHover.update(this.publicSheep, this.game.loop.time);
+      // SheepHover reads the raw pointer, not hit objects, so it would show under the pause scrim.
+      if (this.paused) this.sheepHover.clear();
+      else this.sheepHover.update(this.publicSheep, this.game.loop.time);
     } catch (err) {
       // The remaining ticks of this frame are dropped, so a bad state throws once per frame at most.
       reportError('sim', err);
@@ -245,6 +307,7 @@ export class GameScene extends Phaser.Scene {
     this.hidden = true;
   }
 
+  // Never touches `paused`: a menu open before the tab hid is still open after.
   private onVisible(): void {
     this.hidden = false;
     this.clock.reset();

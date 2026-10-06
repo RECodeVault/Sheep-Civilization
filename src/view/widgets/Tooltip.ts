@@ -25,7 +25,9 @@ export class Tooltip {
   private height = 0;
 
   constructor(scene: Phaser.Scene, depth: number) {
-    this.box = scene.add.graphics().setDepth(depth);
+    // Fixed to the screen: showAt takes screen coordinates and clamps to the canvas, so a scrolled
+    // field camera (PenCamera) must not move it. The HUD camera never scrolls, so this is harmless there.
+    this.box = scene.add.graphics().setDepth(depth).setScrollFactor(0);
     this.label = scene.add
       .text(0, 0, '', {
         fontFamily: TYPE.fontFamily,
@@ -38,7 +40,8 @@ export class Tooltip {
         // rougher, not crisper. True HiDPI text needs a higher renderer resolution (architecture).
         resolution: 1,
       })
-      .setDepth(depth);
+      .setDepth(depth)
+      .setScrollFactor(0);
     this.hide();
   }
 

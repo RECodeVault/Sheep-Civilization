@@ -1,15 +1,17 @@
 import Phaser from 'phaser';
 import type { Command } from '../../sim/commands';
 import type { SimEvent } from '../../sim/events';
-import { isLost, selectHudView, type HudView } from '../../sim/selectors';
+import { COMPONENTS, LAYOUT } from '../../config/constants';
+import { selectHudView, type HudView } from '../../sim/selectors';
 import { bus } from '../bus';
 import { BottomBar } from '../hud/BottomBar';
 import { FloatPopups } from '../juice/FloatPopups';
 import { reportError } from '../safetyNet';
 import { STRINGS } from '../strings';
-import type { Button } from '../widgets/Button';
+import { Button } from '../widgets/Button';
 import { HOVER_DELAY_MS, Tooltip } from '../widgets/Tooltip';
 import type { GameScene } from './GameScene';
+import type { OverlayScene } from './OverlayScene';
 
 // Within this scene: popups over the bar, the tooltip over everything.
 const POPUP_DEPTH = 100;
@@ -17,6 +19,10 @@ const TOOLTIP_DEPTH = 200;
 // Popups start just above the Farm button's top edge.
 const POPUP_LIFT_PX = 4;
 const FARM: Command = Object.freeze({ type: 'Farm' });
+// [ASSUMPTION] Added 2026-10-06 (Rylan): the Pause button sits in the top-left corner of the field,
+// clear of the toasts (top-centre), the era badge (top-right) and the Better Place (x ≈ 450–590).
+// Width: "Pause" in label type plus 12 px padding each side, rounded up (measured in the browser).
+const PAUSE_W = 96;
 
 /**
  * The bottom bar, launched by GameScene in parallel and drawn above it. Reads the sim once per frame
@@ -26,6 +32,7 @@ const FARM: Command = Object.freeze({ type: 'Farm' });
 export class HudScene extends Phaser.Scene {
   private gameScene!: GameScene;
   private bar!: BottomBar;
+  private pauseButton!: Button;
   private popups!: FloatPopups;
   private tooltip!: Tooltip;
   private tooltipFor: Button | null = null;
@@ -39,6 +46,16 @@ export class HudScene extends Phaser.Scene {
     this.gameScene = this.scene.get('GameScene') as GameScene;
     this.tooltipFor = null;
     this.bar = new BottomBar(this, this.farm);
+    this.pauseButton = new Button(this, COMPONENTS.buttonPause, {
+      x: LAYOUT.safeMargin,
+      y: LAYOUT.safeMargin,
+      width: PAUSE_W,
+      label: STRINGS.pauseLabel,
+      tooltip: STRINGS.pauseTooltip,
+      labelAlign: 'center',
+      activateOn: 'release',
+      onActivate: this.pause,
+    });
     this.popups = new FloatPopups(this, POPUP_DEPTH);
     this.tooltip = new Tooltip(this, TOOLTIP_DEPTH);
 
@@ -61,7 +78,7 @@ export class HudScene extends Phaser.Scene {
       const state = this.gameScene.simState;
       const v = selectHudView(state, this.view);
       this.bar.farmProgress.set(v.farmProgress, v.farmPipsPerFood);
-      this.updateTooltip(this.game.loop.time, isLost(state));
+      this.updateTooltip(this.game.loop.time, this.gameScene.modalOpen);
     } catch (err) {
       reportError('ui', err);
     }
@@ -73,14 +90,27 @@ export class HudScene extends Phaser.Scene {
    */
   private readonly farm = (): void => {
     try {
-      // FR38: nothing to farm for once the flock is gone (the sim ignores it too). The lose scrim
-      // blocks clicks, so this mostly covers the F key.
-      if (isLost(this.gameScene.simState)) return;
+      // UX-DR20 / FR38: no farming under a modal (pause, confirm, lose; the sim ignores a lost game
+      // too). The scrim blocks clicks, so this covers anything else that calls farm. Nothing queues
+      // while paused, so nothing bursts on resume.
+      if (this.gameScene.modalOpen) return;
       const b = this.bar.farmButton;
       b.squash();
       // A press hides the tooltip, from the key as from the pointer (Task 5.4).
       b.suppressTooltip();
       this.gameScene.dispatch(FARM);
+    } catch (err) {
+      reportError('ui', err);
+    }
+  };
+
+  /** The top-left Pause button (UX-DR76: pause is mouse-reachable); the same menu as Esc. */
+  private readonly pause = (): void => {
+    try {
+      if (this.gameScene.modalOpen) return;
+      this.pauseButton.suppressTooltip();
+      // Looked up on each click: OverlayScene is replaced on every GameScene restart.
+      (this.scene.get('OverlayScene') as OverlayScene).openPause();
     } catch (err) {
       reportError('ui', err);
     }
@@ -100,12 +130,13 @@ export class HudScene extends Phaser.Scene {
     }
   };
 
-  private updateTooltip(now: number, lost: boolean): void {
-    const b = this.bar.farmButton;
+  private updateTooltip(now: number, modalOpen: boolean): void {
+    // At most one button is hovered, so one tooltip serves both.
+    const b = this.pauseButton.hoverSince >= 0 ? this.pauseButton : this.bar.farmButton;
     const since = b.hoverSince;
-    // While lost the lose scrim takes the pointer, so the button never sees pointer-out: a hover that
-    // began before the loss would otherwise pop its tooltip under the scrim.
-    const show = !lost && b.tooltip !== undefined && since >= 0 && now - since >= HOVER_DELAY_MS;
+    // Under a modal the scrim takes the pointer, so the button never sees pointer-out: a hover that
+    // began before Esc or the loss would otherwise pop its tooltip under the scrim.
+    const show = !modalOpen && b.tooltip !== undefined && since >= 0 && now - since >= HOVER_DELAY_MS;
     if (!show) {
       if (this.tooltipFor !== null) {
         this.tooltip.hide();
