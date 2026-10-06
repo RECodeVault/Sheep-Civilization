@@ -67,6 +67,11 @@ export interface GameState {
   stats: Stats;
   /** Change-detection cache for EraChanged only; display reads currentEra(state). */
   lastEra: Era;
+  /**
+   * Game-ms of the loss (the flock reached 0, FR38), which is also the time survived. Omitted while
+   * playing; set once by checkLastSheepAndLoss. While present the sim does not step.
+   */
+  lostAt?: number;
 }
 
 export function nextId(state: GameState): number {
@@ -85,6 +90,8 @@ export function createSheep(state: GameState, o: { x: number; y: number; bornAt:
     restUntil: 0,
   };
   state.sheep.push(s);
+  // The one place a sheep is added, so the peak covers new games, births and debug sheep alike.
+  if (state.sheep.length > state.stats.peakFlock) state.stats.peakFlock = state.sheep.length;
   return s;
 }
 
@@ -109,6 +116,5 @@ export function createNewGame(seed: number): GameState {
       bornAt: -TUNING.startAdultAgeMs,
     });
   }
-  state.stats.peakFlock = state.sheep.length;
   return state;
 }

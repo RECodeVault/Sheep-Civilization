@@ -3,6 +3,7 @@ import { TUNING } from '../../src/config/tuning';
 import { applyCommand } from '../../src/sim/commands';
 import { drainEvents, type SimEvent } from '../../src/sim/events';
 import type { GameState } from '../../src/sim/state';
+import { killSheep } from '../../src/sim/systems/carcass';
 import { innerFence, newGame } from './helpers';
 
 function drained(): SimEvent[] {
@@ -76,5 +77,19 @@ describe('applyCommand Farm (8-pip bar)', () => {
 describe('applyCommand', () => {
   it('throws on an unknown variant', () => {
     expect(() => applyCommand(newGame(), { type: 'Nope' } as never)).toThrow(/Unexpected variant/);
+  });
+});
+
+describe('applyCommand on a lost game', () => {
+  it('ignores Farm: no pip, no piece, no event', () => {
+    const state = newGame();
+    for (const id of state.sheep.map((s) => s.id)) killSheep(state, id, 'starved');
+    drained();
+    // One pip short of a full bar, so an unguarded Farm would visibly drop a piece.
+    state.farmProgress = TUNING.farmPipsPerFood - 1;
+    const before = structuredClone(state);
+    applyCommand(state, { type: 'Farm' });
+    expect(state).toStrictEqual(before);
+    expect(drained()).toEqual([]);
   });
 });

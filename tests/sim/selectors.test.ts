@@ -3,15 +3,19 @@ import { TUNING } from '../../src/config/tuning';
 import { applyCommand } from '../../src/sim/commands';
 import {
   hungerOf,
+  isLost,
   publicSheep,
   selectFoodPieces,
   selectHudView,
+  selectLoseView,
   selectPublicSheep,
   stageOf,
   type HudView,
+  type LoseView,
   type PublicSheep,
 } from '../../src/sim/selectors';
-import { newGame } from './helpers';
+import { killSheep } from '../../src/sim/systems/carcass';
+import { newGame, runFor } from './helpers';
 
 describe('hungerOf', () => {
   it('is fed only above fedAbove', () => {
@@ -94,5 +98,23 @@ describe('selectFoodPieces', () => {
   it('returns the live pieces array without copying', () => {
     const state = newGame();
     expect(selectFoodPieces(state)).toBe(state.foodPieces);
+  });
+});
+
+describe('isLost / selectLoseView', () => {
+  it('is not lost on a new game, and lost once the flock is gone', () => {
+    const state = newGame();
+    expect(isLost(state)).toBe(false);
+    for (const id of state.sheep.map((s) => s.id)) killSheep(state, id, 'starved');
+    expect(isLost(state)).toBe(true);
+  });
+
+  it('fills out in place with the loss time and the peak flock', () => {
+    const state = newGame();
+    runFor(state, 3_000);
+    for (const id of state.sheep.map((s) => s.id)) killSheep(state, id, 'starved');
+    const out: LoseView = { survivedMs: -1, peakFlock: -1 };
+    expect(selectLoseView(state, out)).toBe(out);
+    expect(out).toEqual({ survivedMs: 3_000, peakFlock: TUNING.interimFlockAdults });
   });
 });

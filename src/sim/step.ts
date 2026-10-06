@@ -13,6 +13,8 @@ import { updateMovement } from './systems/movement';
 const SYSTEMS: readonly ((state: GameState) => void)[] = [updateMovement, updateFeeding, updateHunger];
 
 export function step(state: GameState): void {
+  // FR38: a lost game is stopped. Before the time advance, so time survived stays fixed.
+  if (state.lostAt !== undefined) return;
   // Time advances first, so systems compare deadlines against the new time (`state.time >= diesAt`).
   state.time += TICK_MS;
   for (let i = 0; i < SYSTEMS.length; i++) SYSTEMS[i](state);

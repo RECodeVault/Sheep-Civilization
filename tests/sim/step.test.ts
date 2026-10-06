@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { TICK_MS } from '../../src/config/constants';
+import { clearEvents } from '../../src/sim/events';
 import { step } from '../../src/sim/step';
+import { killSheep } from '../../src/sim/systems/carcass';
 import { newGame, runFor } from './helpers';
 
 describe('step', () => {
@@ -22,6 +24,18 @@ describe('step', () => {
 
   it('emits no events before any sheep starves', () => {
     expect(runFor(newGame(), 2_000)).toEqual([]);
+  });
+
+  it('does nothing once the game is lost: no time, no systems, no events', () => {
+    const state = newGame();
+    runFor(state, 1_000);
+    for (const id of state.sheep.map((s) => s.id)) killSheep(state, id, 'starved');
+    clearEvents();
+    const before = structuredClone(state);
+    step(state);
+    expect(state).toStrictEqual(before);
+    expect(runFor(state, 5_000)).toEqual([]);
+    expect(state).toStrictEqual(before);
   });
 
   it('runFor rejects durations that are not whole ticks', () => {

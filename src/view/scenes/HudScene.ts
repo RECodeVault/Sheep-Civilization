@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Command } from '../../sim/commands';
 import type { SimEvent } from '../../sim/events';
-import { selectHudView, type HudView } from '../../sim/selectors';
+import { isLost, selectHudView, type HudView } from '../../sim/selectors';
 import { bus } from '../bus';
 import { BottomBar } from '../hud/BottomBar';
 import { FloatPopups } from '../juice/FloatPopups';
@@ -72,6 +72,9 @@ export class HudScene extends Phaser.Scene {
    */
   private readonly farm = (): void => {
     try {
+      // FR38: nothing to farm for once the flock is gone (the sim ignores it too). The lose scrim
+      // blocks clicks, so this mostly covers the F key.
+      if (isLost(this.gameScene.simState)) return;
       const b = this.bar.farmButton;
       b.squash();
       // A press hides the tooltip, from the key as from the pointer (Task 5.4).

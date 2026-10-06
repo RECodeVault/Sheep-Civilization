@@ -1,7 +1,8 @@
 // Pattern N1, the single death pipeline: killSheep is the only way a sheep dies. Hunger, lifecycle
 // (2.1), virus (2.5) and the Abomination (4.3) all call it, so every death is counted, announced and,
 // from Story 2.4, leaves a carcass. Nothing else removes sheep from state.sheep (removeSheep, for
-// selling and sacrifice, arrives in Epic 2).
+// selling and sacrifice, arrives in Epic 2). Both end with checkLastSheepAndLoss: selling or
+// sacrificing the last sheep is a loss too.
 //
 // Callers: killSheep *replaces* state.sheep with a new, shorter array. A system that kills while
 // looping must loop over the array it captured before the loop (see updateHunger), never re-read
@@ -26,5 +27,17 @@ export function killSheep(state: GameState, id: number, cause: DeathCause): void
     state.carcasses.push({ id: nextId(state), x: s.x, y: s.y, createdAt: state.time });
   }
   emit({ type: 'SheepDied', id, cause, x: s.x, y: s.y });
-  // Story 1.8: checkLastSheepAndLoss(state) here.
+  // Last, so Lost follows the SheepDied that caused it.
+  checkLastSheepAndLoss(state);
+}
+
+/**
+ * Pattern N1: runs after every removal (killSheep now, removeSheep in Epic 2). Loss = 0 sheep alive
+ * (FR38): records the time once and emits Lost; step() and applyCommand() then do nothing.
+ */
+export function checkLastSheepAndLoss(state: GameState): void {
+  // Story 5.5: emit LastSheep when the flock drops to 1.
+  if (state.sheep.length > 0 || state.lostAt !== undefined) return;
+  state.lostAt = state.time;
+  emit({ type: 'Lost', survivedMs: state.lostAt, peakFlock: state.stats.peakFlock });
 }

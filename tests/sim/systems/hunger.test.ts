@@ -28,7 +28,8 @@ describe('updateHunger', () => {
     expect(state.sheep[0].fullness).toBeGreaterThan(0);
     const events = runFor(state, TICK_MS);
     expect(state.sheep).toHaveLength(0);
-    expect(events).toHaveLength(1);
+    // The only sheep, so its death is also the loss (Story 1.8).
+    expect(events.map((e) => e.type)).toEqual(['SheepDied', 'Lost']);
     expect(events[0]).toMatchObject({ type: 'SheepDied', cause: 'starved' });
   });
 
@@ -103,7 +104,7 @@ describe('updateHunger', () => {
 
   it('kills a sheep that is already empty on the next tick', () => {
     const state = gameWith([0]);
-    expect(runFor(state, TICK_MS)).toHaveLength(1);
+    expect(runFor(state, TICK_MS).filter((e) => e.type === 'SheepDied')).toHaveLength(1);
     expect(state.sheep).toHaveLength(0);
   });
 });

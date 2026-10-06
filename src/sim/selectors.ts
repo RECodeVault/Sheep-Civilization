@@ -109,3 +109,22 @@ export function selectHudView(state: GameState, out: HudView): HudView {
   out.farmPipsPerFood = TUNING.farmPipsPerFood;
   return out;
 }
+
+/** FR38: the flock reached 0 and the sim has stopped. Derived from state.lostAt. */
+export function isLost(state: GameState): boolean {
+  return state.lostAt !== undefined;
+}
+
+/** What the lose screen shows (UX-DR19). */
+export interface LoseView {
+  /** Game-ms survived: the loss time, or the current time while still playing. */
+  survivedMs: number;
+  peakFlock: number;
+}
+
+/** Fills `out` in place (no allocation) and returns it. */
+export function selectLoseView(state: GameState, out: LoseView): LoseView {
+  out.survivedMs = state.lostAt ?? state.time;
+  out.peakFlock = state.stats.peakFlock;
+  return out;
+}

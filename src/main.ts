@@ -4,6 +4,7 @@ import { log } from './core/log';
 import { BootScene } from './view/scenes/BootScene';
 import { GameScene } from './view/scenes/GameScene';
 import { HudScene } from './view/scenes/HudScene';
+import { OverlayScene } from './view/scenes/OverlayScene';
 import { PreloadScene } from './view/scenes/PreloadScene';
 import { attachGame, installSafetyNet, reportError } from './view/safetyNet';
 
@@ -69,9 +70,9 @@ async function start(): Promise<void> {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
-    // Array order is render order (HudScene draws on top). Updates run in REVERSE order, so HudScene
-    // reads the sim on PRE_RENDER, not in update().
-    scene: [BootScene, PreloadScene, GameScene, HudScene],
+    // Array order is render order (HudScene above the field, OverlayScene's modals above both).
+    // Updates run in REVERSE order, so HudScene reads the sim on PRE_RENDER, not in update().
+    scene: [BootScene, PreloadScene, GameScene, HudScene, OverlayScene],
   });
   attachGame(game);
 

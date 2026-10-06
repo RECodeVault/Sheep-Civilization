@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SAVE_SCHEMA_VERSION } from '../../src/config/constants';
+import { TUNING } from '../../src/config/tuning';
 import { decodeSave, encodeSave } from '../../src/save/saveFile';
 import { newGame, runFor } from '../sim/helpers';
 
@@ -9,6 +10,13 @@ describe('encodeSave / decodeSave', () => {
   it('round-trips a game that has been running', () => {
     const state = newGame(4242);
     runFor(state, 10_000);
+    expect(decodeSave(encodeSave(state, NOW))).toStrictEqual(state);
+  });
+
+  it('round-trips a lost game with its lostAt', () => {
+    const state = newGame(4242);
+    runFor(state, TUNING.starveMs);
+    expect(state.lostAt).toBeDefined();
     expect(decodeSave(encodeSave(state, NOW))).toStrictEqual(state);
   });
 

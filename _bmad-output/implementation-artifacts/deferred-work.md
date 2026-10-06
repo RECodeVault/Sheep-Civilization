@@ -53,6 +53,7 @@ Real issues found in reviews that are not actionable in the story where they wer
   - `NaN` or a missing value shows "NaN/20" / "undefined/20", and `FoodMeter.set` redoes its pips and text every frame.
   - A string value ("5") jumps straight to the cap.
 - **HudScene lifetime (Story 1.10):** GameScene relaunches the HUD on every restart, but nothing stops it if GameScene stops for good (Title, lose flows). It would keep calling `dispatch` and reading `simState` on a dead scene. Stop or sleep `HudScene` together with GameScene.
+  - **Story 1.8:** the lose flow does not trigger this: GameScene keeps running (rendering the frozen field) after a loss, so the HUD's reads stay valid. `OverlayScene` (new in 1.8) is launched the same way and has the same lifetime question for the Title flow.
 - **Button disabled state (Story 2.3):** the generic `Button` has several gaps that the greyed Breed tool will need fixed.
   - It shows no tooltip while disabled, but UX-DR31 needs the reason ("No room. Buy land.").
   - A button re-enabled under the pointer gets no tooltip until the pointer re-enters.
@@ -79,3 +80,11 @@ Real issues found in reviews that are not actionable in the story where they wer
   - Two full sheep resting on a piece also hold a seeker off: their separation push beats its walk within about 12 px. Today that clears within 4 s, when they stop resting.
   - Fix: Story 1.9 validates piece positions, and Story 3.6 considers a claim timeout.
 - **Farm bar size defined twice (Story 3.6):** `COMPONENTS.farmProgress.segmentCount` (pips drawn) and `TUNING.farmPipsPerFood` (pips per food) are both 8. `FarmProgress.set` scales between them and the "{n}/8" text always reads the tuning value. If 3.6 retunes the bar, change both, or build the pips from the tuning value.
+
+## Deferred from: story 1-8-losing-the-flock (2026-10-06)
+
+- **Restart wipes the save (Story 1.9):** Lose → Restart calls `GameScene.newGame()`, which has a marked hook for `saveStore.wipe()` (no confirm; settings must survive, UX-DR89).
+- **Validating `lostAt` (Story 1.9):** an absent `lostAt` is a game in progress. A present one must be a finite, non-negative integer no greater than `time`; otherwise reject the save. A valid lost save resumes straight to the lose screen: `OverlayScene` shows it at once when it starts on a lost state (verified with a debug Load).
+- **Esc and shortcuts on the lose screen (Story 1.10):** the `Esc` chain must do nothing while the lose panel is up (no pause over a lost game), and the modal check that ignores F/G must include it. Today F is already a no-op when lost (`HudScene.farm` and `applyCommand` both guard). The one scrim lives in `OverlayScene` for the pause and confirm modals to reuse.
+- **`removeSheep` (Story 2.7, sacrifice; 3.1, sell):** it must end with `checkLastSheepAndLoss(state)`, exported from `systems/carcass.ts`; selling or sacrificing the last sheep is a loss.
+- **`LastSheep` (Story 5.5):** emit it from `checkLastSheepAndLoss` when the flock drops to 1 (marked comment).

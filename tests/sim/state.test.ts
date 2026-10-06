@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { TUNING } from '../../src/config/tuning';
 import { fenceBounds } from '../../src/sim/selectors';
 import { createNewGame, nextId } from '../../src/sim/state';
-import { newGame, runFor } from './helpers';
+import { killSheep } from '../../src/sim/systems/carcass';
+import { fillFlock, newGame, runFor } from './helpers';
 
 describe('createNewGame', () => {
   it('has exactly the GameState fields', () => {
@@ -64,10 +65,29 @@ describe('createNewGame', () => {
     expect(JSON.parse(JSON.stringify(state))).toStrictEqual(state);
   });
 
+  it('starts with no lostAt (omitted, not undefined)', () => {
+    expect('lostAt' in newGame()).toBe(false);
+  });
+
   it('is deterministic per seed', () => {
     expect(createNewGame(77)).toStrictEqual(createNewGame(77));
     const a = createNewGame(77).sheep.map((s) => [s.x, s.y]);
     const b = createNewGame(78).sheep.map((s) => [s.x, s.y]);
     expect(a).not.toEqual(b);
+  });
+});
+
+describe('stats.peakFlock', () => {
+  it('createSheep raises it, and deaths never lower it', () => {
+    const state = newGame();
+    fillFlock(state, 5);
+    expect(state.stats.peakFlock).toBe(5);
+    killSheep(state, state.sheep[0].id, 'starved');
+    expect(state.sheep).toHaveLength(4);
+    expect(state.stats.peakFlock).toBe(5);
+    fillFlock(state, 5);
+    expect(state.stats.peakFlock).toBe(5);
+    fillFlock(state, 6);
+    expect(state.stats.peakFlock).toBe(6);
   });
 });

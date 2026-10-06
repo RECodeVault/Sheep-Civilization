@@ -12,6 +12,8 @@ export const SAVE_KEY = 'sheepciv.save.v1';
 export const SETTINGS_KEY = 'sheepciv.settings';
 // 2 since Story 1.7 (2026-10-06): `food` removed, `farmProgress` and sheep `targetId` added. No
 // version-1 save was ever persisted (saving starts in 1.9), so older debug saves are simply rejected.
+// Optional fields whose absence keeps the old meaning need no bump: `lostAt` (1.8) is omitted while
+// playing, so a version-2 save without it is still a game in progress.
 export const SAVE_SCHEMA_VERSION = 2;
 
 /*

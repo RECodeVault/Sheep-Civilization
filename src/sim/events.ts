@@ -1,6 +1,6 @@
 // Sim → view events. The sim appends to a per-tick queue that lives outside GameState (events are
 // never saved); after each tick GameScene drains it onto the EventBus. Variants: SheepDied, Farmed,
-// FoodDropped, FoodEaten.
+// FoodDropped, FoodEaten, Lost.
 
 export type DeathCause = 'starved' | 'oldAge' | 'virus' | 'abomination';
 
@@ -16,7 +16,10 @@ export type SimEvent =
   // A food piece landed at (x, y) in the pen (a full Farm bar).
   | { type: 'FoodDropped'; id: number; x: number; y: number }
   // A sheep ate a piece; (x, y) is where the piece was (the munch particle spot).
-  | { type: 'FoodEaten'; sheepId: number; pieceId: number; x: number; y: number };
+  | { type: 'FoodEaten'; sheepId: number; pieceId: number; x: number; y: number }
+  // The flock reached 0 (checkLastSheepAndLoss). Emitted once per game, after the last SheepDied.
+  // survivedMs is state.lostAt; peakFlock is stats.peakFlock.
+  | { type: 'Lost'; survivedMs: number; peakFlock: number };
 
 const queue: SimEvent[] = [];
 

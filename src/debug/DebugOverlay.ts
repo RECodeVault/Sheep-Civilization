@@ -317,7 +317,6 @@ function addSheep(s: GameState): void {
       bornAt: s.time - TUNING.startAdultAgeMs,
     });
   }
-  if (s.sheep.length > s.stats.peakFlock) s.stats.peakFlock = s.sheep.length;
 }
 
 function line(parent: HTMLElement): HTMLDivElement {

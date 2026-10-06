@@ -11,6 +11,8 @@ import { createFoodPiece } from './systems/feeding';
 export type Command = { type: 'Farm' };
 
 export function applyCommand(state: GameState, cmd: Command): void {
+  // FR38: a lost game takes no more commands. The sim is the authority; view guards are for feel.
+  if (state.lostAt !== undefined) return;
   switch (cmd.type) {
     case 'Farm':
       farm(state);

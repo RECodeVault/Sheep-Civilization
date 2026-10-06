@@ -5,7 +5,7 @@ import { log } from '../../core/log';
 import { InputController } from '../../input/InputController';
 import { applyCommand, type Command } from '../../sim/commands';
 import { clearEvents, drainEvents, type SimEvent } from '../../sim/events';
-import { fenceBounds, selectFoodPieces, selectPublicSheep, type PublicSheep } from '../../sim/selectors';
+import { fenceBounds, isLost, selectFoodPieces, selectPublicSheep, type PublicSheep } from '../../sim/selectors';
 import { createNewGame, type FoodPiece, type GameState } from '../../sim/state';
 import { step } from '../../sim/step';
 import { ATLAS, FRAME } from '../assetKeys';
@@ -103,9 +103,10 @@ export class GameScene extends Phaser.Scene {
       bus.off('sim', this.onSim, this);
     });
     this.render();
-    // Runs in parallel, drawn above. `launch` restarts a running HudScene, so every GameScene restart
-    // rebuilds the HUD fresh.
+    // Run in parallel, drawn above (Overlay on top). `launch` restarts a running scene, so every
+    // GameScene restart rebuilds the HUD and the overlay fresh.
     this.scene.launch('HudScene');
+    this.scene.launch('OverlayScene');
   }
 
   // --- Scene API -------------------------------------------------------------------------------
@@ -124,6 +125,16 @@ export class GameScene extends Phaser.Scene {
     this.pendingCommands.push(cmd);
   }
 
+  /**
+   * Starts a fresh game by restarting the scene (pools, fence, clock, HUD and overlay all rebuild).
+   * Lose → Restart calls it with no confirm. Phaser queues the restart, so input handlers may call it.
+   */
+  newGame(): void {
+    // Story 1.9: saveStore.wipe() here (Lose → Restart wipes without confirm; settings are kept).
+    // create() consumed any earlier data.state, so empty data means createNewGame.
+    this.scene.restart({});
+  }
+
   update(): void {
     // A throw inside a Phaser frame would stop the game loop for good, so sim and render errors are
     // caught here and reported; the frame finishes and the game keeps running.
@@ -133,8 +144,14 @@ export class GameScene extends Phaser.Scene {
       // displays. The clock does its own 250 ms clamp. rawDelta is only the real frame time while no
       // `fps.limit` is set in the game config (with a limit, update runs once per several rAFs but
       // rawDelta holds just the last one); do not add an FPS limit without revisiting this.
-      const ticks = this.clock.advance(this.game.loop.rawDelta);
-      for (let t = 0; t < ticks; t++) this.tick();
+      if (isLost(this.state)) {
+        // FR38: the sim has stopped; the field stays drawn, frozen behind the lose screen. Presses
+        // that queued before the loss are dropped (applyCommand would ignore them anyway).
+        this.pendingCommands.length = 0;
+      } else {
+        const ticks = this.clock.advance(this.game.loop.rawDelta);
+        for (let t = 0; t < ticks; t++) this.tick();
+      }
       this.render();
       this.sheepHover.update(this.publicSheep, this.game.loop.time);
     } catch (err) {

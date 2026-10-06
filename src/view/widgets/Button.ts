@@ -33,6 +33,8 @@ export interface ButtonOptions {
   /** Shortcut letter printed in a small key box at the right (UX-DR72), e.g. "F". */
   keyHint?: string;
   tooltip?: string;
+  /** 'left' (default; HUD buttons, with room for the key hint) or 'center' (menu buttons, mockups `.btn-menu`). */
+  labelAlign?: 'left' | 'center';
   /**
    * 'press' fires on left-button down (Farm: a clicker must feel snappy). 'release' fires on
    * left-button up over the button, only if the press started on it (menu buttons may use it).
@@ -98,9 +100,10 @@ export class Button {
       disabled: boxTexture(scene, w, h, this.boxStyle('disabled')),
     };
     this.box = scene.add.image(-w / 2, -h, this.textures.normal).setOrigin(0, 0);
+    const centred = options.labelAlign === 'center';
     this.label = scene.add
-      .text(-w / 2 + pad, -h / 2, options.label, textStyle(spec.typography, spec.textColor))
-      .setOrigin(0, 0.5);
+      .text(centred ? 0 : -w / 2 + pad, -h / 2, options.label, textStyle(spec.typography, spec.textColor))
+      .setOrigin(centred ? 0.5 : 0, 0.5);
     this.root.add([this.box, this.label]);
 
     if (options.keyHint !== undefined) {
@@ -136,6 +139,19 @@ export class Button {
 
   setDepth(depth: number): this {
     this.root.setDepth(depth);
+    return this;
+  }
+
+  /** Shows or hides the button; a hidden button takes no input and drops any hover or press. */
+  setVisible(visible: boolean): this {
+    this.root.setVisible(visible);
+    if (this.zone.input) this.zone.input.enabled = visible;
+    if (!visible) {
+      this.hovered = false;
+      this.pressed = false;
+      this.hoverSinceMs = -1;
+      this.refresh();
+    }
     return this;
   }
 

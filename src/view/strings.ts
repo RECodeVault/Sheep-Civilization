@@ -24,4 +24,8 @@ export const STRINGS = Object.freeze({
   farmPopup: (n: number): string => `+${n}`,
   // Meter value (UX-DR29), e.g. "3/8" for the Farm bar.
   meterValue: (n: number, cap: number): string => `${n}/${cap}`,
+  // Lose screen (UX-DR19, UX-DR95; EXPERIENCE Voice), e.g. "Survived 12:34 · Peak flock 18".
+  loseTitle: 'The flock is gone.',
+  loseStats: (time: string, peak: number): string => `Survived ${time} · Peak flock ${peak}`,
+  restart: 'Restart',
 } as const);
