@@ -1,11 +1,10 @@
 import type Phaser from 'phaser';
 import { COMPONENTS, LAYOUT } from '../../config/constants';
-import { TUNING } from '../../config/tuning';
 import { STRINGS } from '../strings';
 import { Button } from '../widgets/Button';
 import { OUTLINE_PX } from '../widgets/box';
 import { Panel } from '../widgets/Panel';
-import { FoodMeter } from './FoodMeter';
+import { FarmProgress } from './FarmProgress';
 
 // Bar layout in canvas px (DESIGN.md Layout & Spacing; UX-DR25, UX-DR101). The mockup centres the
 // Farm group in the 112 px bar, which would put the meter inside the 16 px safe margin; the spec wins,
@@ -19,11 +18,12 @@ const METER_Y = FARM_Y + COMPONENTS.buttonFarm.height + METER_GAP;
 
 /**
  * The HUD bottom bar: a full-width wool surface with actions on the left (UX-DR25). Story 1.6 builds
- * the Farm button and food meter; later stories add their widgets to the right.
+ * the Farm button with the Farm progress bar and its count beneath it (1.7); later stories add their
+ * widgets to the right.
  */
 export class BottomBar {
   readonly farmButton: Button;
-  readonly foodMeter: FoodMeter;
+  readonly farmProgress: FarmProgress;
 
   constructor(scene: Phaser.Scene, onFarm: () => void) {
     // The bar is a square Panel whose outline runs off the left, right and bottom canvas edges, so
@@ -40,10 +40,10 @@ export class BottomBar {
       width: FARM_W,
       label: STRINGS.farmLabel,
       keyHint: STRINGS.farmKey,
-      tooltip: STRINGS.farmTooltip(TUNING.farmFoodPerClick),
+      tooltip: STRINGS.farmTooltip,
       activateOn: 'press',
       onActivate: onFarm,
     });
-    this.foodMeter = new FoodMeter(scene, FARM_X, METER_Y);
+    this.farmProgress = new FarmProgress(scene, FARM_X, METER_Y);
   }
 }

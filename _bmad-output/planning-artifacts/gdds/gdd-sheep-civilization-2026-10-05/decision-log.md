@@ -65,3 +65,11 @@
 - **HUD:** under Farm, the 8-pip bar and the stock as a hay icon + "{n}/20"; "+1" popup only when a bar completes into the stock; tooltip "Farm: fill the bar for 1 food (F)".
 - **Risk:** feed load is ~8× the clicks (10 sheep ≈ 1.9 Farm clicks/s, 25 ≈ 4.8 before upgrades). [ASSUMPTION] Retune `farmPipsPerFood` and reconsider Better Hoe's tier in Story 3.6.
 - Source: `planning-artifacts/sprint-change-proposal-2026-10-06.md`.
+
+## 2026-10-06 · No food stock: the Farm bar drops food (Rylan)
+- Supersedes parts of the previous entry, after playing the Story 1.7 build.
+- **Farm** is the only way to make food: every full 8-pip bar drops 1 food piece at a random reachable spot in the pen (seeded RNG). The bar shows its count "{n}/8", starting at "0/8".
+- **Removed:** the food stock (x/20, start 5), click-the-field-to-drop (FR4), the empty-food-meter shake (UX-DR61). A field click does nothing until carcass clicks (Story 2.4).
+- Pieces pile up in the pen with no cap and never spoil; "+1" pops over the button when a bar completes.
+- **Open:** the auto-feeder (Story 4.8) drew from the food stock; what feeds it is decided when 4.8 is created.
+- Pacing: one fewer click per piece (no field click), so feeding is about 8 Farm clicks per piece. Still for Story 3.6 to tune.

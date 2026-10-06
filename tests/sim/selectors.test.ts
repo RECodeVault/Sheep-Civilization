@@ -4,6 +4,7 @@ import { applyCommand } from '../../src/sim/commands';
 import {
   hungerOf,
   publicSheep,
+  selectFoodPieces,
   selectHudView,
   selectPublicSheep,
   stageOf,
@@ -72,19 +73,26 @@ describe('publicSheep / selectPublicSheep', () => {
 });
 
 describe('selectHudView', () => {
-  it('fills food and the cap from TUNING into the given object', () => {
+  it('fills the Farm bar from state and TUNING into the given object', () => {
     const state = newGame();
-    const out: HudView = { food: -1, foodCap: -1 };
+    const out: HudView = { farmProgress: -1, farmPipsPerFood: -1 };
     expect(selectHudView(state, out)).toBe(out);
-    expect(out).toEqual({ food: TUNING.startFood, foodCap: TUNING.foodCap });
+    expect(out).toEqual({ farmProgress: 0, farmPipsPerFood: TUNING.farmPipsPerFood });
   });
 
   it('reflects a Farm on the next read', () => {
     const state = newGame();
-    const out: HudView = { food: 0, foodCap: 0 };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0 };
     selectHudView(state, out);
     applyCommand(state, { type: 'Farm' });
     selectHudView(state, out);
-    expect(out.food).toBe(TUNING.startFood + TUNING.farmFoodPerClick);
+    expect(out.farmProgress).toBe(TUNING.farmPipsPerClick);
+  });
+});
+
+describe('selectFoodPieces', () => {
+  it('returns the live pieces array without copying', () => {
+    const state = newGame();
+    expect(selectFoodPieces(state)).toBe(state.foodPieces);
   });
 });

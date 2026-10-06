@@ -59,4 +59,14 @@ Real issues found in reviews that are not actionable in the story where they wer
   - The hand cursor is not updated while the pointer is over a button that changes state.
   - The F path (`HudScene.farm`) does not check `enabled`.
 - **Farm tooltip value (Story 4.7):** `BottomBar` builds the tooltip once from `TUNING.farmFoodPerClick`, and `Button.tooltip` is readonly. Better Hoe must be able to update it.
+  - **Resolved in Story 1.7:** the Farm progress bar change (2026-10-06) made the tooltip a constant ("Farm: fill the bar for 1 food (F)") that does not depend on the hoe.
 - **Baked box textures (Stories 1.8, 1.10, 3.2):** `boxTexture` caches one texture per size and style in the game `TextureManager` and never evicts. Keep `Panel` sizes fixed, or remove stale keys when a panel resizes.
+
+## Deferred from: story 1-7-drop-food-and-sheep-eat (2026-10-06)
+
+- **Save validation for the new fields (Story 1.9):** extend the checks listed above.
+  - `activity` must be one of the `SheepActivity` values (`wander`, `seekFood`, `eating` today).
+  - `targetId`, when present, must be a finite integer. A stale id is already tolerated at runtime: feeding reverts the sheep to `wander`.
+  - `farmProgress` must be an integer in `[0, TUNING.farmPipsPerFood)`; clamp or reject.
+- **Pointer input (Story 2.4):** 1.7 first built `idle`-mode pointer clicks (6 px click/drag threshold tracked as the maximum distance, resolved on release at the down point, `pointerupoutside`/`GAME_OUT` disarm, `input` error guards). It was removed when field clicks stopped dropping food (Addendum A). It was never committed, so rebuild it in 2.4 from the design in Story 1.7's Task 9 (9.2–9.4, 9.6–9.7), which the 1.7 browser checks verified. `sheepIndexAt` in `SheepHover.ts` is already shared.
+- **`food` is gone (Addendum A):** the 1.6 item "Unvalidated `food` in a save" no longer applies; Story 1.9 should reject or drop a stray `food` field from old debug saves.

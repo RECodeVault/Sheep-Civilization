@@ -7,7 +7,7 @@ import { newGame, runFor } from './helpers';
 describe('createNewGame', () => {
   it('has exactly the GameState fields', () => {
     expect(Object.keys(newGame()).sort()).toEqual(
-      ['carcasses', 'food', 'foodPieces', 'lastEra', 'nextId', 'rng', 'sheep', 'stats', 'time'].sort(),
+      ['carcasses', 'farmProgress', 'foodPieces', 'lastEra', 'nextId', 'rng', 'sheep', 'stats', 'time'].sort(),
     );
   });
 
@@ -20,7 +20,7 @@ describe('createNewGame', () => {
       expect(s.bornAt).toBe(-TUNING.startAdultAgeMs);
       expect(s.activity).toBe('wander');
     }
-    expect(state.food).toBe(TUNING.startFood);
+    expect(state.farmProgress).toBe(0);
     expect(state.foodPieces).toEqual([]);
     expect(state.carcasses).toEqual([]);
     expect(state.lastEra).toBe('pasture');

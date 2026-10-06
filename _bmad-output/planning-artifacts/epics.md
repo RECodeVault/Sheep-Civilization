@@ -22,10 +22,10 @@ This document provides the complete epic and story breakdown for Sheep Civilizat
 **Hunger & feeding**
 FR1: Each sheep has a Fullness stat (0–100) that drains from 100 to 0 over 120 game-seconds; a sheep dies when Fullness reaches 0.
 FR2: Sheep display three hunger states derived from Fullness: Fed (>50), Hungry (50–25), Starving (<25).
-FR3: Each Farm click fills the current click value of pips (base 1) on an 8-pip Farm progress bar; each full bar adds 1 food to the food stock and the bar resets, with leftover pips carrying over. The stock starts at 5 and is capped at 20; a bar completed while the stock is full drops 1 food piece at a random reachable spot on the field instead.
-FR4: Clicking an empty spot inside the fence drops one food piece at the cursor and costs 1 food; with 0 food nothing drops and the empty meter shakes.
+FR3: Each Farm click fills the current click value of pips (base 1) on an 8-pip Farm progress bar, shown with its count "{n}/8"; every full bar drops 1 food piece at a random reachable spot in the pen and the bar resets, with leftover pips carrying over. There is no food stock.
+FR4: (Removed 2026-10-06) Clicking the field no longer drops food; food comes only from full Farm bars (FR3).
 FR5: The nearest sheep with Fullness below 90 walks (60 px/s) to the nearest food piece and eats it for +35 Fullness (capped at 100); uneaten pieces stay until eaten and never spoil.
-FR6: A new game starts with 2 adults aged 60 s and 1 newborn lamb, all at Fullness 60, 5 food and 0 breeding food.
+FR6: A new game starts with 2 adults aged 60 s and 1 newborn lamb, all at Fullness 60, an empty Farm bar and 0 breeding food.
 
 **Life stages & breeding**
 FR7: Sheep age through Lamb (0–60 s), Adult (60–300 s) and Elder (300–420 s); elders die of old age at 420 s.
@@ -52,7 +52,7 @@ FR21: Money is earned only by selling and has no cap.
 FR22: The shop offers Land I/II/III ($50/$150/$400) raising capacity 10 → 25 → 50 → 100, each tier requiring the previous one; land growth is shown as the fence expanding.
 FR23: The shop offers Flower Patch ($40) and Scarecrow ($80) as cosmetic decorations.
 FR24: (Should) The shop offers Better Hoe I/II ($30/$100) raising a Farm click to 2/3 pips.
-FR25: (Should) The shop offers an Auto-feeder ($120, one only) that drops 1 food piece next to the hungriest sheep every 10 s, taken from the food meter, doing nothing when the meter is empty.
+FR25: (Should) The shop offers an Auto-feeder ($120, one only) that drops 1 food piece next to the hungriest sheep every 10 s [redesign pending since 2026-10-06: there is no food stock, so Story 4.8 decides what feeds it].
 FR26: (Should) The shop sells Medicine ($15 per dose); dragging a dose onto an infected sheep cures it immediately.
 
 **Eras**
@@ -164,11 +164,11 @@ Items tagged **(Should)** follow GDD Should tier; everything else is Must.
 
 #### HUD
 
-- UX-DR25: Bottom bar: 112px tall, wool surface, left→right: Farm button (food meter beneath), Farm Breeding Food button (breeding meter beneath), Breed tool, Medicine slot (Should), money, flock counter, threat summary, boost timer, Shop toggle. Actions left, information right. Always visible (Q4). (DESIGN: Layout; EXPERIENCE: IA, HUD & Diegetic UI)
-- UX-DR26: Farm button (`button-farm`): 64px tall, hay fill, hay-deep border, bark label "Farm", key hint "F", rounded.md, padding 12. Left-click or `F` fills the click value of pips on the Farm progress bar, with a squash and a soft pop SFX. When a bar completes into the stock, a "+1" float popup rises over the button; when it completes with the stock full, the piece drops onto the field with its landing bounce instead (no popup). Pressed state uses hay-deep / loses drop offset. (DESIGN: Components; EXPERIENCE: Component Patterns)
+- UX-DR25: Bottom bar: 112px tall, wool surface, left→right: Farm button (Farm progress bar beneath), Farm Breeding Food button (breeding meter beneath), Breed tool, Medicine slot (Should), money, flock counter, threat summary, boost timer, Shop toggle. Actions left, information right. Always visible (Q4). (DESIGN: Layout; EXPERIENCE: IA, HUD & Diegetic UI)
+- UX-DR26: Farm button (`button-farm`): 64px tall, hay fill, hay-deep border, bark label "Farm", key hint "F", rounded.md, padding 12. Left-click or `F` fills the click value of pips on the Farm progress bar, with a squash and a soft pop SFX. When a bar completes, its food piece drops into the pen with a landing bounce and a "+1" float popup rises over the button. Pressed state uses hay-deep / loses drop offset. (DESIGN: Components; EXPERIENCE: Component Patterns)
 - UX-DR27: Farm button boosted (`button-farm-boosted`): pulsing `halo` outer glow and a small `void` badge with `halo` text "×2"; each click fills double pips. (DESIGN: Components; EXPERIENCE: State Patterns)
 - UX-DR28: Farm Breeding Food button (`button-breed-food`): same anatomy, heart fill, heart-deep border, bark label "Farm Breeding Food", key hint "G", 64px; same click/squash/popup behaviour; never boosted. (DESIGN/EXPERIENCE: Components)
-- UX-DR29: Farm progress and food stock, stacked under Farm: (a) `farm-progress`: 8 discrete hay pips on a wool-shade track showing the current bar; (b) `food-stock`: hay food icon + "{n}/20" in numeric. Both update on the frame of the change. An empty or insufficient spend makes the food-stock read-out flash `alert` and shake (flash only under reduced motion). (Changed 2026-10-06, sprint-change-proposal-2026-10-06.) (DESIGN/EXPERIENCE: Components; State Patterns)
+- UX-DR29: Farm progress (`farm-progress`), stacked under Farm: 8 discrete hay pips on a wool-shade track showing the current bar, with its count "{n}/8" in numeric beside it (starts at "0/8"); updates on the frame of the change. (Changed 2026-10-06: no food stock.)
 - UX-DR30: Breeding food meter (`breeding-meter`): 10 heart pips on wool-shade track under Farm Breeding Food, value "{n}/10", `heart-deep` tick marking the 3-pip breed cost; same-frame update and empty shake/flash. (DESIGN/EXPERIENCE: Components)
 - UX-DR31: Breed tool (`button-breed-tool`): 56px, wool fill, heart-deep border, heart icon, label "Breed"; active: heart-deep fill, wool label, heart cursor. Greyed (`button-disabled`) at land capacity (including pending lambs) or when breeding food < 3, with tooltip reason ("No room. Buy land." / "Needs 3 breeding food."); becoming greyed exits active breed mode. (DESIGN/EXPERIENCE: Components; State Patterns)
 - UX-DR32: Disabled button (`button-disabled`): flat `disabled` fill, `disabled-ink` label, opacity 1, no drop offset; actions are greyed with readable label, never hidden. (DESIGN: Components, Do's)
@@ -183,7 +183,7 @@ Items tagged **(Should)** follow GDD Should tier; everything else is Must.
 - UX-DR41: Announcement toast (`announcement-toast`): dusk card, wool body text, sheep name in `halo`, rounded.md; up to 3 visible, stacking top-centre, newest on top, each ~4s; never block clicks (non-interactive). (DESIGN/EXPERIENCE: Components)
 - UX-DR42: **(Should)** "Last sheep!" banner (`last-sheep-banner`): alert band, bark text in title type; plays once each time flock drops to 1, with sting and caption "[sting] Last sheep!"; Breed greyed (no pair possible). (DESIGN/EXPERIENCE: Components; State Patterns)
 - UX-DR43: Tooltip (`tooltip`): dusk-deep box, wool body text, rounded.sm, padding 8. Sheep hover ~300ms shows two lines: name (label type) then "{Stage} · {Fed|Hungry|Starving}" (e.g. "Adult · Hungry"), plus heart-outline icon in `heart` when on breeding cooldown; follows the sheep; hidden while dragging. Also shows on buttons. Abomination tooltip identical to a lamb's. (DESIGN/EXPERIENCE: Components)
-- UX-DR44: Float popup (`float-popup`): wool text with bark outline, popup type; "+1", "+2", "$10", "×2"; rises ~24px and fades over 600ms; under reduced motion fades in place. Farm pops "+1" only when a bar completes into the stock, not on every click. (DESIGN/EXPERIENCE: Components)
+- UX-DR44: Float popup (`float-popup`): wool text with bark outline, popup type; "+1", "+2", "$10", "×2"; rises ~24px and fades over 600ms; under reduced motion fades in place. Farm pops "+1" only when a bar completes, not on every click. (DESIGN/EXPERIENCE: Components)
 - UX-DR45: Caption (`caption`): dusk-deep @85%, wool caption-type text, rounded.sm, bracketed text (e.g. "[thud]"); bottom-centre above the bar; ~2.5s; max 2 at once. (DESIGN: Components; EXPERIENCE: Accessibility Floor)
 
 #### Field
@@ -206,14 +206,14 @@ Items tagged **(Should)** follow GDD Should tier; everything else is Must.
 - UX-DR58: Infected sheep: `infection` tint + infection marker + sickly wobble walk; ping on entry. Elder: greyer sprite. Breeding cooldown: heart-outline icon on hover only. (EXPERIENCE: State Patterns)
 - UX-DR59: Carcass: X-eyes sprite and dust puff on spawn, ping on spawn; stays until clicked; counted in threat summary. Death shows no red blood/gore. (EXPERIENCE: State Patterns; DESIGN: Do's)
 - UX-DR60: Dragged sheep: lifted 4px, legs dangling, stops wandering; both drop targets highlight. (EXPERIENCE: State Patterns)
-- UX-DR61: Empty food meter: field click drops nothing; meter shakes and flashes alert. (EXPERIENCE: State Patterns)
+- UX-DR61: (Removed 2026-10-06) There is no food stock, so there is no empty food meter; the empty shake remains for the breeding meter (UX-DR30).
 - UX-DR62: Hidden tab: sim stops completely (and game saves); on return play resumes with no overlay. (EXPERIENCE: State Patterns, Accessibility Floor, Key Flows)
 - UX-DR63: Shop open state: panel open, toggle in open style, sim running, pings stay above the panel. (EXPERIENCE: State Patterns)
 - UX-DR64: Abomination must be visually identical to a lamb in every UI element: no ping, no count, no tooltip difference; its victim's death surfaces normally with a cause-less toast. Off-step walk and flock avoidance are its only tells. (EXPERIENCE: HUD & Diegetic UI; DESIGN: Do's)
 
 #### Interaction
 
-- UX-DR65: Click: left-click on a button acts; on empty fenced field drops 1 food at cursor (costs 1); on a carcass clears it; click on a sheep in default mode does nothing. (EXPERIENCE: Interaction Primitives)
+- UX-DR65: Click: left-click on a button acts; on a carcass clears it; on empty field or a sheep in default mode does nothing (food comes from the Farm bar since 2026-10-06). (EXPERIENCE: Interaction Primitives)
 - UX-DR66: Drag threshold: a press becomes a drag after 6px of movement; below that it is a click. (EXPERIENCE: Interaction Primitives)
 - UX-DR67: Drag a sheep: on drag start both drop targets highlight together; target under cursor intensifies; release on Market sells, in Better Place sacrifices; release on field places sheep where dropped; release outside the fence places it at the nearest point inside the fence. (EXPERIENCE: Interaction Primitives)
 - UX-DR68: No confirmations on sell, sacrifice or shop purchases; no confirmation dialogs on in-game actions, no tutorial pop-ups, no timers that hide what kills a sheep. (EXPERIENCE: Interaction Primitives, Component Patterns)
@@ -267,8 +267,8 @@ Items tagged **(Should)** follow GDD Should tier; everything else is Must.
 
 FR1: Epic 1 - Fullness drain and starvation
 FR2: Epic 1 - Fed / Hungry / Starving states
-FR3: Epic 1 - Farm button and food meter
-FR4: Epic 1 - Click field to drop food
+FR3: Epic 1 - Farm button and progress bar (drops food)
+FR4: Removed 2026-10-06
 FR5: Epic 1 - Sheep seek and eat food
 FR6: Epic 2 - GDD starting flock (Epic 1 uses an interim 3-adult flock)
 FR7: Epic 2 - Life stages and old-age death
@@ -314,7 +314,7 @@ FR44: Epic 1 (pause menu) / Epic 5 (credits)
 
 ### Epic 1: Flock Survival Core (Must)
 Players open the game from a title screen and keep a small flock alive by farming and dropping food — or watch it starve and lose. Progress saves and the game pauses on a hidden tab. Establishes the starter template, sim core, tokens, widgets, input controller, saving and debug overlay.
-**FRs covered:** FR1, FR2, FR3, FR4, FR5, FR38, FR39, FR40, FR41, FR42 (stage/hunger), FR43, FR44 (pause menu)
+**FRs covered:** FR1, FR2, FR3, FR5, FR38, FR39, FR40, FR41, FR42 (stage/hunger), FR43, FR44 (pause menu)
 
 ### Epic 2: Life, Death & Contagion (Must)
 Sheep are born, age and die; neglect spreads a carcass → infection chain, which the player breaks by clearing carcasses or sacrificing infected sheep in the Better Place. Includes the colour-independent infection cue, alert pings and threat summary.
@@ -383,7 +383,7 @@ So that the game behaves the same on any monitor and can later be saved exactly.
 
 **Given** `src/sim/state.ts`
 **When** `createNewGame(seed)` is called
-**Then** it returns a plain-data `GameState` (`time`, `nextId`, `rng`, `sheep[]`, `food`, `foodPieces[]`, `carcasses[]`, `stats`, `lastEra`) with 3 adult sheep at Fullness 60 placed inside the starting fence and 5 food (interim Epic 1 flock; FR6 is completed in Epic 2)
+**Then** it returns a plain-data `GameState` (`time`, `nextId`, `rng`, `sheep[]`, `food` (removed 2026-10-06), `foodPieces[]`, `carcasses[]`, `stats`, `lastEra`) with 3 adult sheep at Fullness 60 placed inside the starting fence and 5 food (interim Epic 1 flock; FR6 is completed in Epic 2)
 **And** `JSON.parse(JSON.stringify(state))` deep-equals `state` (NFR6, AR3)
 
 **Given** `src/sim/rng.ts`
@@ -514,43 +514,33 @@ So that I can grow food to feed my flock.
 ### Story 1.7: Drop Food and Sheep Eat
 
 As a player,
-I want to click the field to drop food that hungry sheep walk to and eat,
+I want each full Farm bar to drop food in the pen that hungry sheep walk to and eat,
 So that I can keep my flock alive.
+
+> Changed 2026-10-06 (sprint-change-proposal-2026-10-06 and its addendum): there is no food stock and no click-to-drop. Food comes only from the Farm bar.
 
 **Acceptance Criteria:**
 
-**Given** a single `InputController` in `src/input/` in `idle` mode (AR8)
-**When** I left-click empty fenced field with food ≥ 1
-**Then** a `DropFood` command creates a food piece at the cursor and spends 1 food (FR4); the piece bounces on landing (UX-DR78)
+**Given** the Farm button
+**When** I click Farm or press `F` 8 times
+**Then** each click fills one pip of the 8-pip Farm progress bar and its count "{n}/8" (squash, same-frame update); the 8th drops 1 food piece at a random reachable spot in the pen, which bounces on landing (UX-DR78), resets the bar to "0/8" and pops "+1" (FR3, UX-DR26, UX-DR29)
 
-**Given** food is 0
-**When** I click the field
-**Then** nothing drops, and the food stock read-out shakes and flashes `alert` (FR4, UX-DR61)
-
-**Given** a food piece on the field
+**Given** a food piece in the pen
 **When** the sim steps
 **Then** the nearest sheep with Fullness < 90 switches to `seekFood`, walks to the nearest piece and eats it for +35 Fullness capped at 100, with a munch particle (FR5, UX-DR78)
-**And** uneaten pieces stay on the field indefinitely
+**And** uneaten pieces stay in the pen indefinitely, with no cap, so food can be stockpiled there
 
-**Given** a click on a sheep in `idle` mode
-**When** released without moving 6 px
+**Given** a click on the field or on a sheep in `idle` mode
+**When** it is released
 **Then** nothing happens (UX-DR65)
-
-**Given** a seeded scenario
-**When** a starving sheep has a piece dropped beside it
-**Then** it eats within the expected travel time and its hunger state returns to Fed
-
-**Given** the Farm button and food stock below 20
-**When** I click Farm or press `F` 8 times
-**Then** each click fills one pip of the 8-pip Farm progress bar (squash, same-frame update), and the 8th adds 1 food to the stock, resets the bar and pops "+1" (FR3, UX-DR26, UX-DR29)
-
-**Given** the food stock at 20
-**When** a Farm bar completes
-**Then** the stock stays 20 and one food piece drops at a random reachable spot on the field, bouncing on landing, and sheep eat it like any other piece (FR3, FR5)
 
 **Given** the HUD
 **When** it renders
-**Then** under Farm it shows the 8-pip progress bar and the food stock as an icon and "{n}/20"; the Farm tooltip reads "Farm: fill the bar for 1 food (F)" (UX-DR29, UX-DR75)
+**Then** under Farm it shows the 8-pip progress bar and its count "{n}/8" (starting at "0/8"); the Farm tooltip reads "Farm: fill the bar for 1 food (F)" (UX-DR29, UX-DR75)
+
+**Given** a seeded scenario
+**When** a starving sheep has a piece land beside it
+**Then** it eats within the expected travel time and its hunger state returns to Fed
 
 ### Story 1.8: Losing the Flock
 
@@ -676,7 +666,7 @@ So that every sheep has a lifespan I must plan around.
 
 **Given** `createNewGame(seed)`
 **When** a new game starts
-**Then** the flock is 2 adults aged 60 s plus 1 newborn lamb, all at Fullness 60, with 5 food and 0 breeding food (FR6), replacing the Epic 1 interim flock
+**Then** the flock is 2 adults aged 60 s plus 1 newborn lamb, all at Fullness 60, with an empty Farm bar and 0 breeding food (FR6), replacing the Epic 1 interim flock
 **And** `SAVE_SCHEMA_VERSION` is bumped with a migration if the state shape changed
 
 **Given** a seeded test
@@ -1185,6 +1175,8 @@ So that I can keep up with a growing flock.
 As a player,
 I want an auto-feeder that drops food for the hungriest sheep,
 So that I get a little help without the game playing itself.
+
+> **Redesign pending (2026-10-06):** there is no food stock any more, so "taking 1 from the food meter" and "the food meter is 0" no longer apply. Decide what feeds the auto-feeder when this story is created.
 
 **Acceptance Criteria:**
 

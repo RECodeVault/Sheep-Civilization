@@ -5,7 +5,7 @@ import { TUNING } from '../../config/tuning';
 import { assertNever } from '../../core/types';
 import { queryNeighbours, rebuildGrid } from '../grid';
 import { rng, rngRange } from '../rng';
-import { fenceBounds } from '../selectors';
+import { fenceBounds, pieceIndex } from '../selectors';
 import type { GameState } from '../state';
 
 const TAU = 2 * Math.PI;
@@ -74,6 +74,26 @@ export function updateMovement(state: GameState): void {
             wy = Math.sin(s.heading) * walk;
           }
         }
+        break;
+      case 'seekFood': {
+        // Straight at the claimed piece, slowing onto it so a 6 px step never overshoots or orbits.
+        // A missing piece means no walk this tick; feeding releases the claim next tick. `walking`
+        // stays false, so the crowd-turn below never rewrites the seek heading.
+        const k = s.targetId === undefined ? -1 : pieceIndex(state, s.targetId);
+        if (k < 0) break;
+        const p = state.foodPieces[k];
+        const dx = p.x - s.x;
+        const dy = p.y - s.y;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d === 0) break;
+        const v = Math.min(walk, d / DT);
+        wx = (dx / d) * v;
+        wy = (dy / d) * v;
+        s.heading = wrapAngle(Math.atan2(dy, dx));
+        break;
+      }
+      case 'eating':
+        // Munching in place; separation below still nudges it like a grazer.
         break;
       default:
         assertNever(s.activity);

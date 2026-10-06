@@ -29,7 +29,7 @@ export class HudScene extends Phaser.Scene {
   private popups!: FloatPopups;
   private tooltip!: Tooltip;
   private tooltipFor: Button | null = null;
-  private readonly view: HudView = { food: 0, foodCap: 0 };
+  private readonly view: HudView = { farmProgress: 0, farmPipsPerFood: 0 };
 
   constructor() {
     super('HudScene');
@@ -59,7 +59,7 @@ export class HudScene extends Phaser.Scene {
   private readonly refresh = (): void => {
     try {
       const v = selectHudView(this.gameScene.simState, this.view);
-      this.bar.foodMeter.set(v.food, v.foodCap);
+      this.bar.farmProgress.set(v.farmProgress, v.farmPipsPerFood);
       this.updateTooltip(this.game.loop.time);
     } catch (err) {
       reportError('ui', err);
@@ -85,11 +85,12 @@ export class HudScene extends Phaser.Scene {
   // Runs inside GameScene's tick (drainEvents → bus): a throw must not count as a sim error or drop
   // the frame's remaining ticks.
   private readonly onSim = (e: SimEvent): void => {
-    if (e.type !== 'Farmed' || e.resource !== 'food') return;
     try {
-      const b = this.bar.farmButton;
-      if (e.added > 0) this.popups.spawn(b.x + b.width / 2, b.y - POPUP_LIFT_PX, STRINGS.farmPopup(e.added));
-      else this.bar.foodMeter.bump();
+      if (e.type === 'Farmed' && e.resource === 'food' && e.added > 0) {
+        // A full bar pops "+N" over the button while its piece bounces into the pen.
+        const b = this.bar.farmButton;
+        this.popups.spawn(b.x + b.width / 2, b.y - POPUP_LIFT_PX, STRINGS.farmPopup(e.added));
+      }
     } catch (err) {
       reportError('ui', err);
     }

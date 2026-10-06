@@ -86,7 +86,7 @@ Pillar test: without pillar 1 the game is Cookie Clicker; without pillar 2 it is
 | Step | Player action | Outcome / reward | Pillar |
 |---|---|---|---|
 | Farm | Click Farm (food) and Farm Breeding Food | Food meters fill | 1 |
-| Feed | Click the field to drop food pieces | Sheep walk to the food and eat; Fullness refills | 1, 2 |
+| Feed | Fill the Farm bar; each full bar drops a food piece in the pen | Sheep walk to the food and eat; Fullness refills | 1, 2 |
 | Contain | Click carcasses away; drag infected or suspicious sheep to the Better Place | The contagion chain breaks; the sacrifice grants a food boost | 1, 2, 3 |
 | Breed | Pair two adults using breeding food | A lamb is born (1 in 20 is the Abomination) | 3, 4 |
 | Decide | Sell, sacrifice or keep each adult or elder | Money, a boost, or a bigger flock | 3 |
@@ -128,9 +128,8 @@ Each sheep has a **Fullness** stat: 100 means full, and the sheep dies at 0. Pla
 
 | Parameter | Value |
 |---|---|
-| **Farm** button | Each click fills 1 pip of an **8-pip** progress bar (tune). A full bar adds **+1 food** to the food stock and resets; leftover pips carry over. Stock cap **20**, start with 5. When the stock is full, the food drops onto the field as a piece instead (at a random reachable spot), so clicking is never wasted and food can be stockpiled on the field. |
+| **Farm** button | Each click fills 1 pip of an **8-pip** progress bar (tune), shown with its count "{n}/8". Every full bar drops **1 food piece** at a random reachable spot in the pen and resets; leftover pips carry over. There is **no food stock** and nothing to spend: Farm is the only way to make food (changed 2026-10-06). |
 | **Farm Breeding Food** button | +1 breeding food per click. Breeding meter cap **10**. Start with 0. |
-| **Feed** (click the field) | Drops 1 food piece at the cursor and costs 1 food. No food means no drop and an empty-meter shake. |
 | Sheep seek food | The nearest non-full sheep (Fullness below 90) walks to the nearest piece. Walk speed **60 px/s** (tune). |
 | Uneaten pieces | Stay on the field until eaten. They never spoil. |
 
@@ -166,7 +165,7 @@ A hole in the field. Drag **any** sheep into it, including lambs, infected sheep
 - The sheep is gone and leaves **no carcass**.
 - Each sacrifice **doubles the pips each Farm click fills, for 30 s**. Sacrificing again during a boost resets the timer to 30 s; boosts do not stack.
 - The boost applies to the Farm (food) button only, not to Farm Breeding Food.
-- Overflow food drops onto the field, so the stock cap no longer limits the boost. Its value is about 30 s of farming at double speed, which matters most when feeding a large flock.
+- There is no food cap, so the boost is never wasted. Its value is about 30 s of farming at double speed, which matters most when feeding a large flock.
 - It is the player's **cheap cure for infection** in the Must tier: sacrificing an infected sheep removes it before it becomes a carcass.
 
 #### Carcasses
@@ -225,7 +224,7 @@ The game is mouse-only, with optional keyboard shortcuts.
 | Input | Action |
 |---|---|
 | Left-click **Farm** / **Farm Breeding Food** | Fill the Farm bar (8 clicks = 1 food; 2× pips while boosted) / add 1 breeding food |
-| Left-click an empty field | Drop a food piece |
+| Left-click an empty field | Nothing (food comes from the Farm bar) |
 | Left-click a carcass | Clear it |
 | Drag a sheep → Better Place | Sacrifice |
 | Drag a sheep → Market stall | Sell |
@@ -273,8 +272,7 @@ There is one flat shop with no branches.
 ### Automation Systems
 
 - **Auto-feeder ($120, Should tier):**
-  - Drops 1 food piece next to the hungriest sheep every **10 s**, taking it from the food meter.
-  - With an empty meter it does nothing, so the player must still farm.
+  - Drops 1 food piece next to the hungriest sheep every **10 s**. [redesign pending since 2026-10-06: there is no food stock, so Story 4.8 decides what feeds it]
   - Its maximum output (+3.5 Fullness/s) sustains about **4 sheep**.
   - It supports active play without replacing it: at 25 or more sheep, the player still hand-feeds most of the flock.
   - Only one can be bought.
@@ -292,7 +290,7 @@ There is one flat shop with no branches.
 - **Feed demand:** each sheep needs about 0.83 Fullness/s, roughly one food piece every 42 s.
   - 10 sheep need a piece about every **4.2 s**.
   - 25 sheep need one about every **1.7 s**.
-  - At 8 clicks per food, 10 sheep need about 1.9 Farm clicks/s and 25 sheep about 4.8 (before upgrades), plus one field click per piece. Better Hoe and the boost cut this to a half or a third. [ASSUMPTION, tune in the post-Epic 3 playtest]
+  - At 8 clicks per food, 10 sheep need about 1.9 Farm clicks/s and 25 sheep about 4.8 (before upgrades), with no separate field click. Better Hoe and the boost cut this to a half or a third. [ASSUMPTION, tune in the post-Epic 3 playtest]
 
   Attention pressure grows with the flock, and that is the game's soft cap.
 - **Time gates:** life stages (60 s to adulthood), the 10 s gestation, and the **60 s per-adult breeding cooldown**. Without the cooldown, Village arrived in about 90 s.
@@ -338,7 +336,7 @@ The player progresses through **flock size**: more land, more sheep and later er
 
 | Resource | Earned | Spent | Cap |
 |---|---|---|---|
-| Food | 1 per full Farm bar (8 pips; a click fills 1, 2 or 3 pips with upgrades, ×2 when boosted) | 1 per food piece | 20 in stock; overflow drops onto the field (no field cap) |
+| Food | 1 piece per full Farm bar (8 pips; a click fills 1, 2 or 3 pips with upgrades, ×2 when boosted) | Eaten by sheep (+35 Fullness) | None: pieces wait in the pen, never spoil |
 | Breeding food | Farm Breeding Food click +1 | 3 per breeding | 10 |
 | Money | Sell adult $10 / elder $5 | Shop | None |
 | Sheep | Breeding | Selling, sacrifice, death | Land capacity |

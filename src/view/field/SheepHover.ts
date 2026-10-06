@@ -9,9 +9,35 @@ import type { SheepSprite } from './SheepSprite';
 const HIT_PAD_PX = 6;
 
 /**
+ * Index in `items` of the front-most sheep under (x, y), or -1, tested against the rendered sprites.
+ * Hover and the InputController both use it, so they always agree on what counts as a sheep.
+ * Allocates nothing.
+ */
+export function sheepIndexAt(
+  items: readonly PublicSheep[],
+  layer: EntityLayer<PublicSheep, SheepSprite>,
+  x: number,
+  y: number,
+): number {
+  let best = -1;
+  let bestY = -Infinity;
+  for (let i = 0; i < items.length; i++) {
+    const spr = layer.spriteFor(items[i].id);
+    if (spr === undefined) continue;
+    const halfW = spr.displayWidth / 2 + HIT_PAD_PX;
+    const halfH = spr.displayHeight / 2 + HIT_PAD_PX;
+    // Lower sheep draw in front (depth = y), so the largest y wins.
+    if (Math.abs(x - spr.x) <= halfW && Math.abs(y - spr.y) <= halfH && spr.y > bestY) {
+      best = i;
+      bestY = spr.y;
+    }
+  }
+  return best;
+}
+
+/**
  * Shows the sheep tooltip (FR42, UX-DR43) for the sheep under the pointer. Reads the pointer and the
- * rendered sprites only: it sends no commands and never touches GameState, so Story 1.7's
- * InputController can take it over unchanged. Allocates nothing per frame.
+ * rendered sprites only: it sends no commands and never touches GameState. Allocates nothing per frame.
  */
 export class SheepHover {
   private readonly input: Phaser.Input.InputPlugin;
@@ -34,7 +60,7 @@ export class SheepHover {
     const p = this.input.activePointer;
     // The input manager tracks whether the pointer is over the canvas; no listeners to clean up.
     // World coordinates, like the sprites, so a camera shake or scroll cannot misalign the hit test.
-    const hit = this.input.manager.isOver ? this.hitTest(items, p.worldX, p.worldY) : -1;
+    const hit = this.input.manager.isOver ? sheepIndexAt(items, this.layer, p.worldX, p.worldY) : -1;
     if (hit < 0) {
       this.clear();
       return;
@@ -57,24 +83,6 @@ export class SheepHover {
     if (spr === undefined) return;
     const halfH = spr.displayHeight / 2;
     this.tooltip.showAt(spr.x, spr.y - halfH, spr.y + halfH);
-  }
-
-  /** Index in `items` of the front-most sheep under (x, y), or -1. */
-  private hitTest(items: readonly PublicSheep[], x: number, y: number): number {
-    let best = -1;
-    let bestY = -Infinity;
-    for (let i = 0; i < items.length; i++) {
-      const spr = this.layer.spriteFor(items[i].id);
-      if (spr === undefined) continue;
-      const halfW = spr.displayWidth / 2 + HIT_PAD_PX;
-      const halfH = spr.displayHeight / 2 + HIT_PAD_PX;
-      // Lower sheep draw in front (depth = y), so the largest y wins.
-      if (Math.abs(x - spr.x) <= halfW && Math.abs(y - spr.y) <= halfH && spr.y > bestY) {
-        best = i;
-        bestY = spr.y;
-      }
-    }
-    return best;
   }
 
   private clear(): void {

@@ -48,7 +48,7 @@ Nothing is more than one level deep from the game. Modals replace each other and
 
 **HUD information hierarchy** (Q4: always visible):
 
-1. **Act now:** Farm and Farm Breeding Food buttons, the Farm progress bar and food stock (/20), the breeding food meter (/10) and the Breed tool.
+1. **Act now:** Farm and Farm Breeding Food buttons, the Farm progress bar ("{n}/8"), the breeding food meter (/10) and the Breed tool.
 2. **Threat summary:** counts of Starving, Infected and Carcasses (see HUD & Diegetic UI).
 3. **Status:** money, flock vs land capacity (`12/25`), current era, boost timer (only while active).
 4. **Access:** the Shop toggle.
@@ -89,9 +89,9 @@ Behaviour only. Visual specs are in DESIGN.md, under Components.
 
 | Component | Behavioural rules |
 |---|---|
-| Farm button | Left-click or `F` fills the click value of pips on the 8-pip Farm progress bar, with a squash and a soft pop sound. When a bar completes into the stock, a "+1" popup rises over the button. When it completes with the stock full (20), the piece drops onto the field with its landing bounce instead (no popup); clicking is never wasted. (Changed 2026-10-06) While boosted it uses `{components.button-farm-boosted}`. |
+| Farm button | Left-click or `F` fills the click value of pips on the 8-pip Farm progress bar ("{n}/8"), with a squash and a soft pop sound. When a bar completes, a food piece drops at a random spot in the pen with its landing bounce, and a "+1" popup rises over the button. There is no food stock (changed 2026-10-06). While boosted it uses `{components.button-farm-boosted}`. |
 | Farm Breeding Food button | Same behaviour, using `G`. It is never boosted. |
-| Farm progress / food stock / breeding food meter | Update the same frame as the change. An attempted spend with too little triggers the empty shake (`{colors.alert}` flash) on the food stock read-out (or the breeding meter). |
+| Farm progress / breeding food meter | Update the same frame as the change. An attempted breeding spend with too little triggers the empty shake (`{colors.alert}` flash) on the breeding meter. |
 | Breed tool | Toggles breed mode (see Interaction Primitives). It greys out (`{components.button-disabled}`) at land capacity, including pending lambs, or when breeding food is below 3 [ASSUMPTION for the food case], and its tooltip gives the reason. |
 | Shop toggle | Opens and closes the shop panel. `Esc` also closes it. The sim keeps running. |
 | Shop panel / shop item row | Click a row to buy instantly, with no confirmation. The money counter ticks down and the item applies (for example, the fence grows). Unaffordable rows stay visible but greyed. A one-time item (Auto-feeder, decorations, Land tiers) shows "Owned" after purchase. [ASSUMPTION] Medicine can be bought repeatedly. |
@@ -130,7 +130,6 @@ Behaviour only. Visual specs are in DESIGN.md, under Components.
 | Pregnant pair | Field | A heart floats between them, and a lamb pops out 10 s later. |
 | Carcass | Field | X-eyes sprite and a dust puff on spawn, plus a ping on spawn. Stays until clicked. Counted in the threat summary. |
 | Dragged | Sheep | Lifted 4 px, legs dangling, and it stops wandering. Both drop targets highlight. |
-| **Empty food meter** | HUD | A field click drops nothing. The food stock read-out shakes and flashes `{colors.alert}`. |
 | **Breed at capacity** | HUD | Breed is greyed (`{components.button-disabled}`) with the tooltip "No room. Buy land." Breed mode exits if it was active. |
 | **Boost active** | HUD | The Farm button glows `{colors.halo}` with a "×2" badge, the boost timer is visible, and each Farm click fills double pips. |
 | Crowded (≥ 90%) *(Should)* | HUD | Flock counter in `{components.flock-counter.crowdedColor}` with the crowd icon. |
@@ -143,7 +142,7 @@ Behaviour only. Visual specs are in DESIGN.md, under Components.
 
 ## Interaction Primitives
 
-- **Click:** left-click on a button acts; on empty fenced field, drops 1 food at the cursor (costs 1); on a carcass, clears it.
+- **Click:** left-click on a button acts; on a carcass, clears it. A click on empty field does nothing: food comes from the Farm bar (changed 2026-10-06).
 - **Drag vs click:** a press becomes a drag after **6 px** of movement. Below that it is a click, so a click on a sheep does nothing in the default mode. [ASSUMPTION]
 - **Drag a sheep:**
   - On drag start, **both** drop targets highlight together (Q7). The Market shows `{components.drop-target-market}`: a rectangle with a "$10" or "$5" tag. The Better Place shows `{components.drop-target-better-place}`: a ring and a "+2× food" label.
@@ -245,10 +244,10 @@ The developer gave no player journeys. Both flows below are [ASSUMPTION] drafts 
 Sam, a hiring manager, opens the GitHub Pages link from a résumé. They have never played the game, and they must understand the loop and the tone within 60 s.
 
 1. The page loads in under 5 s. The start screen shows the title with three sheep milling about. There is no save, so the only options are New Game and Credits.
-2. Sam clicks New Game. Two adults and a lamb wander a small fenced pasture. The food meter reads 5/20.
+2. Sam clicks New Game. Two adults and a lamb wander a small fenced pasture. The Farm bar under the button reads 0/8.
 3. Sam hovers a sheep. The tooltip reads "Biscuit", then "Adult · Hungry". It has a name, so Sam is attached.
 4. At about 40 s one sheep goes thin, a `{components.alert-ping}` pops above it, and the Starving count in the HUD ticks to 1.
-5. Sam clicks near the thin sheep. A food piece bounces, the sheep trots over and munches, and the ping clears. A few more clicks empty the meter, and the next click drops nothing while the meter shakes. Sam finds **Farm**: each click fills a pip, and every eighth pops "+1" into the stock.
+5. Sam clicks the field near the thin sheep; nothing happens. Sam tries **Farm**: each click fills a pip, and the eighth pops "+1" and drops a food piece into the pen. It bounces, the thin sheep trots over and munches, and the ping clears.
 6. Sam tries the Breed tool on the two adults. A heart appears, and a lamb pops out 10 s later.
 7. **Climax (about 2:30):** Sam drags a sheep to see what the stall does. Both targets light up: the striped Market says "$10", and the glowing hole says "+2× food". Curious, Sam drops it in the hole. There is a slurp, a gold sparkle, the Farm button glows "×2", and a toast reads "Pudding went to a Better Place." Sam laughs. They have the tone.
 8. Sam closes the tab. The game pauses on hide and saves, so nothing is lost if they return.

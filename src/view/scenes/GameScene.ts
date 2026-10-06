@@ -5,12 +5,14 @@ import { log } from '../../core/log';
 import { InputController } from '../../input/InputController';
 import { applyCommand, type Command } from '../../sim/commands';
 import { clearEvents, drainEvents, type SimEvent } from '../../sim/events';
-import { fenceBounds, selectPublicSheep, type PublicSheep } from '../../sim/selectors';
-import { createNewGame, type GameState } from '../../sim/state';
+import { fenceBounds, selectFoodPieces, selectPublicSheep, type PublicSheep } from '../../sim/selectors';
+import { createNewGame, type FoodPiece, type GameState } from '../../sim/state';
 import { step } from '../../sim/step';
+import { ATLAS, FRAME } from '../assetKeys';
 import { bus } from '../bus';
 import { EntityLayer } from '../field/EntityLayer';
 import { Fence } from '../field/Fence';
+import { FoodSprite } from '../field/FoodSprite';
 import { ObjectPool } from '../field/ObjectPool';
 import { SheepHover } from '../field/SheepHover';
 import { SheepSprite } from '../field/SheepSprite';
@@ -18,6 +20,19 @@ import { markGameStarted, reportError } from '../safetyNet';
 import { Tooltip } from '../widgets/Tooltip';
 
 const SHEEP_POOL_SIZE = 120;
+// Architecture N3: pre-sized, grows on demand (pieces never spoil, so the count is unbounded).
+const FOOD_POOL_SIZE = 60;
+// UX-DR78 munch crumbs: a short hay burst where a piece was eaten. Visual only (Math.random inside
+// the emitter is fine); the munch SFX arrives with AudioDirector in Story 5.6.
+const MUNCH_CRUMBS = 6;
+const MUNCH = {
+  lifespan: 400,
+  speed: { min: 30, max: 70 },
+  angle: { min: 200, max: 340 },
+  gravityY: 220,
+  scale: 2,
+  alpha: { start: 1, end: 0 },
+} as const;
 // Above every sheep (sheep depth = y ≤ 720). Sheep hover stays in this scene; HudScene draws above
 // it, and sheep never reach the bar, so the two tooltips never overlap.
 const TOOLTIP_DEPTH = 10_000;
@@ -37,9 +52,21 @@ export class GameScene extends Phaser.Scene {
   private readonly publicSheep: PublicSheep[] = [];
   private sheepLayer!: EntityLayer<PublicSheep, SheepSprite>;
   private sheepHover!: SheepHover;
+  private foodLayer!: EntityLayer<FoodPiece, FoodSprite>;
+  private munch!: Phaser.GameObjects.Particles.ParticleEmitter;
   // Bound once so the per-tick drain allocates no closure.
   private readonly forwardEvent = (e: SimEvent): void => {
     bus.emit('sim', e);
+  };
+  // Field juice for sim events. Runs inside the tick's drain: a view error must not count as a sim
+  // error or drop the frame's remaining ticks.
+  private readonly onSim = (e: SimEvent): void => {
+    if (e.type !== 'FoodEaten') return;
+    try {
+      this.munch.explode(MUNCH_CRUMBS, e.x, e.y);
+    } catch (err) {
+      reportError('ui', err);
+    }
   };
 
   constructor() {
@@ -62,10 +89,19 @@ export class GameScene extends Phaser.Scene {
     // Placeholder ground until the era backgrounds arrive in Epic 3 (`pasture` is an art tone).
     this.cameras.main.setBackgroundColor(COLORS.pasture);
     new Fence(this, fenceBounds(this.state));
+    this.foodLayer = new EntityLayer(new ObjectPool(() => new FoodSprite(this), FOOD_POOL_SIZE));
     this.sheepLayer = new EntityLayer(new ObjectPool(() => new SheepSprite(this), SHEEP_POOL_SIZE));
+    // One emitter for every munch; above the sheep, below the tooltip.
+    this.munch = this.add
+      .particles(0, 0, ATLAS.sheepWorld, { frame: FRAME.munchCrumb, emitting: false, ...MUNCH })
+      .setDepth(TOOLTIP_DEPTH - 1);
     this.sheepHover = new SheepHover(this.input, this.sheepLayer, new Tooltip(this, TOOLTIP_DEPTH));
-    const input = new InputController(this.input.keyboard);
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => input.destroy());
+    const input = new InputController(this.input);
+    bus.on('sim', this.onSim, this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      input.destroy();
+      bus.off('sim', this.onSim, this);
+    });
     this.render();
     // Runs in parallel, drawn above. `launch` restarts a running HudScene, so every GameScene restart
     // rebuilds the HUD fresh.
@@ -174,6 +210,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private render(): void {
+    this.foodLayer.sync(selectFoodPieces(this.state), this.clock.alpha, this.state.time);
     selectPublicSheep(this.state, this.publicSheep);
     this.sheepLayer.sync(this.publicSheep, this.clock.alpha, this.state.time);
   }

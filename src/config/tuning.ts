@@ -24,10 +24,19 @@ export const TUNING = Object.freeze({
   elderFromMs: 300_000,
   // GDD Starting flock: every founding sheep starts at Fullness 60.
   startFullness: 60,
-  // FR3/FR6: the food meter starts at 5 and is capped at 20; one Farm click adds 1.
-  startFood: 5,
-  foodCap: 20,
-  farmFoodPerClick: 1,
+  // FR3 (changed 2026-10-06): a Farm click fills farmPipsPerClick pips of an 8-pip bar; every full
+  // bar drops 1 food piece at a random spot in the pen. There is no food stock. Better Hoe (4.7)
+  // raises the pips per click and the boost (2.8) doubles them.
+  farmPipsPerFood: 8,
+  farmPipsPerClick: 1,
+  // FR5: the nearest sheep below 90 Fullness seeks food; a piece is worth +35, capped at fullnessMax.
+  seekBelowFullness: 90,
+  foodPieceFullness: 35,
+  // [ASSUMPTION, tune in 3.6] A seeker eats once its centre is this close to the piece. Must stay
+  // above ~8 px: a sheep standing on the piece holds a seeker off at personalSpacePx × (1 − 1 /
+  // separationWeight). Then it stands munching for eatMs before it wanders again.
+  eatReachPx: 12,
+  eatMs: 1_500,
   // GDD Starting flock: the founding adults are aged 60 s.
   startAdultAgeMs: 60_000,
   // Epic 1 interim flock (3 adults); Story 2.1 replaces it with the GDD's 2 adults + 1 lamb.

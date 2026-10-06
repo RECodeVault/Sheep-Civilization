@@ -3,6 +3,8 @@ import { TICK_MS } from '../../../src/config/constants';
 import { TUNING } from '../../../src/config/tuning';
 import { createSheep, type GameState, type Sheep } from '../../../src/sim/state';
 import { step } from '../../../src/sim/step';
+import { createFoodPiece } from '../../../src/sim/systems/feeding';
+import { updateMovement } from '../../../src/sim/systems/movement';
 import { fillFlock, innerFence, newGame, runFor } from '../helpers';
 
 const MAX_STEP = (TUNING.walkSpeedPxPerS * TICK_MS) / 1000;
@@ -170,5 +172,58 @@ describe('updateMovement', () => {
       expect(s.heading).toBeLessThan(2 * Math.PI);
       expect(s.restUntil).toBe(0);
     }
+  });
+});
+
+describe('updateMovement seekFood / eating', () => {
+  it('walks a seeker straight to its piece at no more than walk speed, without overshooting', () => {
+    const c = centre(newGame());
+    const state = gameWith([{ x: c.x - 50, y: c.y + 7 }]);
+    const s = state.sheep[0];
+    const p = createFoodPiece(state, c.x, c.y);
+    s.activity = 'seekFood';
+    s.targetId = p.id;
+    let prev = Math.hypot(p.x - s.x, p.y - s.y);
+    for (let t = 0; t < 20; t++) {
+      const bx = s.x;
+      const by = s.y;
+      updateMovement(state);
+      expect(Math.hypot(s.x - bx, s.y - by)).toBeLessThanOrEqual(MAX_STEP + 1e-9);
+      const d = Math.hypot(p.x - s.x, p.y - s.y);
+      expect(d).toBeLessThanOrEqual(prev + 1e-9);
+      prev = d;
+    }
+    // 50 px at 6 px per tick: there after 9 ticks, and it stays on the piece instead of orbiting it.
+    expect(prev).toBeLessThan(1e-6);
+  });
+
+  it('keeps a seeker inside the inner fence', () => {
+    const state = gameWith([{ x: 0, y: 0 }]);
+    const r = innerFence(state);
+    const s = state.sheep[0];
+    s.x = r.left;
+    s.y = r.top;
+    const p = createFoodPiece(state, r.right, r.bottom);
+    s.activity = 'seekFood';
+    s.targetId = p.id;
+    for (let t = 0; t < 200; t++) {
+      updateMovement(state);
+      expect(s.x >= r.left && s.x <= r.right && s.y >= r.top && s.y <= r.bottom).toBe(true);
+    }
+  });
+
+  it('stands still while eating and while its target is missing', () => {
+    const c = centre(newGame());
+    const state = gameWith([
+      { x: c.x - 100, y: c.y },
+      { x: c.x + 100, y: c.y },
+    ]);
+    const [eater, lost] = state.sheep;
+    eater.activity = 'eating';
+    lost.activity = 'seekFood';
+    lost.targetId = 9999;
+    const before = state.sheep.map((x) => [x.x, x.y]);
+    for (let t = 0; t < 10; t++) updateMovement(state);
+    expect(state.sheep.map((x) => [x.x, x.y])).toEqual(before);
   });
 });

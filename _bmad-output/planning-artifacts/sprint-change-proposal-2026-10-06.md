@@ -261,3 +261,31 @@ Rework it once this proposal is approved:
   - The docs agree: 8 pips per food, stock cap 20, overflow drops onto the field, the boost and hoes fill more pips, breeding food is unchanged.
   - Story 1.7 implements and tests the new Farm rule along with food drops and eating.
   - Story 3.6 carries the pacing check.
+
+## Addendum A: No Food Stock (2026-10-06, approved by Rylan)
+
+After playing the Story 1.7 build, Rylan changed two things.
+
+**The Farm bar shows its count.** "{n}/8" sits beside the pips and starts at "0/8".
+
+**Every full bar drops food into the pen.** This applies below the old cap too. Rylan chose to remove the food stock and click-to-drop entirely.
+
+| Before (this proposal) | After (Addendum A) |
+|---|---|
+| A full bar adds +1 to a food stock (start 5, cap 20); overflow drops into the pen | Every full bar drops 1 piece at a random reachable spot in the pen |
+| Clicking the field spends 1 food to drop a piece (FR4) | A field click does nothing (FR4 removed); carcass clicks arrive in 2.4 |
+| Empty stock: the read-out shakes and flashes (UX-DR61) | Removed; the empty shake stays for the breeding meter |
+| HUD: bar + "🌾 12/20" | HUD: bar + "3/8" |
+| New game: 5 food | New game: an empty bar and no pieces |
+
+**Docs updated:**
+- GDD: Farming table, Feed loop row, Controls, boost note, Economy row, auto-feeder note, decision log.
+- GDD epic list.
+- epics.md: FR3, FR4, FR6, FR25, UX-DR25, UX-DR26, UX-DR29, UX-DR44, UX-DR61, UX-DR65, the coverage map, and Stories 1.7, 2.1 and 4.8.
+- EXPERIENCE.md, DESIGN.md (`food-stock` removed), architecture, project-context.
+
+**Code:**
+- Removed `state.food`, `DropFood`, `SpendRefused`, `FoodStock` and the `icon-food` art.
+- The `InputController` pointer pipeline was removed too. With field clicks gone it had no job; Story 2.4 adds pointer clicks back for carcasses.
+
+**Open item:** the auto-feeder (Story 4.8, FR25) took food from the stock. What feeds it is decided when that story is created.

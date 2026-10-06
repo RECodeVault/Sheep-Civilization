@@ -3,22 +3,25 @@ import { log } from '../core/log';
 import { bus } from '../view/bus';
 
 /**
- * The single owner of gameplay pointer and keyboard input (AR8). Story 1.6 handles only F; Story 1.7
- * adds the pointer and `idle` mode, 1.10 the Esc chain and the modal check, 2.3 breed mode and 2.7
- * drag. Turns input into commands or UI events; never touches GameState.
+ * The single owner of gameplay pointer and keyboard input (AR8). 1.6 added F. Since 2026-10-06 food
+ * comes only from the Farm bar, so a field click does nothing yet: 2.4 adds pointer clicks (`idle`
+ * mode, the 6 px click/drag threshold, carcass clearing), 1.10 the Esc chain and the modal check,
+ * 2.3 breed mode and 2.7 drag. Turns input into commands or UI events; never touches GameState.
  */
 export class InputController {
   private readonly keyboard: Phaser.Input.Keyboard.KeyboardPlugin | null;
 
-  constructor(keyboard: Phaser.Input.Keyboard.KeyboardPlugin | null) {
-    this.keyboard = keyboard;
-    if (keyboard === null) {
+  constructor(input: Phaser.Input.InputPlugin) {
+    // UX-DR74: right-click is reserved (it cancels breed mode in 2.3); never show the browser menu.
+    input.mouse?.disableContextMenu();
+    this.keyboard = input.keyboard;
+    if (this.keyboard === null) {
       log.warn('input', 'No keyboard plugin; keyboard shortcuts are off');
       return;
     }
     // An event listener, not addKey('F'): addKey captures the key, which would preventDefault F
     // for the whole page.
-    keyboard.on('keydown-F', this.onFarmKey, this);
+    this.keyboard.on('keydown-F', this.onFarmKey, this);
   }
 
   destroy(): void {

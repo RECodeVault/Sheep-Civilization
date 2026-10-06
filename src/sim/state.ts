@@ -4,8 +4,11 @@ import { TUNING } from '../config/tuning';
 import { rngRange, seedFromNumber } from './rng';
 import { fenceBounds } from './selectors';
 
-/** Later stories widen this (seekFood, eating, seekCarcass, dragged, …). */
-export type SheepActivity = 'wander';
+/**
+ * The sheep's explicit state machine; feeding.ts owns the seekFood/eating transitions. Later stories
+ * add seekCarcass (2.5), stalking (4.3) and dragged (2.7).
+ */
+export type SheepActivity = 'wander' | 'seekFood' | 'eating';
 
 export interface Sheep {
   id: number;
@@ -17,8 +20,13 @@ export interface Sheep {
   activity: SheepActivity;
   /** Wander direction in radians. Saved, so a resumed game continues the same walk. */
   heading: number;
-  /** Game-ms deadline: while `time < restUntil` the sheep grazes in place (wander only). */
+  /**
+   * Game-ms deadline: while `time < restUntil` the sheep stands still, grazing (`wander`) or
+   * munching (`eating`).
+   */
   restUntil: number;
+  /** Id of the food piece a `seekFood` sheep walks to. Omitted (deleted) when there is none. */
+  targetId?: number;
 }
 
 export interface FoodPiece {
@@ -52,7 +60,8 @@ export interface GameState {
   /** mulberry32 state (see rng.ts). */
   rng: number;
   sheep: Sheep[];
-  food: number;
+  /** Pips in the current Farm bar, 0 to `TUNING.farmPipsPerFood − 1` (FR3). */
+  farmProgress: number;
   foodPieces: FoodPiece[];
   carcasses: Carcass[];
   stats: Stats;
@@ -85,7 +94,7 @@ export function createNewGame(seed: number): GameState {
     nextId: 1,
     rng: seedFromNumber(seed),
     sheep: [],
-    food: TUNING.startFood,
+    farmProgress: 0,
     foodPieces: [],
     carcasses: [],
     stats: { died: 0, sold: 0, sacrificed: 0, moneyEarned: 0, peakFlock: 0 },

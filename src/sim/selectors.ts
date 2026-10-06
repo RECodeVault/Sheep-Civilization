@@ -1,10 +1,25 @@
 // Read-only views of GameState. The view layer reads state only through these.
 import { TUNING, type Rect } from '../config/tuning';
-import type { GameState, Sheep } from './state';
+import type { FoodPiece, GameState, Sheep } from './state';
 
 /** The fenced area sheep live in. Epic 3 makes it depend on the land tier. */
 export function fenceBounds(_state: GameState): Rect {
   return TUNING.startFence;
+}
+
+/** Edges of the area a sheep centre (and so a food piece) may occupy: the fence inset by fenceInset. */
+export interface InnerFence {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+/** Allocates; for events (piece creation), not per-tick loops. Movement inlines the same rect. */
+export function innerFence(state: GameState): InnerFence {
+  const f = fenceBounds(state);
+  const i = TUNING.fenceInset;
+  return { left: f.x + i, right: f.x + f.width - i, top: f.y + i, bottom: f.y + f.height - i };
 }
 
 export type Hunger = 'fed' | 'hungry' | 'starving';
@@ -69,15 +84,28 @@ export function selectPublicSheep(state: GameState, out: PublicSheep[]): PublicS
   return out;
 }
 
+/** Index of the food piece with `id` in state.foodPieces, or -1. A plain loop: no closure per call. */
+export function pieceIndex(state: GameState, id: number): number {
+  const pieces = state.foodPieces;
+  for (let i = 0; i < pieces.length; i++) if (pieces[i].id === id) return i;
+  return -1;
+}
+
+/** Food pieces hold no secrets: the view reads the live array (no copy, no allocation). */
+export function selectFoodPieces(state: GameState): readonly FoodPiece[] {
+  return state.foodPieces;
+}
+
 /** What the HUD shows. Later stories add breeding food, money, flock, capacity, threats and boost. */
 export interface HudView {
-  food: number;
-  foodCap: number;
+  /** Pips in the current Farm bar, out of farmPipsPerFood (FR3). */
+  farmProgress: number;
+  farmPipsPerFood: number;
 }
 
 /** Fills `out` in place (no allocation) and returns it. HudScene calls this once per frame. */
 export function selectHudView(state: GameState, out: HudView): HudView {
-  out.food = state.food;
-  out.foodCap = TUNING.foodCap;
+  out.farmProgress = state.farmProgress;
+  out.farmPipsPerFood = TUNING.farmPipsPerFood;
   return out;
 }

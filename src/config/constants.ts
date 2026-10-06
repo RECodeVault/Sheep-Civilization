@@ -247,11 +247,11 @@ export const COMPONENTS = defineComponents({
     backgroundColor: 'duskDeep',
     opacity: 0.4,
   },
-  foodMeter: {
+  // DESIGN.md replaced food-meter with this on 2026-10-06 (Farm progress bar; no food stock).
+  farmProgress: {
     trackColor: 'woolShade',
     fillColor: 'hay',
-    segmentCount: 20,
-    emptyFlashColor: 'alert',
+    segmentCount: 8,
     valueTypography: 'numeric',
   },
   breedingMeter: {

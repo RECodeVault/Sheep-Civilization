@@ -177,7 +177,7 @@ The template's sample scenes are replaced by the structure defined in Project St
 - `GameState` is plain data only: numbers, strings, booleans, arrays and plain objects. No class instances, `Map`/`Set`, functions, Phaser objects or circular references. `JSON.stringify(state)` must round-trip losslessly.
 - Entities (sheep, carcasses, food pieces) are stored in arrays of plain records with a stable numeric `id` from `state.nextId`. References between entities use ids, never object references.
 - Only `src/sim/` mutates `GameState`. Entry points: `step(state)` (advance one tick) and `applyCommand(state, cmd)` (player intent). Both are pure in the sense of having no I/O, no Phaser and no `Date.now()`/`Math.random()`.
-- The Farm bar lives in `state.farmProgress`: integer pips in the current bar (0 to `TUNING.farmPipsPerFood − 1`). A full bar adds 1 food to `state.food` (the stock, cap 20) or, when the stock is full, drops a food piece at a seeded-random reachable spot (change 2026-10-06).
+- The Farm bar lives in `state.farmProgress`: integer pips in the current bar (0 to `TUNING.farmPipsPerFood − 1`). Every full bar drops a food piece at a seeded-random reachable spot in the pen; there is no food stock (changes 2026-10-06).
 - Pending lambs live in `state.pregnancies: { parentA, parentB, dueAt, x, y }[]`; capacity checks count living sheep **plus** pregnancies.
 - Derived values (current era, Fed/Hungry/Starving, flock count, capacity) are computed by selector functions, never stored, so they cannot drift. Era regression falls out naturally.
 - The Abomination flag lives on the sheep record (`isAbomination`) but is **only** read by `sim/` and the reveal path; view and tooltip code must use selectors that do not expose it.
@@ -208,7 +208,7 @@ The template's sample scenes are replaced by the structure defined in Project St
 
 - **State → view:** scenes read `GameState` through selectors every frame; they never write it.
 - **Sim → view events:** `sim/` pushes typed events (`SheepDied`, `CarcassSpawned`, `Infected`, `EraChanged`, `Sacrificed`, `Sold`, `BoostStarted`, `LastSheep`, `Lost`, …) into a per-tick event queue; the Game scene drains it and re-emits on a typed `EventBus` for HUD, audio, juice and captions.
-- **View → sim:** input becomes typed `Command`s (`Farm`, `FarmBreeding`, `DropFood`, `ClearCarcass`, `Breed`, `Sell`, `Sacrifice`, `Buy`, `ApplyMedicine`) applied at the start of the next tick.
+- **View → sim:** input becomes typed `Command`s (`Farm`, `FarmBreeding`, `ClearCarcass`, `Breed`, `Sell`, `Sacrifice`, `Buy`, `ApplyMedicine`) applied at the start of the next tick.
 
 ### Input Handling
 
@@ -467,11 +467,11 @@ sheep-civilization/
 
 | System | Location | Responsibility |
 |---|---|---|
-| Game state & new game | `src/sim/state.ts` | `GameState` type, `createNewGame(seed)` (starting flock, 5 food) |
+| Game state & new game | `src/sim/state.ts` | `GameState` type, `createNewGame(seed)` (starting flock, empty Farm bar) |
 | Tick orchestration | `src/sim/step.ts` | Advances `state.time`, runs systems in fixed order |
 | Player commands | `src/sim/commands.ts` | Validates and applies `Command`s |
 | Hunger | `src/sim/systems/hunger.ts` | Fullness drain, starvation death |
-| Farming & feeding | `src/sim/systems/feeding.ts` | Farm progress, food stock, overflow drops, food pieces, eating |
+| Farming & feeding | `src/sim/systems/feeding.ts` | Farm progress, food pieces (dropped by full Farm bars), eating |
 | Movement & spacing | `src/sim/systems/movement.ts` + `src/sim/grid.ts` | Wander, seek, separation, fence containment |
 | Life stages | `src/sim/systems/lifecycle.ts` | Ageing, elder, old-age death, gestation/birth |
 | Breeding | `src/sim/systems/breeding.ts` | Pair validation, cost, cooldown, capacity |
@@ -515,7 +515,7 @@ sheep-civilization/
 | Scene keys | PascalCase string = class name | `'HudScene'` |
 | Sim events | PascalCase past tense, `type` discriminant | `SheepDied` |
 | UI events | `noun:verb` | `shop:toggled` |
-| Commands | PascalCase imperative, `type` discriminant | `DropFood`, `Sacrifice` |
+| Commands | PascalCase imperative, `type` discriminant | `Farm`, `Sacrifice` |
 | Game-time fields | ms of game-time, suffix `At` / `Until` | `diesAt`, `boostUntil` |
 | Sim system entry | `update<System>(state)` | `updateHunger(state)` |
 
@@ -717,8 +717,8 @@ function nextActivity(s: Sheep, state: GameState): SheepActivity {
 
 ```typescript
 // HudScene.update()
-const v = hudView(state); // { food, foodCap, farmProgress, farmPipsPerFood, breedFood, money, flock, capacity, era, threats, boostRemaining }
-this.foodMeter.set(v.food, v.foodCap);
+const v = hudView(state); // { farmProgress, farmPipsPerFood, breedFood, money, flock, capacity, era, threats, boostRemaining }
+this.farmProgress.set(v.farmProgress, v.farmPipsPerFood);
 ```
 
 ### Consistency Rules

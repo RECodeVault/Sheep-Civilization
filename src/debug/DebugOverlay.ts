@@ -15,8 +15,9 @@ import { formatGameTime } from '../core/format';
 import { log } from '../core/log';
 import { decodeSave, encodeSave } from '../save/saveFile';
 import { rngRange } from '../sim/rng';
-import { fenceBounds } from '../sim/selectors';
+import { fenceBounds, innerFence } from '../sim/selectors';
 import { createSheep, type GameState } from '../sim/state';
+import { createFoodPiece } from '../sim/systems/feeding';
 import type { GameScene } from '../view/scenes/GameScene';
 
 const SPEEDS = [1, 4, 16] as const;
@@ -97,8 +98,11 @@ export function installDebugOverlay(game: Phaser.Game): void {
   const row2 = buttonRow(panel);
   const foodButton = button(row2, `+${ADD_FOOD} food`, () => {
     activeScene()?.debugMutate((s) => {
-      // Respects the cap, so a debug session never makes a state the sim could not.
-      s.food = Math.min(TUNING.foodCap, s.food + ADD_FOOD);
+      // Drops pieces in the pen the way a full Farm bar does (there is no food stock).
+      const r = innerFence(s);
+      for (let i = 0; i < ADD_FOOD; i++) {
+        createFoodPiece(s, rngRange(s, r.left, r.right), rngRange(s, r.top, r.bottom));
+      }
     });
     refreshSim();
   });
@@ -216,7 +220,7 @@ export function installDebugOverlay(game: Phaser.Game): void {
     const speed = scene.simClock.speed;
     timeLine.textContent = `time   ${formatGameTime(s.time)} (${s.time} ms) · ${speed === 0 ? 'paused' : `×${speed}`}`;
     sheepLine.textContent = `sheep  ${s.sheep.length} · carcasses ${s.carcasses.length}`;
-    foodLine.textContent = `food   ${s.food}/${TUNING.foodCap} · pieces ${s.foodPieces.length}`;
+    foodLine.textContent = `food   pieces ${s.foodPieces.length} · bar ${s.farmProgress}/${TUNING.farmPipsPerFood}`;
     pauseButton.textContent = speed === 0 ? 'Resume' : 'Pause';
     stepButton.disabled = speed !== 0;
     for (let i = 0; i < SPEEDS.length; i++) highlight(speedButtons[i], speed === SPEEDS[i]);
