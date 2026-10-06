@@ -56,7 +56,7 @@ describe('checkLastSheepAndLoss', () => {
     expect(state.lostAt).toBe(state.time);
     expect(drained()).toEqual([
       { type: 'SheepDied', id: last.id, cause: 'starved', x: last.x, y: last.y },
-      { type: 'Lost', survivedMs: state.time, peakFlock: TUNING.interimFlockAdults },
+      { type: 'Lost', survivedMs: state.time, peakFlock: TUNING.startFlockAdults + TUNING.startFlockLambs },
     ]);
   });
 

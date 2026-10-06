@@ -1,22 +1,24 @@
 import Phaser from 'phaser';
 import { TICK_MS } from '../../config/constants';
-import type { Hunger, PublicSheep } from '../../sim/selectors';
+import type { Hunger, PublicSheep, Stage } from '../../sim/selectors';
 import { ATLAS, FRAME } from '../assetKeys';
 import type { PooledEntitySprite } from './EntityLayer';
 
-// Placeholder art is 32×26, shown at 2× (about 64×52 on the 1280×720 canvas, as in the mockup).
+// Placeholder art is shown at 2×: an adult or elder is 32×26 (about 64×52 on the 1280×720 canvas, as
+// in the mockup). A lamb is smaller because its art is (22×16), so its hit box shrinks with it.
 const SHEEP_SCALE = 2;
 
 // Facing changes only when a sheep moves more than this sideways in one tick (a quarter of walk
 // speed), so grazing and small separation nudges in a crowd do not flip it back and forth.
 const FACING_DEADBAND_PX = 1.5;
 
-// FR2 / UX-DR57: the body carries the hunger state (normal, drooping, thin). One set for every stage
-// until Story 2.1 adds lamb and elder frames.
-const HUNGER_FRAME: Readonly<Record<Hunger, string>> = Object.freeze({
-  fed: FRAME.adultIdle,
-  hungry: FRAME.adultHungry,
-  starving: FRAME.adultStarving,
+// FR7 / UX-DR58: the stage picks the art (lamb smaller, elder greyer); FR2 / UX-DR57: the hunger
+// state picks the pose within it (normal, drooping, thin). Elders are grey in their art, not by tint:
+// tint is the infection cue (Story 2.5), and an infected elder needs both.
+const SHEEP_FRAME: Readonly<Record<Stage, Readonly<Record<Hunger, string>>>> = Object.freeze({
+  lamb: Object.freeze({ fed: FRAME.lambIdle, hungry: FRAME.lambHungry, starving: FRAME.lambStarving }),
+  adult: Object.freeze({ fed: FRAME.adultIdle, hungry: FRAME.adultHungry, starving: FRAME.adultStarving }),
+  elder: Object.freeze({ fed: FRAME.elderIdle, hungry: FRAME.elderHungry, starving: FRAME.elderStarving }),
 });
 
 /**
@@ -32,7 +34,8 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
   private currX = 0;
   private currY = 0;
   private lastTick = 0;
-  /** The hunger whose frame is showing; null forces the next sync to set it. */
+  /** The stage and hunger whose frame is showing; null forces the next sync to set it. */
+  private shownStage: Stage | null = null;
   private shownHunger: Hunger | null = null;
 
   constructor(scene: Phaser.Scene) {
@@ -53,9 +56,11 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
   }
 
   sync(pub: PublicSheep, alpha: number, simTime: number): void {
-    if (pub.hunger !== this.shownHunger) {
+    // Either may change alone: a sheep ages while its hunger holds steady, and the reverse.
+    if (pub.stage !== this.shownStage || pub.hunger !== this.shownHunger) {
+      this.shownStage = pub.stage;
       this.shownHunger = pub.hunger;
-      this.setFrame(HUNGER_FRAME[pub.hunger]);
+      this.setFrame(SHEEP_FRAME[pub.stage][pub.hunger]);
     }
     if (this.fresh) {
       // A newly bound (possibly reused) sprite starts at rest, never sliding in from an old spot.
@@ -103,6 +108,7 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
   reset(): void {
     this.boundId = 0;
     this.fresh = true;
+    this.shownStage = null;
     this.shownHunger = null;
     this.setFlipX(false);
     this.setActive(false).setVisible(false);

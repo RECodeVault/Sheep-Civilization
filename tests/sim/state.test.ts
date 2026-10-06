@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { TUNING } from '../../src/config/tuning';
-import { fenceBounds } from '../../src/sim/selectors';
+import { fenceBounds, stageOf } from '../../src/sim/selectors';
 import { createNewGame, nextId } from '../../src/sim/state';
 import { killSheep } from '../../src/sim/systems/carcass';
 import { fillFlock, newGame, runFor } from './helpers';
+
+const START_FLOCK = TUNING.startFlockAdults + TUNING.startFlockLambs;
 
 describe('createNewGame', () => {
   it('has exactly the GameState fields', () => {
@@ -12,15 +14,16 @@ describe('createNewGame', () => {
     );
   });
 
-  it('starts the interim Epic 1 flock with the GDD starting values', () => {
+  it('starts the GDD flock: the adults aged startAdultAgeMs, then a newborn lamb (FR6)', () => {
     const state = newGame();
     expect(state.time).toBe(0);
-    expect(state.sheep).toHaveLength(TUNING.interimFlockAdults);
-    for (const s of state.sheep) {
+    expect(state.sheep).toHaveLength(START_FLOCK);
+    state.sheep.forEach((s, i) => {
       expect(s.fullness).toBe(TUNING.startFullness);
-      expect(s.bornAt).toBe(-TUNING.startAdultAgeMs);
+      expect(s.bornAt).toBe(i < TUNING.startFlockAdults ? -TUNING.startAdultAgeMs : 0);
+      expect(stageOf(s, state)).toBe(i < TUNING.startFlockAdults ? 'adult' : 'lamb');
       expect(s.activity).toBe('wander');
-    }
+    });
     expect(state.farmProgress).toBe(0);
     expect(state.foodPieces).toEqual([]);
     expect(state.carcasses).toEqual([]);
@@ -30,7 +33,7 @@ describe('createNewGame', () => {
       sold: 0,
       sacrificed: 0,
       moneyEarned: 0,
-      peakFlock: TUNING.interimFlockAdults,
+      peakFlock: START_FLOCK,
     });
   });
 

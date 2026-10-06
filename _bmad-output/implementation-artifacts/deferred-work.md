@@ -47,6 +47,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Tooltip wider than the canvas (Stories 1.6, 5.3):** `Tooltip.showAt` clamps right, then left, so a box wider (or taller) than the canvas minus the margins is pinned at the left or top margin and runs off the other edge. There is no `wordWrap`. Current copy cannot reach it; button tooltips and name lines might.
   - **Resolved in Story 1.6:** the tooltip `Text` wraps at a 360 px box width (`wordWrap`), so long copy grows downward instead of running off the canvas.
 - **Stage-aware sheep frames (Story 2.1):** `SheepSprite.sync` re-sets its frame only when `hunger` changes (`shownHunger`). When lamb and elder frames arrive, cache the (stage, hunger) pair, or a sheep that ages while its hunger is steady keeps the old frame.
+  - **Resolved in Story 2.1:** `SheepSprite` caches `shownStage` beside `shownHunger` and picks `SHEEP_FRAME[stage][hunger]` when either changes.
 
 ## Deferred from: code review of 1-6-hud-bottom-bar-farm-button-and-food-meter (2026-10-06)
 
@@ -109,6 +110,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **`lostAt` shape (Story 1.9):** `null` makes `isLost` true while `selectLoseView`'s `??` shows `time`. String, negative or `> time` values pass `decodeSave`. This extends the "Validating `lostAt`" item above.
   - **Resolved in Story 1.9:** `null`, strings, negatives, fractions and values above `time` are rejected.
 - **Systems after the loss tick (Stories 2.1, 2.3):** `lostAt` is set inside `updateHunger`, and any system after it in the same `step` still runs. That is harmless while hunger is last. Once lifecycle or births run after hunger, a game could be lost with live sheep: return early from `step` after a loss, or check `lostAt` in those systems.
+  - **Resolved in Story 2.1:** `step()` returns after any system that sets `lostAt`, so no later system (lifecycle, births) runs on a lost game.
 - **`Button` hide/show in place (Story 1.10):** `setVisible(false)` while hovered never fires OUT, so the hand cursor stays. `setVisible(true)` under the pointer shows no hover until it moves. The lose panel never hides in place, but pause and confirm will.
   - **Resolved in Story 1.10:** `setVisible(false)` while hovered resets the canvas cursor (`input.resetCursor()`). Shown under a still pointer there is no hover until it moves; clicks still work. `setDepth` now moves the hit zone too (found in 1.10: a zone left at depth 0 under a raised scrim never got clicks).
 

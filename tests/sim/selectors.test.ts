@@ -47,9 +47,9 @@ describe('stageOf', () => {
     expect(at(TUNING.elderFromMs)).toBe('elder');
   });
 
-  it('reads the founding adults as adults at time 0', () => {
+  it('reads the founding adults as adults and the newborn as a lamb at time 0', () => {
     const state = newGame();
-    for (const s of state.sheep) expect(stageOf(s, state)).toBe('adult');
+    expect(state.sheep.map((s) => stageOf(s, state))).toEqual(['adult', 'adult', 'lamb']);
   });
 });
 
@@ -71,7 +71,7 @@ describe('publicSheep / selectPublicSheep', () => {
     expect(out[0]).toBe(first);
     expect(out[0].hunger).toBe('hungry');
     expect(out).toHaveLength(state.sheep.length);
-    expect(out.every((p) => p.stage === 'adult')).toBe(true);
+    expect(out.map((p) => p.stage)).toEqual(['adult', 'adult', 'lamb']);
     expect(out).toEqual(state.sheep.map((x) => publicSheep(x, state)));
   });
 });
@@ -115,6 +115,6 @@ describe('isLost / selectLoseView', () => {
     for (const id of state.sheep.map((s) => s.id)) killSheep(state, id, 'starved');
     const out: LoseView = { survivedMs: -1, peakFlock: -1 };
     expect(selectLoseView(state, out)).toBe(out);
-    expect(out).toEqual({ survivedMs: 3_000, peakFlock: TUNING.interimFlockAdults });
+    expect(out).toEqual({ survivedMs: 3_000, peakFlock: TUNING.startFlockAdults + TUNING.startFlockLambs });
   });
 });

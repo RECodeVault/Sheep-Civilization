@@ -22,6 +22,8 @@ export const TUNING = Object.freeze({
   // FR7 stage thresholds by age: Lamb 0–60 s, Adult 60–300 s, Elder from 300 s.
   lambUntilMs: 60_000,
   elderFromMs: 300_000,
+  // FR7 / GDD Life Stages: "Elder 300–420 s. Dies of old age at 420 s" (lifecycle.ts).
+  oldAgeMs: 420_000,
   // GDD Starting flock: every founding sheep starts at Fullness 60.
   startFullness: 60,
   // FR3 (changed 2026-10-06): a Farm click fills farmPipsPerClick pips of an 8-pip bar; every full
@@ -40,8 +42,9 @@ export const TUNING = Object.freeze({
   eatMs: 1_500,
   // GDD Starting flock: the founding adults are aged 60 s.
   startAdultAgeMs: 60_000,
-  // Epic 1 interim flock (3 adults); Story 2.1 replaces it with the GDD's 2 adults + 1 lamb.
-  interimFlockAdults: 3,
+  // FR6 / GDD Starting flock: 2 adults aged 60 s and 1 newborn lamb.
+  startFlockAdults: 2,
+  startFlockLambs: 1,
   // [ASSUMPTION, tune in 3.6] Starting fence, inside the Land I fence of mockups/hud.html so it can
   // grow in place; clear of the Better Place (upper-left), the Market (right) and the 112 px bar.
   startFence: Object.freeze({ x: 556, y: 330, width: 380, height: 250 }) satisfies Rect,

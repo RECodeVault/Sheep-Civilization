@@ -109,11 +109,13 @@ export function createNewGame(seed: number): GameState {
   };
   const f = fenceBounds(state);
   const inset = TUNING.fenceInset;
-  for (let i = 0; i < TUNING.interimFlockAdults; i++) {
+  // FR6: the adults first, then the newborn lamb (bornAt 0, the new game's time).
+  const total = TUNING.startFlockAdults + TUNING.startFlockLambs;
+  for (let i = 0; i < total; i++) {
     createSheep(state, {
       x: Math.round(rngRange(state, f.x + inset, f.x + f.width - inset)),
       y: Math.round(rngRange(state, f.y + inset, f.y + f.height - inset)),
-      bornAt: -TUNING.startAdultAgeMs,
+      bornAt: i < TUNING.startFlockAdults ? -TUNING.startAdultAgeMs : state.time,
     });
   }
   return state;

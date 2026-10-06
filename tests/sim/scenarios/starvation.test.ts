@@ -6,6 +6,8 @@ import type { GameState } from '../../../src/sim/state';
 import { step } from '../../../src/sim/step';
 import { newGame, runFor } from '../helpers';
 
+const START_FLOCK = TUNING.startFlockAdults + TUNING.startFlockLambs;
+
 /** Steps tick by tick for `ms`, returning the events and the game time of every SheepDied. */
 function runRecordingDeaths(state: GameState, ms: number): { events: SimEvent[]; deathTimes: number[] } {
   const events: SimEvent[] = [];
@@ -45,10 +47,10 @@ describe('starvation scenario', () => {
     expect(lost).toHaveLength(1);
     expect(events[events.length - 1]).toBe(lost[0]);
     // Every sheep starts at the same Fullness, so all die on one tick, and that tick is lostAt.
-    expect(deathTimes).toHaveLength(TUNING.interimFlockAdults);
+    expect(deathTimes).toHaveLength(START_FLOCK);
     expect(new Set(deathTimes).size).toBe(1);
     expect(state.lostAt).toBe(deathTimes[0]);
-    expect(lost[0]).toEqual({ type: 'Lost', survivedMs: state.lostAt, peakFlock: TUNING.interimFlockAdults });
+    expect(lost[0]).toEqual({ type: 'Lost', survivedMs: state.lostAt, peakFlock: START_FLOCK });
     expect(JSON.parse(JSON.stringify(state))).toStrictEqual(state);
 
     const stoppedAt = state.time;
@@ -68,7 +70,7 @@ describe('starvation scenario', () => {
     expect(deaths[0].id).toBe(firstId);
     const lostIndex = events.findIndex((e) => e.type === 'Lost');
     expect(lostIndex).toBe(events.length - 1);
-    expect(events.slice(0, lostIndex).filter((e) => e.type === 'SheepDied')).toHaveLength(TUNING.interimFlockAdults);
+    expect(events.slice(0, lostIndex).filter((e) => e.type === 'SheepDied')).toHaveLength(START_FLOCK);
     // The early death did not stop the game: Lost waited for the later tick of the final death.
     const first = deathTimes[0];
     const last = deathTimes[deathTimes.length - 1];

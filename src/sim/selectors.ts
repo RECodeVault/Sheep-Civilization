@@ -40,7 +40,10 @@ export function hungerOf(fullness: number): Hunger {
 
 export type Stage = 'lamb' | 'adult' | 'elder';
 
-/** FR7: stage from age (`state.time - bornAt`). Never stored. Story 2.1 adds the stage rules. */
+/**
+ * FR7: stage from age (`state.time - bornAt`). Never stored. There is no upper bound: lifecycle.ts
+ * kills an elder on the tick it reaches oldAgeMs.
+ */
 export function stageOf(s: Sheep, state: GameState): Stage {
   const age = state.time - s.bornAt;
   if (age < TUNING.lambUntilMs) return 'lamb';
