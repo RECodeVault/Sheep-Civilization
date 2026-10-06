@@ -19,7 +19,7 @@ The schedule is a 7-day solo build. Each epic must end in something playable bef
 - A single pasture screen and a 16:9 canvas scaled to the window
 - Sheep that wander (all sheep are adults for now)
 - Hunger 0–100, drained over 120 s, with Fed, Hungry and Starving visual states
-- Farm button (+1 food, cap 20). Feed by clicking the field: a piece is dropped and sheep walk to it and eat (+35).
+- Farm button fills an 8-click bar; a full bar = +1 food (stock cap 20; overflow drops onto the field). Feed by clicking the field: a piece is dropped and sheep walk to it and eat (+35).
 - Starting flock: 3 sheep at Fullness 60, and 5 food
 - Starvation death. In this epic, the sheep simply disappears; carcasses come in Epic 2.
 - Lose screen at 0 sheep, with a Restart button that wipes the save
@@ -112,7 +112,7 @@ The schedule is a 7-day solo build. Each epic must end in something playable bef
 - Sacrifice reveal: the Abomination flashes its true form with a sting; an innocent sheep gets the caption "…that was just a sheep."
 - Medicine for $15: drag it onto a green sheep to cure it
 - Overcrowding: at 90% or more of capacity, every 30 s a random sheep has a 20% chance of infection
-- Better Hoe I / II for $30 / $100, raising a Farm click to +2 / +3
+- Better Hoe I / II for $30 / $100, raising a Farm click to 2 / 3 pips
 - Auto-feeder for $120 (only 1): drops 1 piece next to the hungriest sheep every 10 s, taken from the food meter
 
 **Out of scope:** an Abomination payout or achievement.

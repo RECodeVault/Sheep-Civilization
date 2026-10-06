@@ -128,7 +128,7 @@ Each sheep has a **Fullness** stat: 100 means full, and the sheep dies at 0. Pla
 
 | Parameter | Value |
 |---|---|
-| **Farm** button | +1 food per click. Food meter cap **20**. Start with 5. |
+| **Farm** button | Each click fills 1 pip of an **8-pip** progress bar (tune). A full bar adds **+1 food** to the food stock and resets; leftover pips carry over. Stock cap **20**, start with 5. When the stock is full, the food drops onto the field as a piece instead (at a random reachable spot), so clicking is never wasted and food can be stockpiled on the field. |
 | **Farm Breeding Food** button | +1 breeding food per click. Breeding meter cap **10**. Start with 0. |
 | **Feed** (click the field) | Drops 1 food piece at the cursor and costs 1 food. No food means no drop and an empty-meter shake. |
 | Sheep seek food | The nearest non-full sheep (Fullness below 90) walks to the nearest piece. Walk speed **60 px/s** (tune). |
@@ -164,9 +164,9 @@ The Market stall and the Better Place are both drop targets, so dropping a sheep
 A hole in the field. Drag **any** sheep into it, including lambs, infected sheep and the Abomination.
 
 - The sheep is gone and leaves **no carcass**.
-- Each sacrifice grants **2× food per Farm click for 30 s**. Sacrificing again during a boost resets the timer to 30 s; boosts do not stack.
+- Each sacrifice **doubles the pips each Farm click fills, for 30 s**. Sacrificing again during a boost resets the timer to 30 s; boosts do not stack.
 - The boost applies to the Farm (food) button only, not to Farm Breeding Food.
-- The 20-food meter cap limits how much the boost is worth (about 10 Farm clicks saved per meter fill), so sacrificing a lamb just for the boost only pays off when feeding a large flock.
+- Overflow food drops onto the field, so the stock cap no longer limits the boost. Its value is about 30 s of farming at double speed, which matters most when feeding a large flock.
 - It is the player's **cheap cure for infection** in the Must tier: sacrificing an infected sheep removes it before it becomes a carcass.
 
 #### Carcasses
@@ -224,7 +224,7 @@ The game is mouse-only, with optional keyboard shortcuts.
 
 | Input | Action |
 |---|---|
-| Left-click **Farm** / **Farm Breeding Food** | Add 1 food / 1 breeding food (×2 food while boosted) |
+| Left-click **Farm** / **Farm Breeding Food** | Fill the Farm bar (8 clicks = 1 food; 2× pips while boosted) / add 1 breeding food |
 | Left-click an empty field | Drop a food piece |
 | Left-click a carcass | Clear it |
 | Drag a sheep → Better Place | Sacrifice |
@@ -242,8 +242,8 @@ Dragging and clicking are told apart by a **6 px** movement threshold.
 
 ### Core Click/Interaction
 
-- **Primary clicks:** Farm (+1 food) and Farm Breeding Food (+1 breeding food). Clicks are the only source of either resource. There is no passive income.
-- **Click value progression:** Farm click upgrades take a click to +2 and then +3. The Better Place boost doubles the current click value for 30 s.
+- **Primary clicks:** Farm (fills the Farm bar; a full bar = 1 food) and Farm Breeding Food (+1 breeding food). Clicks are the only source of either resource. There is no passive income.
+- **Click value progression:** a Farm click fills 1 pip; Better Hoe upgrades raise it to 2 and then 3 pips. The Better Place boost doubles the pips per click for 30 s.
 - **Auto-click:** none. The auto-feeder automates *feeding*, not farming (see Automation Systems).
 - **Combo/streak:** none.
 - **Feedback:**
@@ -262,7 +262,7 @@ There is one flat shop with no branches.
 | Land I / II / III | Capacity | $50 / $150 / $400 | Capacity 10 → 25 → 50 → 100 | Must |
 | Flower Patch | Decoration | $40 | Cosmetic | Must |
 | Scarecrow | Decoration | $80 | Cosmetic | Must |
-| Better Hoe I / II | Click power | $30 / $100 | Farm click +2 / +3 | Should |
+| Better Hoe I / II | Click power | $30 / $100 | Farm click fills 2 / 3 pips | Should |
 | Auto-feeder | Automation | $120 | See Automation Systems | Should |
 | Medicine (per dose) | Consumable | $15 | Cures 1 infected sheep | Should |
 
@@ -292,6 +292,7 @@ There is one flat shop with no branches.
 - **Feed demand:** each sheep needs about 0.83 Fullness/s, roughly one food piece every 42 s.
   - 10 sheep need a piece about every **4.2 s**.
   - 25 sheep need one about every **1.7 s**.
+  - At 8 clicks per food, 10 sheep need about 1.9 Farm clicks/s and 25 sheep about 4.8 (before upgrades), plus one field click per piece. Better Hoe and the boost cut this to a half or a third. [ASSUMPTION, tune in the post-Epic 3 playtest]
 
   Attention pressure grows with the flock, and that is the game's soft cap.
 - **Time gates:** life stages (60 s to adulthood), the 10 s gestation, and the **60 s per-adult breeding cooldown**. Without the cooldown, Village arrived in about 90 s.
@@ -327,7 +328,7 @@ The player progresses through **flock size**: more land, more sheep and later er
 
 - **0–60 s:** 3 sheep, all half-hungry. The first one goes thin at about 42 s. The player learns Farm and Feed.
 - **1–5 min:** the first adults, the first breeding and the first sale. The first death, from old age or neglect, introduces carcasses.
-- **5–15 min (Village):** the flock reaches 10–25 sheep. The feed load approaches one click every 2–4 s. Contagion chains become the main threat.
+- **5–15 min (Village):** the flock reaches 10–25 sheep. The feed load approaches 2–5 Farm clicks per second before upgrades, which is where Better Hoe and the boost earn their keep. Contagion chains become the main threat.
 - **15 min+ (Town → Wool Empire):** the attention load is the challenge. With the Should tier, the Abomination and overcrowding add pressure.
 
 **Where the player coasts:** right after buying land (spare capacity) and during a sacrifice boost.
@@ -337,7 +338,7 @@ The player progresses through **flock size**: more land, more sheep and later er
 
 | Resource | Earned | Spent | Cap |
 |---|---|---|---|
-| Food | Farm click +1 (+2/+3 with upgrades, ×2 when boosted) | 1 per food piece | 20 |
+| Food | 1 per full Farm bar (8 pips; a click fills 1, 2 or 3 pips with upgrades, ×2 when boosted) | 1 per food piece | 20 in stock; overflow drops onto the field (no field cap) |
 | Breeding food | Farm Breeding Food click +1 | 3 per breeding | 10 |
 | Money | Sell adult $10 / elder $5 | Shop | None |
 | Sheep | Breeding | Selling, sacrifice, death | Land capacity |

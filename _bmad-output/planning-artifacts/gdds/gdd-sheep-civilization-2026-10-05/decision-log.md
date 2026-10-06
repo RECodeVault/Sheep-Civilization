@@ -56,3 +56,12 @@
 - Open items: 1 non-blocking [ASSUMPTION] (pacing targets), deferred to the playtest after Epic 3. No phase-blockers.
 - Polish standards: none configured. Narrative handoff: not flagged by the idle-incremental guide. External handoffs: none configured.
 - Next step: gds-game-architecture.
+
+## 2026-10-06 · Farm progress bar (Rylan)
+- **Farm:** each click (or `F`) fills 1 pip of an **8-pip** progress bar (was +1 food per click; Rylan first proposed 10, then 8 so the player need not click as fast). A full bar adds +1 food to the stock (cap 20, start 5) and resets; leftover pips carry over.
+- **Overflow:** a bar completed while the stock is full drops 1 food piece at a random reachable spot on the field. Pieces never spoil and the field has no cap, so food can be stockpiled on the field.
+- **Upgrades:** Better Hoe I / II fill 2 / 3 pips per click; the sacrifice boost doubles the pips per click. The stock cap no longer limits the boost.
+- **Unchanged:** Farm Breeding Food (+1 per click, cap 10); field click spends 1 food per piece; auto-feeder takes from the stock.
+- **HUD:** under Farm, the 8-pip bar and the stock as a hay icon + "{n}/20"; "+1" popup only when a bar completes into the stock; tooltip "Farm: fill the bar for 1 food (F)".
+- **Risk:** feed load is ~8× the clicks (10 sheep ≈ 1.9 Farm clicks/s, 25 ≈ 4.8 before upgrades). [ASSUMPTION] Retune `farmPipsPerFood` and reconsider Better Hoe's tier in Story 3.6.
+- Source: `planning-artifacts/sprint-change-proposal-2026-10-06.md`.

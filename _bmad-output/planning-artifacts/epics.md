@@ -22,7 +22,7 @@ This document provides the complete epic and story breakdown for Sheep Civilizat
 **Hunger & feeding**
 FR1: Each sheep has a Fullness stat (0–100) that drains from 100 to 0 over 120 game-seconds; a sheep dies when Fullness reaches 0.
 FR2: Sheep display three hunger states derived from Fullness: Fed (>50), Hungry (50–25), Starving (<25).
-FR3: The Farm button adds the current click value of food (base +1) to the food meter, capped at 20; the meter starts at 5.
+FR3: Each Farm click fills the current click value of pips (base 1) on an 8-pip Farm progress bar; each full bar adds 1 food to the food stock and the bar resets, with leftover pips carrying over. The stock starts at 5 and is capped at 20; a bar completed while the stock is full drops 1 food piece at a random reachable spot on the field instead.
 FR4: Clicking an empty spot inside the fence drops one food piece at the cursor and costs 1 food; with 0 food nothing drops and the empty meter shakes.
 FR5: The nearest sheep with Fullness below 90 walks (60 px/s) to the nearest food piece and eats it for +35 Fullness (capped at 100); uneaten pieces stay until eaten and never spoil.
 FR6: A new game starts with 2 adults aged 60 s and 1 newborn lamb, all at Fullness 60, 5 food and 0 breeding food.
@@ -44,14 +44,14 @@ FR15: Eating a carcass infects the sheep 100% of the time; the sheep turns green
 FR16: Sheep can be dragged; a pointer movement over 6 px starts a drag, otherwise it is a click.
 FR17: Dropping an adult on the Market stall sells it for $10, an elder for $5; lambs cannot be sold.
 FR18: Dropping any sheep (including lambs, infected sheep and the Abomination) into the Better Place removes it with no carcass.
-FR19: Each sacrifice grants 2× food per Farm click for 30 s; a repeat sacrifice during a boost resets the timer to 30 s (no stacking).
+FR19: Each sacrifice doubles the pips per Farm click for 30 s; a repeat sacrifice during a boost resets the timer to 30 s (no stacking).
 FR20: Sell and sacrifice have no confirmation; dropping on the wrong target is allowed.
 
 **Economy, shop & land**
 FR21: Money is earned only by selling and has no cap.
 FR22: The shop offers Land I/II/III ($50/$150/$400) raising capacity 10 → 25 → 50 → 100, each tier requiring the previous one; land growth is shown as the fence expanding.
 FR23: The shop offers Flower Patch ($40) and Scarecrow ($80) as cosmetic decorations.
-FR24: (Should) The shop offers Better Hoe I/II ($30/$100) raising a Farm click to +2/+3.
+FR24: (Should) The shop offers Better Hoe I/II ($30/$100) raising a Farm click to 2/3 pips.
 FR25: (Should) The shop offers an Auto-feeder ($120, one only) that drops 1 food piece next to the hungriest sheep every 10 s, taken from the food meter, doing nothing when the meter is empty.
 FR26: (Should) The shop sells Medicine ($15 per dose); dragging a dose onto an infected sheep cures it immediately.
 
@@ -165,10 +165,10 @@ Items tagged **(Should)** follow GDD Should tier; everything else is Must.
 #### HUD
 
 - UX-DR25: Bottom bar: 112px tall, wool surface, left→right: Farm button (food meter beneath), Farm Breeding Food button (breeding meter beneath), Breed tool, Medicine slot (Should), money, flock counter, threat summary, boost timer, Shop toggle. Actions left, information right. Always visible (Q4). (DESIGN: Layout; EXPERIENCE: IA, HUD & Diegetic UI)
-- UX-DR26: Farm button (`button-farm`): 64px tall, hay fill, hay-deep border, bark label "Farm", key hint "F", rounded.md, padding 12. Left-click or `F` adds click value, squash animation, "+N" float popup and pop SFX. At cap (20) still squashes but no popup and meter does a small bump. Pressed state uses hay-deep / loses drop offset. (DESIGN: Components; EXPERIENCE: Component Patterns)
-- UX-DR27: Farm button boosted (`button-farm-boosted`): pulsing `halo` outer glow and a small `void` badge with `halo` text "×2"; popups show doubled value. (DESIGN: Components; EXPERIENCE: State Patterns)
+- UX-DR26: Farm button (`button-farm`): 64px tall, hay fill, hay-deep border, bark label "Farm", key hint "F", rounded.md, padding 12. Left-click or `F` fills the click value of pips on the Farm progress bar, with a squash and a soft pop SFX. When a bar completes into the stock, a "+1" float popup rises over the button; when it completes with the stock full, the piece drops onto the field with its landing bounce instead (no popup). Pressed state uses hay-deep / loses drop offset. (DESIGN: Components; EXPERIENCE: Component Patterns)
+- UX-DR27: Farm button boosted (`button-farm-boosted`): pulsing `halo` outer glow and a small `void` badge with `halo` text "×2"; each click fills double pips. (DESIGN: Components; EXPERIENCE: State Patterns)
 - UX-DR28: Farm Breeding Food button (`button-breed-food`): same anatomy, heart fill, heart-deep border, bark label "Farm Breeding Food", key hint "G", 64px; same click/squash/popup behaviour; never boosted. (DESIGN/EXPERIENCE: Components)
-- UX-DR29: Food meter (`food-meter`): 20 discrete hay pips on wool-shade track stacked under Farm, value "{n}/20" in numeric beside it; updates same frame as change; empty/insufficient spend → track flashes `alert` and shakes (flash only under reduced motion). (DESIGN/EXPERIENCE: Components; State Patterns)
+- UX-DR29: Farm progress and food stock, stacked under Farm: (a) `farm-progress`: 8 discrete hay pips on a wool-shade track showing the current bar; (b) `food-stock`: hay food icon + "{n}/20" in numeric. Both update on the frame of the change. An empty or insufficient spend makes the food-stock read-out flash `alert` and shake (flash only under reduced motion). (Changed 2026-10-06, sprint-change-proposal-2026-10-06.) (DESIGN/EXPERIENCE: Components; State Patterns)
 - UX-DR30: Breeding food meter (`breeding-meter`): 10 heart pips on wool-shade track under Farm Breeding Food, value "{n}/10", `heart-deep` tick marking the 3-pip breed cost; same-frame update and empty shake/flash. (DESIGN/EXPERIENCE: Components)
 - UX-DR31: Breed tool (`button-breed-tool`): 56px, wool fill, heart-deep border, heart icon, label "Breed"; active: heart-deep fill, wool label, heart cursor. Greyed (`button-disabled`) at land capacity (including pending lambs) or when breeding food < 3, with tooltip reason ("No room. Buy land." / "Needs 3 breeding food."); becoming greyed exits active breed mode. (DESIGN/EXPERIENCE: Components; State Patterns)
 - UX-DR32: Disabled button (`button-disabled`): flat `disabled` fill, `disabled-ink` label, opacity 1, no drop offset; actions are greyed with readable label, never hidden. (DESIGN: Components, Do's)
@@ -183,7 +183,7 @@ Items tagged **(Should)** follow GDD Should tier; everything else is Must.
 - UX-DR41: Announcement toast (`announcement-toast`): dusk card, wool body text, sheep name in `halo`, rounded.md; up to 3 visible, stacking top-centre, newest on top, each ~4s; never block clicks (non-interactive). (DESIGN/EXPERIENCE: Components)
 - UX-DR42: **(Should)** "Last sheep!" banner (`last-sheep-banner`): alert band, bark text in title type; plays once each time flock drops to 1, with sting and caption "[sting] Last sheep!"; Breed greyed (no pair possible). (DESIGN/EXPERIENCE: Components; State Patterns)
 - UX-DR43: Tooltip (`tooltip`): dusk-deep box, wool body text, rounded.sm, padding 8. Sheep hover ~300ms shows two lines: name (label type) then "{Stage} · {Fed|Hungry|Starving}" (e.g. "Adult · Hungry"), plus heart-outline icon in `heart` when on breeding cooldown; follows the sheep; hidden while dragging. Also shows on buttons. Abomination tooltip identical to a lamb's. (DESIGN/EXPERIENCE: Components)
-- UX-DR44: Float popup (`float-popup`): wool text with bark outline, popup type; "+1", "+2", "$10", "×2"; rises ~24px and fades over 600ms; under reduced motion fades in place. (DESIGN/EXPERIENCE: Components)
+- UX-DR44: Float popup (`float-popup`): wool text with bark outline, popup type; "+1", "+2", "$10", "×2"; rises ~24px and fades over 600ms; under reduced motion fades in place. Farm pops "+1" only when a bar completes into the stock, not on every click. (DESIGN/EXPERIENCE: Components)
 - UX-DR45: Caption (`caption`): dusk-deep @85%, wool caption-type text, rounded.sm, bracketed text (e.g. "[thud]"); bottom-centre above the bar; ~2.5s; max 2 at once. (DESIGN: Components; EXPERIENCE: Accessibility Floor)
 
 #### Field
@@ -223,7 +223,7 @@ Items tagged **(Should)** follow GDD Should tier; everything else is Must.
 - UX-DR72: Keys: `F` farms food, `G` farms breeding food, one action per keypress (no repeat on hold). Key hints printed on buttons. No touch, gamepad or remapping. (EXPERIENCE: Interaction Primitives, Input Schemes)
 - UX-DR73: `Esc` priority chain (agreed 2026-10-05): close start-over confirm → close sub-panel (Volume/Stats/Credits) → cancel drag → exit breed mode → close shop → open/close pause. (EXPERIENCE: Interaction Primitives, Component Patterns; game-architecture.md)
 - UX-DR74: Right-click cancels breed mode, otherwise unused; browser context menu suppressed on the canvas. (EXPERIENCE: Interaction Primitives)
-- UX-DR75: Hover shows tooltip on sheep and buttons; button tooltips: "Farm: +1 food (F)", "Farm Breeding Food: +1 (G)", "Breed: pick two adults". (EXPERIENCE: Interaction Primitives, Voice and Tone)
+- UX-DR75: Hover shows tooltip on sheep and buttons; button tooltips: "Farm: fill the bar for 1 food (F)", "Farm Breeding Food: +1 (G)", "Breed: pick two adults". (EXPERIENCE: Interaction Primitives, Voice and Tone)
 - UX-DR76: Mouse-only completeness: every action reachable via left-click, drag, right-click. (EXPERIENCE: Input Schemes)
 
 #### Feel
@@ -509,6 +509,8 @@ So that I can grow food to feed my flock.
 **Then** it shows 20 discrete `hay` pips on a `wool-shade` track and "{n}/20" in numeric type (UX-DR29); the Farm tooltip reads "Farm: +1 food (F)" (UX-DR75)
 **And** all player-facing strings, including HUD labels and tooltips, come from `src/view/strings.ts` (AR22, UX-DR96)
 
+> **Note (2026-10-06):** superseded in part by sprint-change-proposal-2026-10-06: the Farm rule (FR3) and the food meter (UX-DR29) are reworked in Story 1.7.
+
 ### Story 1.7: Drop Food and Sheep Eat
 
 As a player,
@@ -523,7 +525,7 @@ So that I can keep my flock alive.
 
 **Given** food is 0
 **When** I click the field
-**Then** nothing drops, and the food meter shakes and flashes `alert` (FR4, UX-DR61)
+**Then** nothing drops, and the food stock read-out shakes and flashes `alert` (FR4, UX-DR61)
 
 **Given** a food piece on the field
 **When** the sim steps
@@ -537,6 +539,18 @@ So that I can keep my flock alive.
 **Given** a seeded scenario
 **When** a starving sheep has a piece dropped beside it
 **Then** it eats within the expected travel time and its hunger state returns to Fed
+
+**Given** the Farm button and food stock below 20
+**When** I click Farm or press `F` 8 times
+**Then** each click fills one pip of the 8-pip Farm progress bar (squash, same-frame update), and the 8th adds 1 food to the stock, resets the bar and pops "+1" (FR3, UX-DR26, UX-DR29)
+
+**Given** the food stock at 20
+**When** a Farm bar completes
+**Then** the stock stays 20 and one food piece drops at a random reachable spot on the field, bouncing on landing, and sheep eat it like any other piece (FR3, FR5)
+
+**Given** the HUD
+**When** it renders
+**Then** under Farm it shows the 8-pip progress bar and the food stock as an icon and "{n}/20"; the Farm tooltip reads "Farm: fill the bar for 1 food (F)" (UX-DR29, UX-DR75)
 
 ### Story 1.8: Losing the Flock
 
@@ -683,7 +697,7 @@ So that I can save up to breed my sheep.
 
 **Given** breeding food below 10
 **When** I click the button or press `G`
-**Then** a `FarmBreeding` command adds 1 (FR8), with the same squash, "+1" popup and same-frame meter update as Farm; holding `G` gives one action per press (FR43)
+**Then** a `FarmBreeding` command adds 1 (FR8), with Farm's squash and same-frame meter update, and a "+1" popup on every click (breeding food has no progress bar); holding `G` gives one action per press (FR43)
 
 **Given** breeding food at 10
 **When** I farm breeding food
@@ -840,12 +854,12 @@ So that the dark choice has a real payoff.
 
 **Given** a sacrifice
 **When** `Sacrificed` applies
-**Then** `boostUntil = time + 30 s` and Farm clicks give 2× the current click value until then (FR19)
+**Then** `boostUntil = time + 30 s` and each Farm click fills 2× the current pips until then (FR19)
 **And** a sacrifice during an active boost resets the timer to 30 s; boosts never stack
 
 **Given** an active boost
 **When** the HUD renders
-**Then** Farm uses `button-farm-boosted` (pulsing `halo` glow, `void` badge "×2"), popups show the doubled value, and a `boost-timer` pill shows "×2 0:{ss}" counting down; a reset pops the pill; both disappear when the boost ends (UX-DR27, UX-DR38)
+**Then** Farm uses `button-farm-boosted` (pulsing `halo` glow, `void` badge "×2"), each click visibly fills double pips, and a `boost-timer` pill shows "×2 0:{ss}" counting down; a reset pops the pill; both disappear when the boost ends (UX-DR27, UX-DR38)
 
 **Given** a boost
 **When** I farm breeding food
@@ -853,7 +867,7 @@ So that the dark choice has a real payoff.
 
 **Given** a seeded test
 **When** a sacrifice happens, then 29 s and 31 s pass
-**Then** Farm gives 2 food at 29 s and 1 food at 31 s; a second sacrifice at 20 s extends the boost to 50 s total
+**Then** a Farm click fills 2 pips at 29 s and 1 pip at 31 s; a second sacrifice at 20 s extends the boost to 50 s total
 
 ## Epic 3: Economy & Eras
 
@@ -1000,6 +1014,7 @@ So that the MVP hypothesis is tested and pacing is close to the GDD targets befo
 **Given** the results
 **When** numbers are off
 **Then** only values in `config/tuning.ts` are changed, sim tests still pass using `TUNING` references, and changes are noted in the GDD decision log
+**And** `TUNING.farmPipsPerFood` (8) is tuned against the GDD feed-demand numbers, with a decision on whether Better Hoe moves from Should to Must, and a 300-piece field pile keeps the sim tick under 2 ms
 
 **Given** the session
 **When** it ends
@@ -1159,11 +1174,11 @@ So that I can keep up with a growing flock.
 
 **Given** the shop
 **When** I buy Better Hoe I ($30) then Better Hoe II ($100, requires I)
-**Then** a Farm click gives +2 then +3 food; popups and the Farm tooltip reflect the new value (FR24)
+**Then** a Farm click fills 2 then 3 pips (FR24); the Farm tooltip is unchanged
 
 **Given** an active sacrifice boost
 **When** I farm with a hoe
-**Then** the boost doubles the current click value (+4 / +6)
+**Then** the boost doubles the current pips per click (4 / 6 pips)
 
 ### Story 4.8: Auto-feeder
 
@@ -1383,6 +1398,7 @@ So that the shipped build meets every technical target.
 **Given** a production build on a mid-range laptop with an integrated GPU
 **When** 100 sheep run for 5 minutes in Chrome and in Firefox (debug overlay in a DEV build for counting, production build for timing)
 **Then** the game holds 60 FPS (NFR1)
+**And** a field food pile of 300 pieces with 100 sheep also holds 60 FPS
 
 **Given** the deployed build
 **When** loaded on broadband

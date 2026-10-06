@@ -177,6 +177,7 @@ The template's sample scenes are replaced by the structure defined in Project St
 - `GameState` is plain data only: numbers, strings, booleans, arrays and plain objects. No class instances, `Map`/`Set`, functions, Phaser objects or circular references. `JSON.stringify(state)` must round-trip losslessly.
 - Entities (sheep, carcasses, food pieces) are stored in arrays of plain records with a stable numeric `id` from `state.nextId`. References between entities use ids, never object references.
 - Only `src/sim/` mutates `GameState`. Entry points: `step(state)` (advance one tick) and `applyCommand(state, cmd)` (player intent). Both are pure in the sense of having no I/O, no Phaser and no `Date.now()`/`Math.random()`.
+- The Farm bar lives in `state.farmProgress`: integer pips in the current bar (0 to `TUNING.farmPipsPerFood − 1`). A full bar adds 1 food to `state.food` (the stock, cap 20) or, when the stock is full, drops a food piece at a seeded-random reachable spot (change 2026-10-06).
 - Pending lambs live in `state.pregnancies: { parentA, parentB, dueAt, x, y }[]`; capacity checks count living sheep **plus** pregnancies.
 - Derived values (current era, Fed/Hungry/Starving, flock count, capacity) are computed by selector functions, never stored, so they cannot drift. Era regression falls out naturally.
 - The Abomination flag lives on the sheep record (`isAbomination`) but is **only** read by `sim/` and the reveal path; view and tooltip code must use selectors that do not expose it.
@@ -470,7 +471,7 @@ sheep-civilization/
 | Tick orchestration | `src/sim/step.ts` | Advances `state.time`, runs systems in fixed order |
 | Player commands | `src/sim/commands.ts` | Validates and applies `Command`s |
 | Hunger | `src/sim/systems/hunger.ts` | Fullness drain, starvation death |
-| Farming & feeding | `src/sim/systems/feeding.ts` | Food meters, food pieces, eating |
+| Farming & feeding | `src/sim/systems/feeding.ts` | Farm progress, food stock, overflow drops, food pieces, eating |
 | Movement & spacing | `src/sim/systems/movement.ts` + `src/sim/grid.ts` | Wander, seek, separation, fence containment |
 | Life stages | `src/sim/systems/lifecycle.ts` | Ageing, elder, old-age death, gestation/birth |
 | Breeding | `src/sim/systems/breeding.ts` | Pair validation, cost, cooldown, capacity |
@@ -716,7 +717,7 @@ function nextActivity(s: Sheep, state: GameState): SheepActivity {
 
 ```typescript
 // HudScene.update()
-const v = hudView(state); // { food, foodCap, breedFood, money, flock, capacity, era, threats, boostRemaining }
+const v = hudView(state); // { food, foodCap, farmProgress, farmPipsPerFood, breedFood, money, flock, capacity, era, threats, boostRemaining }
 this.foodMeter.set(v.food, v.foodCap);
 ```
 

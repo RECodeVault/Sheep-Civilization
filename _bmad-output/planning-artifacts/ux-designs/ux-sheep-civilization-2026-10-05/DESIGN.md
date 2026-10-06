@@ -179,10 +179,12 @@ components:
   menu-scrim-start:
     backgroundColor: '{colors.dusk-deep}'
     opacity: '0.4'
-  food-meter:
+  farm-progress:
     trackColor: '{colors.wool-shade}'
     fillColor: '{colors.hay}'
-    segmentCount: '20'
+    segmentCount: '8'
+  food-stock:
+    iconColor: '{colors.hay}'
     emptyFlashColor: '{colors.alert}'
     valueTypography: '{typography.numeric}'
   breeding-meter:
@@ -379,7 +381,7 @@ The base canvas is `{spacing.canvas-width}` × `{spacing.canvas-height}` (16:9),
 │ └───────┘                [captions]                          │
 ├──────────────────────────────────────────────────────────────┤
 │ [FARM F]    [FARM BREED G] [BREED] [MED] │ $ │ 🐑12/25 │ ⚠2 ✚1 ✖0 │ ×2 0:18 │ [SHOP] │
-│ ▮▮▮ 12/20   ♥ ▮▮ 4/10                                        │
+│ ▮▮▮▯▯▯▯▯ 🌾12/20   ♥ ▮▮ 4/10                                       │
 └──────────────────────────────────────────────────────────────┘
 ```
 - **Bottom bar** (`{spacing.hud-bar-height}`), left to right: resource producers (each meter stacked under its button), then the Breed tool and the Medicine slot *(Should)*, then status read-outs, then the threat summary, the boost timer and the Shop toggle. Actions are on the left and information is on the right.
@@ -422,7 +424,8 @@ Each component's behaviour is in EXPERIENCE.md, under Component Patterns. The ke
 - **Panel** (`panel`): the `wool` 9-slice with a bark outline, used by every modal and sub-panel (Volume, Stats, Credits). The pause panel is headed "Paused" in `title`. [ASSUMPTION]
 - **Shop panel** (`shop-panel`) and **shop item row** (`shop-item-row`): a `wool` panel with a `wood` border, headed "Shop" in `label` so all rows fit above the bar. Each row shows the icon, the name and price on its first line, and a one-line effect (strings from the GDD) in `caption` type on its second. An unaffordable row greys its name, effect and price to `disabled-ink` but stays readable. A locked Land tier shows "Needs Land {n}" on its effect line. [ASSUMPTION]
 - **Slider** (`slider`) and **toggle** (`toggle`): a chunky track with a `hay` fill and a `bark` thumb that is 40 px tall for easy grabbing.
-- **Food meter** (`food-meter`): 20 discrete `hay` pips on a `wool-shade` track, stacked under the Farm button, with the value "12/20" beside it. When empty, the track flashes `alert` and shakes.
+- **Farm progress** (`farm-progress`): 8 discrete `hay` pips on a `wool-shade` track, stacked under the Farm button. Each click fills a pip (more with Better Hoe or the boost); a full bar makes 1 food and empties.
+- **Food stock** (`food-stock`): a `hay` food icon and the value "12/20" beside the Farm progress bar. When a spend fails for lack of food, it flashes `alert` and shakes.
 - **Breeding food meter** (`breeding-meter`): 10 `heart` pips, stacked under the Farm Breeding Food button. A `heart-deep` tick marks the 3-pip breed cost.
 - **Money counter** (`money-counter`): a hay coin icon and "$145".
 - **Flock counter** (`flock-counter`): a sheep icon and "12/25", meaning alive over capacity. At 90% or more of capacity the numbers turn `alert` and a small crowd icon appears.
