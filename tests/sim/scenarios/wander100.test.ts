@@ -19,6 +19,9 @@ describe('scenario: 100 sheep wander for 600 ticks', () => {
         if (!(Number.isFinite(s.x) && Number.isFinite(s.y) && Number.isFinite(s.heading))) {
           throw new Error(`tick ${t}: sheep ${s.id} has a non-finite value`);
         }
+        if (!(s.heading >= 0 && s.heading < 2 * Math.PI) || Object.is(s.heading, -0)) {
+          throw new Error(`tick ${t}: sheep ${s.id} heading ${s.heading} is outside [0, 2π)`);
+        }
         if (s.x < r.left || s.x > r.right || s.y < r.top || s.y > r.bottom) {
           throw new Error(`tick ${t}: sheep ${s.id} left the fence at (${s.x}, ${s.y})`);
         }
@@ -31,10 +34,13 @@ describe('scenario: 100 sheep wander for 600 ticks', () => {
     const a = flockOf100(41);
     const b = flockOf100(41);
     const c = flockOf100(42);
+    const start = a.sheep.map((s) => [s.x, s.y]);
     runFor(a, 60_000);
     runFor(b, 60_000);
     runFor(c, 60_000);
     expect(a).toStrictEqual(b);
+    // Not vacuous: the flock actually moved, and the same seed moved it the same way.
+    expect(a.sheep.filter((s, i) => s.x !== start[i][0] || s.y !== start[i][1]).length).toBeGreaterThan(90);
     expect(a.sheep.map((s) => [s.x, s.y])).not.toEqual(c.sheep.map((s) => [s.x, s.y]));
   });
 

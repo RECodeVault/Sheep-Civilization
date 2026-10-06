@@ -33,29 +33,30 @@ describe('updateMovement', () => {
   it('never moves a sheep further than the walk speed allows in one tick', () => {
     const state = newGame(11);
     fillFlock(state, 30);
+    let moves = 0;
     for (let t = 0; t < 600; t++) {
       const before = state.sheep.map((s) => [s.x, s.y]);
       step(state);
       state.sheep.forEach((s, i) => {
-        expect(Math.hypot(s.x - before[i][0], s.y - before[i][1])).toBeLessThanOrEqual(MAX_STEP + 1e-9);
+        const d = Math.hypot(s.x - before[i][0], s.y - before[i][1]);
+        expect(d).toBeLessThanOrEqual(MAX_STEP + 1e-9);
+        if (d > 0) moves++;
       });
     }
+    // Guards against a vacuous pass: the flock really moved on most sheep-ticks.
+    expect(moves).toBeGreaterThan((30 * 600) / 2);
   });
 
   it('moves a lone walking sheep on most ticks', () => {
     const state = gameWith([{ ...centre(newGame()), restUntil: 0 }]);
     const s = state.sheep[0];
     let moved = 0;
-    let total = 0;
     for (let t = 0; t < 10_000 / TICK_MS; t++) {
       const [x, y] = [s.x, s.y];
       step(state);
-      const d = Math.hypot(s.x - x, s.y - y);
-      if (d > 0) moved++;
-      total += d;
+      if (s.x !== x || s.y !== y) moved++;
     }
     expect(moved).toBeGreaterThan(10_000 / TICK_MS / 2);
-    expect(total).toBeGreaterThan(0);
   });
 
   it('keeps a grazing sheep with no neighbours still until its rest ends', () => {
@@ -120,6 +121,47 @@ describe('updateMovement', () => {
         expect(s.y).toBeLessThanOrEqual(r.bottom);
       }
     }
+  });
+
+  it('turns a walker back from the fence before it reaches the rail', () => {
+    const r = innerFence(newGame());
+    const mid = (r.top + r.bottom) / 2;
+    // Inside the turn margin, heading straight out: the soft turn alone must bring it back.
+    const state = gameWith([{ x: r.left + TUNING.fenceTurnMarginPx / 2, y: mid, heading: Math.PI, restUntil: 0 }]);
+    const s = state.sheep[0];
+    for (let t = 0; t < 20; t++) {
+      step(state);
+      expect(s.x).toBeGreaterThan(r.left);
+    }
+    expect(s.x).toBeGreaterThan(r.left + TUNING.fenceTurnMarginPx);
+  });
+
+  it('keeps an inward-facing sheep facing inward when a neighbour pushes it into the rail', () => {
+    const r = innerFence(newGame());
+    const mid = (r.top + r.bottom) / 2;
+    const state = gameWith([
+      { x: r.left, y: mid, heading: 0, restUntil: FAR_FUTURE },
+      { x: r.left + 4, y: mid, heading: 0, restUntil: FAR_FUTURE },
+    ]);
+    // Checked every tick: a wrong flip toggles each tick, so an end-only check could land on 0.
+    for (let t = 0; t < 10; t++) {
+      step(state);
+      expect(state.sheep[0].x).toBe(r.left);
+      expect(state.sheep[0].heading).toBe(0);
+    }
+  });
+
+  it('handles a flock larger than its initial scratch capacity', () => {
+    const state = newGame(31);
+    fillFlock(state, 300);
+    const r = innerFence(state);
+    const start = state.sheep.map((s) => [s.x, s.y]);
+    runFor(state, 5_000);
+    for (const s of state.sheep) {
+      expect(Number.isFinite(s.x) && Number.isFinite(s.y)).toBe(true);
+      expect(s.x >= r.left && s.x <= r.right && s.y >= r.top && s.y <= r.bottom).toBe(true);
+    }
+    expect(state.sheep.filter((s, i) => s.x !== start[i][0] || s.y !== start[i][1]).length).toBeGreaterThan(150);
   });
 
   it('gives new sheep a heading and no rest', () => {

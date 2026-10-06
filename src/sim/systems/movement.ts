@@ -16,14 +16,17 @@ let vx = new Float64Array(128);
 let vy = new Float64Array(128);
 const neighbours: number[] = [];
 
+/** Wraps to [0, 2π). A tiny negative input can round up to exactly 2π, and `+ 0` turns -0 into 0. */
 function wrapAngle(a: number): number {
   a %= TAU;
-  return a < 0 ? a + TAU : a;
+  if (a < 0) a += TAU;
+  return a >= TAU ? 0 : a + 0;
 }
 
 /**
- * Two passes so the result does not depend on array order: every velocity is computed from the
- * start-of-tick positions first, then every sheep moves and is clamped inside the fence.
+ * Two passes, so no sheep sees a neighbour that already moved this tick: every velocity is computed
+ * from the start-of-tick positions first, then every sheep moves and is clamped inside the fence.
+ * Rng draws still happen in array order, so the run is deterministic for a given `state.sheep`.
  */
 export function updateMovement(state: GameState): void {
   const sheep = state.sheep;
@@ -108,19 +111,22 @@ export function updateMovement(state: GameState): void {
     vy[i] = uy;
   }
 
-  // Pass 2: integrate, then the hard clamp that guarantees no sheep leaves the fence. A clamped
-  // axis flips the heading so the next tick walks inward.
+  // Pass 2: integrate, then the hard clamp that keeps every sheep inside the fence. A clamped axis
+  // flips the heading only if it points outward, so a sheep pushed into the rail by a neighbour
+  // keeps facing the pen.
   for (let i = 0; i < n; i++) {
     const s = sheep[i];
     let x = s.x + vx[i] * DT;
     let y = s.y + vy[i] * DT;
     if (x < left || x > right) {
+      const out = x < left ? Math.cos(s.heading) < 0 : Math.cos(s.heading) > 0;
       x = x < left ? left : right;
-      s.heading = wrapAngle(Math.PI - s.heading);
+      if (out) s.heading = wrapAngle(Math.PI - s.heading);
     }
     if (y < top || y > bottom) {
+      const out = y < top ? Math.sin(s.heading) < 0 : Math.sin(s.heading) > 0;
       y = y < top ? top : bottom;
-      s.heading = wrapAngle(-s.heading);
+      if (out) s.heading = wrapAngle(-s.heading);
     }
     s.x = x;
     s.y = y;

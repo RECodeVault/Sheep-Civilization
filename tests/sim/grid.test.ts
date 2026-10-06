@@ -69,10 +69,12 @@ describe('grid', () => {
     expect(query(pts, 2, TUNING.personalSpacePx)).toEqual([3]);
   });
 
-  it('grows past its initial capacity and shrinks back', () => {
+  it('grows past its initial capacity, then still works for a smaller flock', () => {
     const many = randomPoints(3, 1000);
     rebuildGrid(many);
-    expect(query(many, 500, TUNING.gridCellPx)).toEqual(bruteForce(many, 500, TUNING.gridCellPx));
+    for (let i = 0; i < many.length; i++) {
+      expect(query(many, i, TUNING.gridCellPx)).toEqual(bruteForce(many, i, TUNING.gridCellPx));
+    }
     const few = [
       { x: 100, y: 100 },
       { x: 110, y: 100 },

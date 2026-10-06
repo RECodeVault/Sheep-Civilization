@@ -4,7 +4,7 @@ baseline_commit: 8842ba4a40eac8633a6f49755f44c71e50e5446a
 
 # Story 1.3: Sheep Wander the Pasture
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -117,6 +117,21 @@ so that the flock feels alive and readable at a glance.
     - Sheep in front of the bottom rail and behind it sort correctly.
   - [x] 8.4 **100-sheep visual check:** temporarily set `interimFlockAdults` to 100 locally, look for smoothness and stutter, then **revert** it. The debug overlay with its FPS counter arrives in Story 1.4, so record what you saw (and Chrome's FPS meter if you use it), and note that the formal 5-minute 100-sheep perf check runs once the overlay exists.
   - [x] 8.5 Record evidence for every manual check in the Dev Agent Record (a lesson from the 1.1 review).
+
+### Review Findings
+
+Code review 2026-10-06 (Blind Hunter + Edge Case Hunter + Acceptance Auditor) on `8842ba4..09d896b`. The auditor judged AC 1–5 met and the three disclosed deviations justified.
+
+- [x] [Review][Patch] Hot-path string building: `queryNeighbours` evaluates its invariant template literal on every call (100 strings per tick at 100 sheep), and `rngRange`, now called per walking sheep per tick, does the same. In production a radius over one cell would also silently return an incomplete set; build the message only on failure [src/sim/grid.ts:67, src/sim/rng.ts:20]
+- [x] [Review][Patch] The hard clamp flips the heading even when the sheep already faces inward, so a sheep pushed into the rail by a neighbour can be turned to face the fence, or flip every tick; flip only when the heading points outward [src/sim/systems/movement.ts:119]
+- [x] [Review][Patch] When a frame runs 2+ ticks (hitches, debug ×4/×16), `prev` is N ticks old, so the sprite lurches through N ticks of motion in one tick of alpha and the facing deadband is measured over N ticks [src/view/field/SheepSprite.ts:51]
+- [x] [Review][Patch] `wrapAngle` can return exactly 2π (tiny negative input) or -0, breaking the [0, 2π) range and the strict JSON round-trip [src/sim/systems/movement.ts:19]
+- [x] [Review][Patch] The comment claims the result "does not depend on array order", but pass 1 draws rng in array order; only the position update is order-independent [src/sim/systems/movement.ts:25]
+- [x] [Review][Patch] Tests that pass vacuously or miss paths: the "differs for another seed" and speed-cap tests pass with a no-op `updateMovement`; nothing checks the soft fence turn or the `vx`/`vy` growth past 128 sheep; the grid test is misnamed "shrinks back" and the redundant `total > 0` adds nothing [tests/sim/scenarios/wander100.test.ts:30, tests/sim/systems/movement.test.ts:33, tests/sim/grid.test.ts:72]
+- [x] [Review][Patch] The Dev Agent Record does not mention that `SheepSprite.reset()` now also clears `flipX` [src/view/field/SheepSprite.ts]
+- [x] [Review][Defer] A non-finite `x`/`y`/`heading` (e.g. from a corrupt save) passes the hard clamp (`NaN < left` is false) and stays NaN forever; one NaN point in `rebuildGrid` also overwrites another sheep's grid slot [src/sim/systems/movement.ts:111, src/sim/grid.ts:28] — deferred to Story 1.9, whose save validation must reject non-finite numbers and duplicate ids
+- [x] [Review][Defer] Sprites keep `lastTick` and prev/curr positions if `GameScene` swaps `state` in place while the layer lives (ids restart at 1), so sheep slide from old-run spots or freeze for a tick [src/view/field/SheepSprite.ts:45] — deferred to Story 1.9 (load-or-new); today `create()` rebuilds the layer
+- [x] [Review][Defer] Grid results are indices into `state.sheep` with no guard that the array is unchanged since `rebuildGrid`; a query after a removal can read past the end [src/sim/grid.ts:62] — deferred to the first story that queries neighbours outside movement (4.2/4.3); documented in the `grid.ts` header
 
 ## Dev Notes
 
@@ -303,6 +318,31 @@ Claude Opus 5.5 (claude-opus-5-5[1m]) via Claude Code, gds-dev-story workflow.
   - With 64 × 52 sprites, the GDD's 24 px personal space still lets sheep overlap visibly (see the screenshots). Revisit `personalSpacePx` in the 3.6 tuning pass if the flock should read as more spread out.
   - The grazing stops (`wanderRestChance`) are the assumption flagged in the story.
 
+### Review Follow-up (2026-10-06)
+
+All 7 review patches applied; 3 items deferred to `deferred-work.md`.
+
+- **Hot-path strings:**
+  - `queryNeighbours`, `rngRange` and `rngInt` now build their invariant message only when the check fails (`if (bad) invariant(false, …)`), so a tick allocates no strings.
+  - In production an oversize radius still logs and returns the 3×3 result.
+- **Clamp heading:** the pass-2 clamp flips the heading only when it points outward on the clamped axis.
+  - New test: an inward-facing grazing sheep pushed into the rail keeps heading 0, checked on every tick.
+  - Mutation check: with the old unconditional flip restored, the test fails, because the heading toggles each tick. An end-only check had passed, since 10 toggles land back on 0, so the test now checks every tick.
+- **Multi-tick frames:** when `simTime` jumps by N > 1 ticks, `SheepSprite` starts the blend from an estimate of the T-1 position (`curr + (pub − curr) × (1 − 1/N)`), so it covers one tick of motion. Facing is measured over that one tick.
+  - If time goes backwards (a new or loaded game), the sprite snaps.
+  - Browser, 3 sheep at debug speed ×16 (temporary probe, removed): max per-frame step **16.1 px**, the ideal 60 × 16 / 60 = 16 px. The old code reached **25.3 px**. Facing changes fell from 92 to 56.
+  - At ×4 both versions matched, max 4.03 px, because there is still less than one tick per frame.
+- **`wrapAngle`** returns 0 instead of 2π for tiny negative input, and `+ 0` turns -0 into 0. The 100-sheep scenario now asserts every heading is in [0, 2π) and never -0 on every tick.
+- **Comment:** the movement header now says the two passes stop sheep seeing already-moved neighbours, and that rng draws still follow array order.
+- **Tests:**
+  - The speed-cap test and the same-seed test now also assert that the flock moved (more than half the sheep-ticks, and more than 90 of 100 sheep).
+  - New test: the soft fence turn brings a walker back before the rail. It fails with the soft turn removed (mutation-checked).
+  - New test: 300 sheep (past the 128-slot scratch) stay finite and inside, and move.
+  - The grid growth test checks all 1 000 queries against brute force and is renamed.
+  - The redundant `total > 0` was removed.
+- **Record:** `SheepSprite.reset()` also clears `flipX`, so a reused pooled sprite never keeps an old facing. This was not listed among the deviations before.
+- **Gate:** `npm test` 78/78 in 15 files. Typecheck, lint and build are clean; `__probeGame` appears in neither `src/` nor `dist/`.
+
 ### File List
 
 - `src/sim/grid.ts` (new)
@@ -319,6 +359,8 @@ Claude Opus 5.5 (claude-opus-5-5[1m]) via Claude Code, gds-dev-story workflow.
 - `tests/sim/helpers.ts` (modified)
 - `tests/sim/state.test.ts` (modified)
 - `tests/sim/step.test.ts` (modified)
+- `src/sim/rng.ts` (modified in review: invariant messages built only on failure)
+- `_bmad-output/implementation-artifacts/deferred-work.md` (modified in review)
 - `_bmad-output/implementation-artifacts/sprint-status.yaml` (modified)
 - `_bmad-output/implementation-artifacts/1-3-sheep-wander-the-pasture.md` (this story)
 
@@ -327,3 +369,4 @@ Claude Opus 5.5 (claude-opus-5-5[1m]) via Claude Code, gds-dev-story workflow.
 | Date | Change |
 |---|---|
 | 2026-10-06 | Implemented steering movement (wander with grazing stops, grid-based separation, fence containment), the 48 px spatial grid, and interpolated sheep rendering with facing. Added grid, movement and 100-sheep scenario tests (75/75). Status → review. |
+| 2026-10-06 | Code review: 7 patches applied (hot-path invariant strings, inward-safe clamp flip, multi-tick interpolation, `wrapAngle` range, order comment, non-vacuous and new tests, record note). 3 items deferred to `deferred-work.md`. Tests 78/78. Status → done. |

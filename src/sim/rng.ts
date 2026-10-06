@@ -17,15 +17,15 @@ export function rng(state: { rng: number }): number {
 
 /** Float in [min, max). */
 export function rngRange(state: { rng: number }, min: number, max: number): number {
-  invariant(min <= max, `rngRange: min ${min} > max ${max}`);
+  // Messages are built only on failure: rngRange runs per sheep per tick.
+  if (!(min <= max)) invariant(false, `rngRange: min ${min} > max ${max}`);
   return min + rng(state) * (max - min);
 }
 
 /** Integer in [min, maxInclusive]. */
 export function rngInt(state: { rng: number }, min: number, maxInclusive: number): number {
-  invariant(
-    Number.isInteger(min) && Number.isInteger(maxInclusive) && min <= maxInclusive,
-    `rngInt: bad bounds [${min}, ${maxInclusive}]`,
-  );
+  if (!(Number.isInteger(min) && Number.isInteger(maxInclusive) && min <= maxInclusive)) {
+    invariant(false, `rngInt: bad bounds [${min}, ${maxInclusive}]`);
+  }
   return min + Math.floor(rng(state) * (maxInclusive - min + 1));
 }

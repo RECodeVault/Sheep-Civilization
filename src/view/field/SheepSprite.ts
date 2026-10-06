@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { TICK_MS } from '../../config/constants';
 import type { PublicSheep } from '../../sim/selectors';
 import { ATLAS, FRAME } from '../assetKeys';
 import type { PooledEntitySprite } from './EntityLayer';
@@ -49,8 +50,22 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
       this.prevY = this.currY = pub.y;
       this.lastTick = simTime;
     } else if (simTime !== this.lastTick) {
-      this.prevX = this.currX;
-      this.prevY = this.currY;
+      const ticks = (simTime - this.lastTick) / TICK_MS;
+      if (ticks > 1) {
+        // Several ticks ran since the last frame (a hitch, or debug speed). Blend over the last tick
+        // only, starting from an estimate of the T-1 position on the straight line from the old
+        // spot, so the sprite does not lurch through several ticks of motion at once.
+        const back = 1 - 1 / ticks;
+        this.prevX = this.currX + (pub.x - this.currX) * back;
+        this.prevY = this.currY + (pub.y - this.currY) * back;
+      } else if (ticks === 1) {
+        this.prevX = this.currX;
+        this.prevY = this.currY;
+      } else {
+        // Time went backwards (a new or loaded game): snap, never slide from the old run.
+        this.prevX = pub.x;
+        this.prevY = pub.y;
+      }
       this.currX = pub.x;
       this.currY = pub.y;
       this.lastTick = simTime;

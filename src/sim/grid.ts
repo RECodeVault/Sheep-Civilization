@@ -63,8 +63,9 @@ export function rebuildGrid(points: readonly Point[]): void {
  * stale; `out` is meant to be one reused array.
  */
 export function queryNeighbours(points: readonly Point[], i: number, radius: number, out: number[]): number {
-  // A 3×3 scan finds everything only up to one cell of radius.
-  invariant(radius <= CELL, `queryNeighbours: radius ${radius} > cell ${CELL}`);
+  // A 3×3 scan finds everything only up to one cell of radius. The message is built only on failure,
+  // so the hot path allocates nothing.
+  if (radius > CELL) invariant(false, `queryNeighbours: radius ${radius} > cell ${CELL}`);
   const px = points[i].x;
   const py = points[i].y;
   const cx = col(px);
