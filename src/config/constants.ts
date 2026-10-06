@@ -135,6 +135,8 @@ function defineComponents<const T extends Record<string, Record<string, string |
 export const COMPONENTS = defineComponents({
   buttonFarm: {
     backgroundColor: 'hay',
+    // UX-DR26: the pressed state uses hay-deep (and loses its drop offset).
+    pressedBackgroundColor: 'hayDeep',
     borderColor: 'hayDeep',
     textColor: 'bark',
     typography: 'label',

@@ -68,3 +68,16 @@ export function selectPublicSheep(state: GameState, out: PublicSheep[]): PublicS
   out.length = sheep.length;
   return out;
 }
+
+/** What the HUD shows. Later stories add breeding food, money, flock, capacity, threats and boost. */
+export interface HudView {
+  food: number;
+  foodCap: number;
+}
+
+/** Fills `out` in place (no allocation) and returns it. HudScene calls this once per frame. */
+export function selectHudView(state: GameState, out: HudView): HudView {
+  out.food = state.food;
+  out.foodCap = TUNING.foodCap;
+  return out;
+}

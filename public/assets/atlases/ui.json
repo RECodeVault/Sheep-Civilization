@@ -4,20 +4,20 @@
       "frame": {
         "x": 3,
         "y": 3,
-        "w": 12,
-        "h": 16
+        "w": 7,
+        "h": 14
       },
       "rotated": false,
       "trimmed": false,
       "spriteSourceSize": {
         "x": 0,
         "y": 0,
-        "w": 12,
-        "h": 16
+        "w": 7,
+        "h": 14
       },
       "sourceSize": {
-        "w": 12,
-        "h": 16
+        "w": 7,
+        "h": 14
       },
       "pivot": {
         "x": 0.5,
@@ -27,21 +27,21 @@
     "pip-food": {
       "frame": {
         "x": 3,
-        "y": 25,
-        "w": 12,
-        "h": 16
+        "y": 23,
+        "w": 7,
+        "h": 14
       },
       "rotated": false,
       "trimmed": false,
       "spriteSourceSize": {
         "x": 0,
         "y": 0,
-        "w": 12,
-        "h": 16
+        "w": 7,
+        "h": 14
       },
       "sourceSize": {
-        "w": 12,
-        "h": 16
+        "w": 7,
+        "h": 14
       },
       "pivot": {
         "x": 0.5,
@@ -55,8 +55,8 @@
     "image": "ui.png",
     "format": "RGBA8888",
     "size": {
-      "w": 18,
-      "h": 44
+      "w": 13,
+      "h": 40
     },
     "scale": 1
   }

@@ -5,6 +5,8 @@ import type { SimEvent } from '../sim/events';
 
 export type BusEvents = {
   sim: SimEvent;
+  // The F key (InputController); HudScene runs the same Farm action as a click.
+  'farm:pressed': undefined;
 };
 
 export const bus = new EventBus<BusEvents>();

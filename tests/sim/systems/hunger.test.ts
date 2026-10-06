@@ -57,7 +57,8 @@ describe('updateHunger', () => {
     const state = gameWith([DRAIN_PER_TICK, TUNING.fullnessMax, DRAIN_PER_TICK]);
     const [a, b, c] = state.sheep;
     const events = runFor(state, TICK_MS);
-    expect(events.map((e) => e.id)).toEqual([a.id, c.id]);
+    expect(events).toHaveLength(2);
+    expect(events.filter((e) => e.type === 'SheepDied').map((e) => e.id)).toEqual([a.id, c.id]);
     expect(state.sheep.map((s) => s.id)).toEqual([b.id]);
     expect(state.stats.died).toBe(2);
   });

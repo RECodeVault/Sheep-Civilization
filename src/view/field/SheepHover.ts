@@ -1,12 +1,10 @@
 import type Phaser from 'phaser';
 import type { Hunger, PublicSheep, Stage } from '../../sim/selectors';
 import { STRINGS } from '../strings';
-import type { Tooltip } from '../widgets/Tooltip';
+import { HOVER_DELAY_MS, type Tooltip } from '../widgets/Tooltip';
 import type { EntityLayer } from './EntityLayer';
 import type { SheepSprite } from './SheepSprite';
 
-// UX [ASSUMPTION] "about 300 ms" before the sheep tooltip shows. View feel, not a game rule.
-const HOVER_DELAY_MS = 300;
 // UX-DR90: sheep hit targets are the sprite bounds plus 6 px.
 const HIT_PAD_PX = 6;
 

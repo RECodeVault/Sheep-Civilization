@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { COLORS } from '../../config/constants';
 import { FixedStepClock } from '../../core/fixedStep';
 import { log } from '../../core/log';
+import { InputController } from '../../input/InputController';
 import { applyCommand, type Command } from '../../sim/commands';
 import { clearEvents, drainEvents, type SimEvent } from '../../sim/events';
 import { fenceBounds, selectPublicSheep, type PublicSheep } from '../../sim/selectors';
@@ -17,7 +18,8 @@ import { markGameStarted, reportError } from '../safetyNet';
 import { Tooltip } from '../widgets/Tooltip';
 
 const SHEEP_POOL_SIZE = 120;
-// Above every sheep (sheep depth = y ≤ 720). The tooltip sits here until HudScene exists (Story 1.6).
+// Above every sheep (sheep depth = y ≤ 720). Sheep hover stays in this scene; HudScene draws above
+// it, and sheep never reach the bar, so the two tooltips never overlap.
 const TOOLTIP_DEPTH = 10_000;
 
 /** Optional scene data: a state to resume instead of a new game (debug load now, Story 1.9 later). */
@@ -62,7 +64,23 @@ export class GameScene extends Phaser.Scene {
     new Fence(this, fenceBounds(this.state));
     this.sheepLayer = new EntityLayer(new ObjectPool(() => new SheepSprite(this), SHEEP_POOL_SIZE));
     this.sheepHover = new SheepHover(this.input, this.sheepLayer, new Tooltip(this, TOOLTIP_DEPTH));
+    const input = new InputController(this.input.keyboard);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => input.destroy());
     this.render();
+    // Runs in parallel, drawn above. `launch` restarts a running HudScene, so every GameScene restart
+    // rebuilds the HUD fresh.
+    this.scene.launch('HudScene');
+  }
+
+  // --- Scene API -------------------------------------------------------------------------------
+  // For HudScene (every frame) and src/debug/DebugOverlay.ts.
+
+  /**
+   * The live state. Read-only for every caller except debugMutate. The object is replaced on
+   * restart, so read it each frame; never cache it.
+   */
+  get simState(): Readonly<GameState> {
+    return this.state;
   }
 
   /** Queues a player command; it is applied at the start of the next tick. */
@@ -92,11 +110,6 @@ export class GameScene extends Phaser.Scene {
   // --- Debug API -------------------------------------------------------------------------------
   // Called only by src/debug/DebugOverlay.ts (DEV builds). Production ships these members, but
   // nothing calls them. GameScene never imports src/debug/.
-
-  /** The live state, for debug counts and dumps. Read-only for every caller except debugMutate. */
-  get simState(): Readonly<GameState> {
-    return this.state;
-  }
 
   /** The sim clock. Debug pause is `simClock.speed = 0`. */
   get simClock(): FixedStepClock {

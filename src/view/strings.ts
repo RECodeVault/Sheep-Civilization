@@ -16,4 +16,12 @@ export const STRINGS = Object.freeze({
   hunger: HUNGER,
   // Sheep tooltip (UX-DR43, UX-DR96), e.g. "Adult · Hungry". Story 5.3 adds the name line above it.
   sheepTooltip: (stage: Stage, hunger: Hunger): string => `${STAGE[stage]} · ${HUNGER[hunger]}`,
+  // Farm button (UX-DR26, UX-DR75, UX-DR96). The tooltip takes the click value (Better Hoe, Story 4.7).
+  farmLabel: 'Farm',
+  farmKey: 'F',
+  farmTooltip: (n: number): string => `Farm: +${n} food (F)`,
+  // Float popup (UX-DR44), e.g. "+1".
+  farmPopup: (n: number): string => `+${n}`,
+  // Meter value (UX-DR29), e.g. "12/20".
+  meterValue: (n: number, cap: number): string => `${n}/${cap}`,
 } as const);

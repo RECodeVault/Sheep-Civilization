@@ -6,11 +6,16 @@ const TYPE = TYPOGRAPHY[SPEC.typography];
 const PAD = SPEC.padding;
 // Gap between the anchor point and the box.
 const OFFSET = 6;
+// [ASSUMPTION] Widest box before the text wraps, so long copy never runs off the canvas.
+const MAX_WIDTH = 360;
+
+/** UX [ASSUMPTION] "about 300 ms" of hover before any tooltip (sheep or button) shows. View feel. */
+export const HOVER_DELAY_MS = 300;
 
 /**
  * The `tooltip` component (DESIGN.md): a dusk-deep box with wool body text. Built once and reused;
  * the background is redrawn only when the text changes, never per frame. Generic: sheep hover uses
- * it now, and Story 1.6 reuses it for button tooltips.
+ * it in GameScene and the HUD's buttons in HudScene.
  */
 export class Tooltip {
   private readonly box: Phaser.GameObjects.Graphics;
@@ -27,6 +32,7 @@ export class Tooltip {
         fontSize: `${TYPE.fontSize}px`,
         fontStyle: String(TYPE.fontWeight),
         color: COLORS[SPEC.textColor],
+        wordWrap: { width: MAX_WIDTH - PAD * 2 },
         // Resolution 1 on purpose: the game draws into a fixed 1280×720 framebuffer with nearest
         // filtering (pixelArt), so a devicePixelRatio texture would be point-sampled down and look
         // rougher, not crisper. True HiDPI text needs a higher renderer resolution (architecture).

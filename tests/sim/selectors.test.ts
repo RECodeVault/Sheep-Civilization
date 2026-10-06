@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { TUNING } from '../../src/config/tuning';
-import { hungerOf, publicSheep, selectPublicSheep, stageOf, type PublicSheep } from '../../src/sim/selectors';
+import { applyCommand } from '../../src/sim/commands';
+import {
+  hungerOf,
+  publicSheep,
+  selectHudView,
+  selectPublicSheep,
+  stageOf,
+  type HudView,
+  type PublicSheep,
+} from '../../src/sim/selectors';
 import { newGame } from './helpers';
 
 describe('hungerOf', () => {
@@ -59,5 +68,23 @@ describe('publicSheep / selectPublicSheep', () => {
     expect(out).toHaveLength(state.sheep.length);
     expect(out.every((p) => p.stage === 'adult')).toBe(true);
     expect(out).toEqual(state.sheep.map((x) => publicSheep(x, state)));
+  });
+});
+
+describe('selectHudView', () => {
+  it('fills food and the cap from TUNING into the given object', () => {
+    const state = newGame();
+    const out: HudView = { food: -1, foodCap: -1 };
+    expect(selectHudView(state, out)).toBe(out);
+    expect(out).toEqual({ food: TUNING.startFood, foodCap: TUNING.foodCap });
+  });
+
+  it('reflects a Farm on the next read', () => {
+    const state = newGame();
+    const out: HudView = { food: 0, foodCap: 0 };
+    selectHudView(state, out);
+    applyCommand(state, { type: 'Farm' });
+    selectHudView(state, out);
+    expect(out.food).toBe(TUNING.startFood + TUNING.farmFoodPerClick);
   });
 });

@@ -3,6 +3,7 @@ import { CANVAS_HEIGHT, CANVAS_WIDTH, COLORS, FONT_FAMILIES } from './config/con
 import { log } from './core/log';
 import { BootScene } from './view/scenes/BootScene';
 import { GameScene } from './view/scenes/GameScene';
+import { HudScene } from './view/scenes/HudScene';
 import { PreloadScene } from './view/scenes/PreloadScene';
 import { attachGame, installSafetyNet, reportError } from './view/safetyNet';
 
@@ -68,7 +69,8 @@ async function start(): Promise<void> {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
-    scene: [BootScene, PreloadScene, GameScene],
+    // Array order is update and render order: HudScene runs after GameScene and draws on top.
+    scene: [BootScene, PreloadScene, GameScene, HudScene],
   });
   attachGame(game);
 

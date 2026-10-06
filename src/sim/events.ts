@@ -3,8 +3,14 @@
 
 export type DeathCause = 'starved' | 'oldAge' | 'virus' | 'abomination';
 
-// killSheep (systems/carcass.ts) emits SheepDied; Story 5.3 adds `name`.
-export type SimEvent = { type: 'SheepDied'; id: number; cause: DeathCause; x: number; y: number };
+/** Story 2.2 widens this with 'breedingFood'. */
+export type FarmResource = 'food';
+
+export type SimEvent =
+  // killSheep (systems/carcass.ts) emits SheepDied; Story 5.3 adds `name`.
+  | { type: 'SheepDied'; id: number; cause: DeathCause; x: number; y: number }
+  // Every Farm command emits Farmed; `added` is the amount actually gained (0 at the cap).
+  | { type: 'Farmed'; resource: FarmResource; added: number };
 
 const queue: SimEvent[] = [];
 
