@@ -76,12 +76,16 @@ describe('validateState', () => {
   const inner = innerFence(newGame(1));
 
   const cases: [string, (r: Raw) => void, string][] = [
-    ['state that is null', (r) => Object.assign(r, { __replace: null }), 'state'],
+    ['state that is null', (r) => Object.assign(r, { __replace: null }), 'state is not an object'],
     ['a NaN time', (r) => (r.time = Number.NaN), 'time'],
     ['a negative time', (r) => (r.time = -100), 'time'],
     ['a fractional time', (r) => (r.time = 100.5), 'time'],
     ['a string time', (r) => (r.time = '100'), 'time'],
     ['a nextId of 0', (r) => (r.nextId = 0), 'nextId'],
+    ['a nextId above the counter ceiling', (r) => (r.nextId = 2 ** 48 + 1), 'state.nextId'],
+    ['a time above the counter ceiling', (r) => (r.time = 2 ** 50), 'state.time'],
+    ['a stats.died above the counter ceiling', (r) => (r.stats.died = Number.MAX_SAFE_INTEGER), 'stats.died'],
+    ['a huge stats.moneyEarned', (r) => (r.stats.moneyEarned = 1e300), 'stats.moneyEarned'],
     ['a nextId not above every id', (r) => (r.nextId = r.sheep[0].id), 'nextId'],
     ['a negative rng', (r) => (r.rng = -1), 'rng'],
     ['an rng above 2^32-1', (r) => (r.rng = 2 ** 32), 'rng'],

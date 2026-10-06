@@ -17,6 +17,9 @@ const ACTIVITIES: readonly SheepActivity[] = ['wander', 'seekFood', 'eating'];
 const ERAS: readonly Era[] = ['pasture', 'village', 'town', 'wool-empire'];
 const STAT_COUNTS = ['died', 'sold', 'sacrificed', 'peakFlock'] as const;
 const RNG_MAX = 0xffffffff;
+// Ceiling for time, ids and counters: 2^48 ms is about 8 900 years of play, and the headroom up to
+// MAX_SAFE_INTEGER keeps them exact as they grow, so an accepted save can always be saved again.
+const COUNTER_MAX = 2 ** 48;
 
 /** Thrown inside validation only, to stop at the first bad field; never escapes validateState. */
 class Invalid extends Error {}
@@ -35,7 +38,7 @@ function finite(o: Obj, key: string, path: string): number {
   return v;
 }
 
-function int(o: Obj, key: string, path: string, min: number, max = Number.MAX_SAFE_INTEGER): number {
+function int(o: Obj, key: string, path: string, min: number, max = COUNTER_MAX): number {
   const v = o[key];
   if (!Number.isInteger(v) || (v as number) < min || (v as number) > max) {
     fail(`${path}.${key} is not an integer in [${min}, ${max}]`);
@@ -80,7 +83,8 @@ function check(x: unknown): void {
 
   if (!isObj(s.stats)) fail('stats is not an object');
   for (const k of STAT_COUNTS) int(s.stats, k, 'stats', 0);
-  if (finite(s.stats, 'moneyEarned', 'stats') < 0) fail('stats.moneyEarned is negative');
+  const money = finite(s.stats, 'moneyEarned', 'stats');
+  if (money < 0 || money > COUNTER_MAX) fail(`stats.moneyEarned is outside [0, ${COUNTER_MAX}]`);
   if ((s.stats.peakFlock as number) < sheep.length) fail('stats.peakFlock is below the flock size');
 
   if ('lostAt' in s) {

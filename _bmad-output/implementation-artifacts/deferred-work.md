@@ -113,3 +113,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Two pause sources (Story 1.10):** the hidden-tab pause is `GameScene.hidden` (set from Phaser's HIDDEN/VISIBLE game events). The Esc pause needs its own flag beside it; either one stops the clock, and unhiding must not unpause a paused menu.
 - **Settings store (Story 5.7):** there is no `settingsStore.ts` yet. Add it under `SETTINGS_KEY` with the same pattern as `saveStore` (injected `StorageLike`, try/catch on every access). `wipeSave` already leaves the settings key alone (unit-tested).
 - **Music on hide (Story 5.6):** AR25 also pauses music when the tab is hidden; there is no audio yet.
+
+## Deferred from: code review of 1-9-save-resume-and-hidden-tab-pause (2026-10-06)
+
+- **Two open tabs share one save:** each tab autosaves its own game to `sheepciv.save.v1`, so the last tab to save wins, and Restart in one tab is undone by the other tab's next autosave or hide-save. Deferred (Rylan): rare for this kind of game. Fix when needed: listen for the `storage` event and stop autosaving when another tab writes the key, or put a per-run id in the envelope.

@@ -10,6 +10,9 @@ export const CANVAS_HEIGHT = 720;
 
 export const SAVE_KEY = 'sheepciv.save.v1';
 export const SETTINGS_KEY = 'sheepciv.settings';
+// One-slot copy of the last save that was discarded as unusable (a newer version, a corrupt write
+// or a validator/sim mismatch), so it can be recovered by hand. Never read by the game.
+export const SAVE_BACKUP_KEY = 'sheepciv.save.v1.bad';
 // Real-time autosave interval (FR40). Not a game-time value, so it is not in TUNING.
 export const AUTOSAVE_MS = 10_000;
 // 2 since Story 1.7 (2026-10-06): `food` removed, `farmProgress` and sheep `targetId` added. No

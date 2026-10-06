@@ -1,7 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
-import { SAVE_KEY, SAVE_SCHEMA_VERSION, SETTINGS_KEY } from '../../src/config/constants';
+import { AUTOSAVE_MS, SAVE_BACKUP_KEY, SAVE_KEY, SAVE_SCHEMA_VERSION, SETTINGS_KEY } from '../../src/config/constants';
 import { encodeSave } from '../../src/save/saveFile';
-import { loadSave, wipeSave, writeSave, type StorageLike } from '../../src/save/saveStore';
+import {
+  allowSaving,
+  blockSaving,
+  discardSave,
+  loadSave,
+  resetSaveStoreForTests,
+  startAutosave,
+  wipeSave,
+  writeSave,
+  type StorageLike,
+} from '../../src/save/saveStore';
+import type { GameState } from '../../src/sim/state';
 import { newGame } from '../sim/helpers';
 import { busyGame } from './busy';
 
@@ -44,6 +55,7 @@ let warn: MockInstance<typeof console.warn>;
 const saveWarnings = (): number => warn.mock.calls.filter((c) => String(c[0]).startsWith('[save]')).length;
 
 beforeEach(() => {
+  resetSaveStoreForTests();
   warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
   vi.spyOn(console, 'info').mockImplementation(() => {});
 });
@@ -75,24 +87,44 @@ describe('writeSave / loadSave', () => {
     ['a NaN field', encodeSave(newGame(2)).replace('"fullness":60', '"fullness":null')],
   ];
 
-  it.each(bad)('discards %s: warns once, removes the key, returns null', (_name, raw) => {
+  it.each(bad)('discards %s: warns once, backs it up, removes the key, returns null', (_name, raw) => {
     const storage = new MemoryStorage();
     storage.setItem(SAVE_KEY, raw);
     storage.setItem(SETTINGS_KEY, '{"music":0.5}');
     expect(loadSave(storage)).toBeNull();
     expect(saveWarnings()).toBe(1);
     expect(storage.items.has(SAVE_KEY)).toBe(false);
+    expect(storage.items.get(SAVE_BACKUP_KEY)).toBe(raw);
     expect(storage.items.get(SETTINGS_KEY)).toBe('{"music":0.5}');
   });
 
-  it('falls back when reading throws, even if removing throws too', () => {
+  it('discards a newer-version save too, keeping the backup', () => {
+    const storage = new MemoryStorage();
+    const raw = encodeSave(newGame(2)).replace(`"schemaVersion":${SAVE_SCHEMA_VERSION}`, `"schemaVersion":${SAVE_SCHEMA_VERSION + 1}`);
+    storage.setItem(SAVE_KEY, raw);
+    expect(loadSave(storage)).toBeNull();
+    expect(storage.items.get(SAVE_BACKUP_KEY)).toBe(raw);
+    expect(warn.mock.calls.some((c) => String(c[0]).includes('newer version'))).toBe(true);
+  });
+
+  it('keeps the save when reading throws (a transient failure must not destroy progress)', () => {
     const storage = new ThrowingStorage();
-    storage.setItem(SAVE_KEY, encodeSave(newGame(2)));
+    const raw = encodeSave(newGame(2));
+    storage.setItem(SAVE_KEY, raw);
     storage.failGet = true;
+    expect(loadSave(storage)).toBeNull();
+    expect(saveWarnings()).toBe(1);
+    expect(storage.items.get(SAVE_KEY)).toBe(raw);
+  });
+
+  it('does not throw when a rejected save cannot be backed up or removed', () => {
+    const storage = new ThrowingStorage();
+    storage.setItem(SAVE_KEY, 'not json {');
+    storage.failSet = true;
     storage.failRemove = true;
     expect(() => loadSave(storage)).not.toThrow();
     expect(loadSave(storage)).toBeNull();
-    expect(saveWarnings()).toBeGreaterThan(0);
+    expect(storage.items.get(SAVE_KEY)).toBe('not json {');
   });
 
   it('warns once on repeated write failures and re-arms after a success', () => {
@@ -109,7 +141,7 @@ describe('writeSave / loadSave', () => {
     expect(saveWarnings()).toBe(2);
   });
 
-  it('refuses to write an invalid state and keeps the earlier save', () => {
+  it('refuses to write an invalid state, keeps the earlier save and warns once until a success', () => {
     const storage = new MemoryStorage();
     const good = newGame(2);
     writeSave(good, storage, NOW);
@@ -117,8 +149,35 @@ describe('writeSave / loadSave', () => {
     const broken = newGame(2);
     broken.sheep[0].fullness = Number.NaN;
     expect(writeSave(broken, storage)).toBe(false);
+    expect(writeSave(broken, storage)).toBe(false);
     expect(storage.items.get(SAVE_KEY)).toBe(before);
     expect(saveWarnings()).toBe(1);
+    expect(writeSave(good, storage)).toBe(true);
+    expect(writeSave(broken, storage)).toBe(false);
+    expect(saveWarnings()).toBe(2);
+  });
+
+  it('refuses a state that JSON cannot encode, without throwing', () => {
+    const storage = new MemoryStorage();
+    const cyclic = newGame(2) as GameState & { self?: unknown };
+    cyclic.self = cyclic;
+    expect(() => writeSave(cyclic, storage)).not.toThrow();
+    expect(writeSave(cyclic, storage)).toBe(false);
+    expect(storage.items.has(SAVE_KEY)).toBe(false);
+  });
+
+  it('writes nothing while saving is blocked, and again once allowed', () => {
+    const storage = new MemoryStorage();
+    writeSave(newGame(2), storage, NOW);
+    const before = storage.items.get(SAVE_KEY);
+    blockSaving('test');
+    blockSaving('test again');
+    expect(writeSave(newGame(3), storage)).toBe(false);
+    expect(storage.items.get(SAVE_KEY)).toBe(before);
+    expect(saveWarnings()).toBe(1);
+    allowSaving();
+    expect(writeSave(newGame(3), storage)).toBe(true);
+    expect(storage.items.get(SAVE_KEY)).not.toBe(before);
   });
 
   it('copes with no storage at all', () => {
@@ -143,5 +202,98 @@ describe('wipeSave', () => {
     const storage = new ThrowingStorage();
     storage.failRemove = true;
     expect(() => wipeSave(storage)).not.toThrow();
+  });
+});
+
+describe('discardSave', () => {
+  it('backs up the stored save when no raw text is given, then removes it', () => {
+    const storage = new MemoryStorage();
+    writeSave(newGame(2), storage, NOW);
+    const raw = storage.items.get(SAVE_KEY);
+    discardSave(storage);
+    expect(storage.items.has(SAVE_KEY)).toBe(false);
+    expect(storage.items.get(SAVE_BACKUP_KEY)).toBe(raw);
+  });
+
+  it('copes with no storage', () => {
+    expect(() => discardSave(null)).not.toThrow();
+  });
+});
+
+describe('startAutosave', () => {
+  /** A stand-in for `document`: Vitest runs in Node, which has EventTarget but no DOM. */
+  class FakeDocument extends EventTarget {
+    hidden = false;
+  }
+  let doc: FakeDocument;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    doc = new FakeDocument();
+    vi.stubGlobal('document', doc);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  const hide = (hidden: boolean): void => {
+    doc.hidden = hidden;
+    doc.dispatchEvent(new Event('visibilitychange'));
+  };
+  const savedTime = (storage: MemoryStorage): number | undefined => {
+    const raw = storage.items.get(SAVE_KEY);
+    return raw === undefined ? undefined : (JSON.parse(raw) as { state: GameState }).state.time;
+  };
+
+  it('saves every AUTOSAVE_MS, reading the current state each time', () => {
+    const storage = new MemoryStorage();
+    let state = newGame(2);
+    const stop = startAutosave(() => state, storage);
+    expect(storage.items.has(SAVE_KEY)).toBe(false);
+    vi.advanceTimersByTime(AUTOSAVE_MS);
+    expect(savedTime(storage)).toBe(0);
+    state = newGame(3);
+    state.time = 5_000;
+    vi.advanceTimersByTime(AUTOSAVE_MS);
+    expect(savedTime(storage)).toBe(5_000);
+    stop();
+  });
+
+  it('saves at once on hide, and skips timer saves while hidden', () => {
+    const storage = new MemoryStorage();
+    const state = newGame(2);
+    const stop = startAutosave(() => state, storage);
+    hide(true);
+    expect(savedTime(storage)).toBe(0);
+    storage.items.delete(SAVE_KEY);
+    vi.advanceTimersByTime(AUTOSAVE_MS * 3);
+    expect(storage.items.has(SAVE_KEY)).toBe(false);
+    hide(false);
+    expect(storage.items.has(SAVE_KEY)).toBe(false);
+    vi.advanceTimersByTime(AUTOSAVE_MS);
+    expect(savedTime(storage)).toBe(0);
+    stop();
+  });
+
+  it('stop() ends the timer and the hide listener, and is idempotent', () => {
+    const storage = new MemoryStorage();
+    const state = newGame(2);
+    const stop = startAutosave(() => state, storage);
+    stop();
+    stop();
+    vi.advanceTimersByTime(AUTOSAVE_MS * 2);
+    hide(true);
+    expect(storage.items.has(SAVE_KEY)).toBe(false);
+  });
+
+  it('never throws out of a timer when getState throws', () => {
+    const stop = startAutosave(() => {
+      throw new Error('scene gone');
+    }, new MemoryStorage());
+    expect(() => vi.advanceTimersByTime(AUTOSAVE_MS)).not.toThrow();
+    expect(saveWarnings()).toBe(1);
+    stop();
   });
 });

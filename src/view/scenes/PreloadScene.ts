@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { CANVAS_HEIGHT, CANVAS_WIDTH, COLOR_INT, COLORS } from '../../config/constants';
 import { log } from '../../core/log';
 import { ATLAS, atlasUrls } from '../assetKeys';
-import { loadSave, wipeSave } from '../../save/saveStore';
+import { discardSave, loadSave } from '../../save/saveStore';
 import { showToast } from '../safetyNet';
 import { stateCanRun, type GameSceneData } from './GameScene';
 import { STRINGS } from '../strings';
@@ -64,7 +64,7 @@ export class PreloadScene extends Phaser.Scene {
     let data: GameSceneData = {};
     if (saved !== null) {
       if (stateCanRun(saved)) data = { state: saved };
-      else wipeSave();
+      else discardSave();
     }
     this.scene.start('GameScene', data);
   }

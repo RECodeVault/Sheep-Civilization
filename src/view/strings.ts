@@ -8,7 +8,9 @@ const HUNGER: Readonly<Record<Hunger, string>> = Object.freeze({ fed: 'Fed', hun
 export const STRINGS = Object.freeze({
   // Global safety net toast (architecture Error Handling).
   errorToast: 'Something went wrong — your flock was saved.',
-  // [ASSUMPTION] Not in the Voice table: errors before GameScene starts, when no flock exists yet.
+  // [ASSUMPTION] Not in the Voice table: errors before GameScene starts (no flock yet), or when the
+  // forced save did not write (saving stopped after a sim error, storage failed): reloading resumes
+  // the last good save.
   bootErrorToast: 'Something went wrong. Try reloading the page.',
   // [ASSUMPTION] Not in the Voice table: shown once when an atlas fails to load (Story 1.4).
   assetLoadFailed: "Some of the pasture didn't load. Try reloading the page.",

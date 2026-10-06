@@ -3,7 +3,7 @@ import { COLORS } from '../../config/constants';
 import { FixedStepClock } from '../../core/fixedStep';
 import { log } from '../../core/log';
 import { InputController } from '../../input/InputController';
-import { startAutosave, wipeSave, writeSave } from '../../save/saveStore';
+import { allowSaving, startAutosave, wipeSave, writeSave } from '../../save/saveStore';
 import { applyCommand, type Command } from '../../sim/commands';
 import { clearEvents, drainEvents, type SimEvent } from '../../sim/events';
 import {
@@ -115,10 +115,10 @@ export class GameScene extends Phaser.Scene {
     const input = new InputController(this.input);
     bus.on('sim', this.onSim, this);
     // Saving (FR40): every 10 s and on hide (saveStore), and before the error toast (safety net).
+    // A new or loaded game lifts any block left by a sim error in the previous one.
+    allowSaving();
     this.stopAutosave = startAutosave(() => this.state);
-    setForceSave(() => {
-      writeSave(this.state);
-    });
+    setForceSave(() => writeSave(this.state));
     // Hidden-tab pause (AR25). Phaser also pauses its loop and resets its delta on hide/show, and the
     // clock clamps long frames, but the rule is ours: no tick while hidden, nothing added on return.
     // game.events outlives this scene, so both handlers are removed on SHUTDOWN.
@@ -162,8 +162,10 @@ export class GameScene extends Phaser.Scene {
    * Lose → Restart calls it with no confirm. Phaser queues the restart, so input handlers may call it.
    */
   newGame(): void {
-    // Stop first: an autosave between the wipe and the queued restart would write the old game back.
+    // Stop first: an autosave or forced save between the wipe and the queued restart would write the
+    // old game back.
     this.stopAutosave();
+    setForceSave(null);
     // Lose → Restart wipes without confirm; settings are kept (UX-DR89).
     wipeSave();
     // create() consumed any earlier data.state, so empty data means createNewGame.
@@ -231,6 +233,9 @@ export class GameScene extends Phaser.Scene {
    */
   loadState(state: GameState): boolean {
     if (!stateCanRun(state)) return false;
+    // As in newGame: the old game must not be saved over the loaded one before the restart runs.
+    this.stopAutosave();
+    setForceSave(null);
     const data: GameSceneData = { state };
     this.scene.restart(data);
     return true;

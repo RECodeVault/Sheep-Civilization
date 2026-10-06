@@ -11,6 +11,7 @@
 import type Phaser from 'phaser';
 import { COMPONENTS, COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../config/constants';
 import { log, type LogTag } from '../core/log';
+import { blockSaving } from '../save/saveStore';
 import { STRINGS } from './strings';
 
 // EXPERIENCE.md: announcement toasts last about 4 s; up to 3 stack, newest on top.
@@ -40,8 +41,9 @@ let container: HTMLElement | null = null;
 let game: Phaser.Game | null = null;
 let installed = false;
 let gameStarted = false;
-// Set by GameScene while a game runs: writes the save (validated first) before the error toast.
-let forceSave: (() => void) | null = null;
+// Set by GameScene while a game runs: writes the save (validated first) before the error toast and
+// returns whether it was written.
+let forceSave: (() => boolean) | null = null;
 let toastStack: HTMLDivElement | null = null;
 let lastErrorToastAt = Number.NEGATIVE_INFINITY;
 const seen = new Map<string, Seen>();
@@ -75,7 +77,7 @@ export function markGameStarted(): void {
 }
 
 /** GameScene registers its save here on create and clears it on shutdown. */
-export function setForceSave(fn: (() => void) | null): void {
+export function setForceSave(fn: (() => boolean) | null): void {
   forceSave = fn;
 }
 
@@ -83,19 +85,24 @@ export function setForceSave(fn: (() => void) | null): void {
 export function reportError(source: LogTag, err: unknown): void {
   try {
     logDeduped('error', source, `Unhandled error: ${describe(err)}`, err);
+    // A sim error may leave a state that is valid yet throws every tick. Saving it would replace the
+    // last good save with one the next boot rejects, so stop saving for this game (1.9 review).
+    if (source === 'sim') blockSaving('the game hit an error');
     const now = performance.now();
     if (now - lastErrorToastAt >= ERROR_TOAST_COOLDOWN_MS) {
       lastErrorToastAt = now;
-      // Before the toast claims the flock was saved, and on the toast's cooldown: an error repeating
-      // every frame must not serialise the game every frame. Never via reportError (it would recurse).
+      // Before the toast, and on its cooldown: an error repeating every frame must not serialise the
+      // game every frame. Never via reportError (it would recurse). The toast says the flock was saved
+      // only when it was; otherwise reloading resumes the last good save.
+      let saved = false;
       if (gameStarted && forceSave !== null) {
         try {
-          forceSave();
+          saved = forceSave();
         } catch (saveErr) {
           console.error('[save] Forced save failed', saveErr);
         }
       }
-      showToast(gameStarted ? STRINGS.errorToast : STRINGS.bootErrorToast);
+      showToast(saved ? STRINGS.errorToast : STRINGS.bootErrorToast);
     }
     scheduleWatchdog();
   } catch (inner) {

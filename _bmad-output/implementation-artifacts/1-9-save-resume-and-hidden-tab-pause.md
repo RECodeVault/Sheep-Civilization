@@ -4,7 +4,7 @@ baseline_commit: 2b0b0aa4fe7fcf4ce934c072338fb527b7dd22ba
 
 # Story 1.9: Save, Resume and Hidden-Tab Pause
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -211,6 +211,22 @@ so that I never lose progress or lose sheep while away.
     - "0 sheep without `lostAt`" and "`lostAt` shape" (1.8 review).
   - [x] 11.2 Add a new section, "Deferred from: story 1-9-save-resume-and-hidden-tab-pause", for anything that comes up. Expected: **(1.10)** TitleScene takes over the load decision from PreloadScene (Continue only when `loadSave` would succeed; New Game with a save → confirm → `wipeSave`); pause (Esc) and hidden-tab pause must both stop the clock without fighting each other (two flags, either one stops it). **(5.7)** `settingsStore.ts` (volumes, reduced motion, captions) under `SETTINGS_KEY` with the same try/catch pattern.
 
+### Review Findings
+
+- [x] [Review][Patch] Back up a rejected save before wiping it (Rylan: back up, then delete): copy the raw text to `sheepciv.save.v1.bad` (one slot), then remove the save; add the key to constants and project-context [src/save/saveStore.ts:47] (blind+edge)
+- [x] [Review][Decision] Unreadable storage leaves the save in place — **Resolved (Rylan): keep the save.** A transient read failure must not destroy progress; Task 5.2 / AC 3 wording is superseded for this case (Dev Record deviation 3). (auditor+edge)
+- [x] [Review][Patch] Stop saving after a sim error (Rylan): after a `sim`-source error, refuse all saves for the session so the last good save survives; the toast says "your flock was saved" only when the forced save wrote, otherwise a plain error toast [src/view/safetyNet.ts:97] (blind+edge+auditor)
+- [x] [Review][Defer] Two open tabs overwrite one save; Restart in one tab is undone by the other [src/save/saveStore.ts:104] — deferred (Rylan): rare for this kind of game
+- [x] [Review][Patch] Forced save can write the lost game back after Restart's wipe: clear it in `newGame()` (and `loadState`) [src/view/scenes/GameScene.ts:164] (blind+edge+auditor)
+- [x] [Review][Patch] Validation-refused writes warn every 10 s: throttle like `writeFailing` [src/save/saveStore.ts:73] (blind+edge+auditor)
+- [x] [Review][Patch] `writeSave` encode/parse is outside its try/catch [src/save/saveStore.ts:71] (blind)
+- [x] [Review][Patch] The "removing throws too" test never reaches `removeItem`; test a rejected save with a throwing `removeItem` [tests/save/saveStore.test.ts:88] (blind+auditor+edge)
+- [x] [Review][Patch] Module-level `writeFailing` leaks between tests: add a test-only reset used in `beforeEach` [src/save/saveStore.ts:32] (blind+edge)
+- [x] [Review][Patch] Weak assertions: `'state that is null'` matches nearly any reason; `saveWarnings() > 0` does not pin the count [tests/save/validate.test.ts:79] (edge)
+- [x] [Review][Patch] Counters accepted up to `MAX_SAFE_INTEGER` can overflow into an unsavable state: cap `time`, `nextId` and stats at a realistic maximum [src/save/validate.ts:38] (edge)
+- [x] [Review][Patch] `project-context.md` still says `isAbomination` is read only in `src/sim/` and `src/debug/`; add `src/save/` [_bmad-output/project-context.md:97] (auditor)
+- [x] [Review][Patch] `startAutosave` has no tests: cover the interval, skip-while-hidden, hide-save and idempotent `stop()` with a stubbed `document` and fake timers (save layer, not the sim) [src/save/saveStore.ts:104] (blind+edge)
+
 ## Dev Notes
 
 ### What exists today (read before changing)
@@ -382,6 +398,33 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
   4. **No `SAVE_SCHEMA_VERSION` bump and no `settingsStore.ts`,** as the story planned.
 - **For Rylan:** the three Dev Notes questions stand. The defaults are built: auto-resume at boot until 1.10, discard bad saves, and validate-then-save after errors.
 
+### Review Follow-up (2026-10-06)
+
+The review found 4 decisions, 9 patches, 0 deferred items and 6 dismissed. The decisions became 2 patches, 1 resolved as-is and 1 deferred.
+
+- **Decisions (Rylan):**
+  - Back up a rejected save, then delete it → patch.
+  - Keep the save when storage cannot be read → resolved; it stays as built.
+  - Stop saving after a sim error, and say "saved" only when it was → patch.
+  - Two tabs → deferred ("rare for this kind of game").
+- **Patches applied (11):**
+  - **Backup:** `SAVE_BACKUP_KEY` (`sheepciv.save.v1.bad`). `discardSave` copies the raw save there before removing it; it is used by `loadSave` and by PreloadScene's `stateCanRun` fallback.
+  - **Saving after errors:** `blockSaving`/`allowSaving`. `reportError('sim')` blocks saving, `GameScene.create` allows it again, and `forceSave` returns whether it wrote. The toast is "Something went wrong — your flock was saved." only when it did, otherwise "Something went wrong. Try reloading the page."
+  - **Restart and debug Load:** `newGame()` and `loadState()` now stop autosave and clear the forced save before the wipe or restart.
+  - **Warnings:** invalid-state and encode failures warn once until a successful write.
+  - **`writeSave` never throws:** encode and parse are inside the try.
+  - **Counter cap:** `time`, ids and counters are capped at 2^48 (`COUNTER_MAX`).
+  - **Docs:** `project-context.md` now lists `src/save/` as an `isAbomination` reader, and the backup key under Persistence.
+  - **Test fixes:** `resetSaveStoreForTests` runs in `beforeEach`; the rejected-save-with-throwing-`removeItem`/`setItem` case is now tested; the null-state and warning-count assertions were tightened.
+  - **New tests:** `startAutosave` (interval, current state read on each save, hide-save, skip while hidden, idempotent `stop()`, a throwing `getState`) with stubbed `document` and fake timers; plus backup, block/allow, encode-failure and newer-version tests.
+- **Result:** `npm test` 258/258 in 26 files. Typecheck, lint and build are clean, and `dist/` is clean.
+- **Browser re-check** (`review19probe.mjs`, 10/10):
+  - A corrupt save is backed up and removed.
+  - A sim error gives the "Try reloading" toast, hide-saves are refused, the last good save is kept, and "Saving stopped" is warned once.
+  - Restart wipes the save, and the new game saves again.
+  - A UI error forces a save, and the toast says "saved".
+  - Settings were untouched, and there were no unexpected errors.
+
 ### File List
 
 - `src/save/validate.ts` (new)
@@ -399,6 +442,8 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
 - `tests/save/roundTrip.test.ts` (new)
 - `tests/save/saveStore.test.ts` (new)
 - `tests/save/saveFile.test.ts` (modified)
+- `src/view/strings.ts` (modified in review: `bootErrorToast` comment)
+- `_bmad-output/project-context.md` (modified in review)
 - `_bmad-output/implementation-artifacts/deferred-work.md` (modified)
 - `_bmad-output/implementation-artifacts/sprint-status.yaml` (modified)
 - `_bmad-output/implementation-artifacts/1-9-save-resume-and-hidden-tab-pause.md` (this story)
@@ -409,3 +454,4 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
 |---|---|
 | 2026-10-06 | Story created (ready-for-dev). |
 | 2026-10-06 | Implemented: save validation, migrations, `saveStore` (load/write/wipe/autosave/hide-save), boot resume, hidden-tab pause, Restart wipe, and a forced save on errors. 91 new tests (244 total). Browser probe: all checks pass (corrupt-save confirmed on a separate run). Status → review. |
+| 2026-10-06 | Code review: 4 decisions (2 → patches, 1 kept as built, 1 deferred), 11 patches applied, 6 dismissed; 258 tests; browser re-check 10/10. Status → done. |
