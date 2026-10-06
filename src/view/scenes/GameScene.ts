@@ -5,7 +5,14 @@ import { log } from '../../core/log';
 import { InputController } from '../../input/InputController';
 import { applyCommand, type Command } from '../../sim/commands';
 import { clearEvents, drainEvents, type SimEvent } from '../../sim/events';
-import { fenceBounds, isLost, selectFoodPieces, selectPublicSheep, type PublicSheep } from '../../sim/selectors';
+import {
+  fenceBounds,
+  isLost,
+  selectFoodPieces,
+  selectLoseView,
+  selectPublicSheep,
+  type PublicSheep,
+} from '../../sim/selectors';
 import { createNewGame, type FoodPiece, type GameState } from '../../sim/state';
 import { step } from '../../sim/step';
 import { ATLAS, FRAME } from '../assetKeys';
@@ -201,6 +208,8 @@ export class GameScene extends Phaser.Scene {
       fenceBounds(probe);
       step(probe);
       selectPublicSheep(probe, []);
+      // A lost state skips step(), and OverlayScene.create reads it through this.
+      selectLoseView(probe, { survivedMs: 0, peakFlock: 0 });
     } catch (err) {
       log.warn('save', 'State cannot run; keeping the current game', err);
       return false;

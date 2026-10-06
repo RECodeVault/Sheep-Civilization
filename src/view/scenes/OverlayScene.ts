@@ -48,8 +48,13 @@ export class OverlayScene extends Phaser.Scene {
       bus.off('sim', this.onSim, this);
     });
 
-    // A state that is already lost (debug Load now, Story 1.9 resume later): show at once.
-    if (isLost(this.gameScene.simState)) this.showLose(false);
+    // A state that is already lost (debug Load now, Story 1.9 resume later): show at once. Guarded:
+    // a throw inside create() would leave Phaser's scene queue stuck.
+    try {
+      if (isLost(this.gameScene.simState)) this.showLose(false);
+    } catch (err) {
+      reportError('ui', err);
+    }
   }
 
   // Runs inside GameScene's tick (drainEvents → bus): a throw must not count as a sim error.

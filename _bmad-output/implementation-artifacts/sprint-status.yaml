@@ -1,5 +1,5 @@
 # generated: 2026-10-05T14:42:07-07:00
-# last_updated: 2026-10-06T13:09:47-07:00
+# last_updated: 2026-10-06T13:16:57-07:00
 # project: sheep-civilization
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: '2026-10-05T14:42:07-07:00'
-last_updated: '2026-10-06T13:09:47-07:00'
+last_updated: '2026-10-06T13:16:57-07:00'
 project: sheep-civilization
 project_key: NOKEY
 tracking_system: file-system
@@ -51,7 +51,7 @@ development_status:
   1-5-hunger-and-starvation: done
   1-6-hud-bottom-bar-farm-button-and-food-meter: done
   1-7-drop-food-and-sheep-eat: done
-  1-8-losing-the-flock: review
+  1-8-losing-the-flock: done
   1-9-save-resume-and-hidden-tab-pause: backlog
   1-10-title-screen-pause-menu-and-start-over-confirm: backlog
   epic-1-retrospective: optional

@@ -4,7 +4,7 @@ baseline_commit: 2c3f034b3ca2db88083d91d10d5e4d0d3abdf2f9
 
 # Story 1.8: Losing the Flock
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -171,6 +171,18 @@ so that I know the run is over and can start again.
     - **(2.4)** `removeSheep` must call `checkLastSheepAndLoss`.
     - **(5.5)** `LastSheep` is emitted from `checkLastSheepAndLoss`.
   - [x] 11.2 Mark the 1.6 "HudScene lifetime" item as unaffected: GameScene keeps running after a loss, so the HUD's reads stay valid.
+
+### Review Findings
+
+- [x] [Review][Decision] Debug actions on a lost game: "+10 sheep" / "+5 food" still mutate a lost state. The result is live sheep frozen behind the panel, `peakFlock` rising after `Lost`, and Copy save writing a lost state with sheep in it. Gotcha 9 accepted this for a DEV tool. Options: keep it (dev-only), or make the debug sheep/food buttons do nothing while lost. (blind+edge) — **Resolved (Rylan): keep as is** (dev-only tool, as gotcha 9 accepted).
+- [x] [Review][Patch] `Button.setVisible(true)` re-enables the hit zone of a disabled button; use `visible && this.enabled` [src/view/widgets/Button.ts:146] (blind) — **verified not a bug:** `onDown` already refuses a disabled button, and disabling the zone would break the greyed Breed tool's reason tooltip (UX-DR31). A comment was added instead of a code change.
+- [x] [Review][Patch] `loadState`'s probe no longer covers the lose path. `step(probe)` returns at once for a lost state, and `OverlayScene.create` → `selectLoseView` reads `stats.peakFlock` unguarded inside `create`. Probe `selectLoseView` too, and guard `create`'s show with `reportError('ui')` [src/view/scenes/GameScene.ts:180] (edge)
+- [x] [Review][Patch] The "lostAt equals the last death's tick" assertions are vacuous: `step` freezes `time` at `lostAt`, so `lostAt === state.time` always holds. Record the tick of the final `SheepDied` and compare against it (Tasks 9.6/9.7) [tests/sim/scenarios/starvation.test.ts:28] (blind+auditor)
+- [x] [Review][Patch] The HUD Farm tooltip can still appear under the scrim when the hover started just before the loss (the scrim stops HUD pointer-out). Hide the HUD tooltip while lost [src/view/scenes/HudScene.ts:99] (blind+edge)
+- [x] [Review][Defer] A 0-sheep state without `lostAt` is never lost (`checkLastSheepAndLoss` runs only from `killSheep`) [src/sim/systems/carcass.ts:38] — deferred: only reachable from a hand-made or corrupt save; Story 1.9 validation
+- [x] [Review][Defer] `lostAt` values are not validated: `null` makes `isLost` true while `selectLoseView` shows `time`; string, negative or `> time` values pass `decodeSave` [src/sim/selectors.ts:114] — deferred: Story 1.9 validation (already listed)
+- [x] [Review][Defer] Systems after `updateHunger` still run in the tick that sets `lostAt` [src/sim/step.ts:15] — deferred: harmless while hunger is the last system; Story 2.1/2.3 (lifecycle/births) must re-check
+- [x] [Review][Defer] `Button.setVisible(false)` while hovered leaves the hand cursor, and `setVisible(true)` under the pointer shows no hover until it moves [src/view/widgets/Button.ts:146] — deferred: the lose panel never hides in place; Story 1.10 (modals that hide in place)
 
 ## Dev Notes
 
@@ -370,6 +382,23 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
   - The three open questions in Dev Notes (schema bump, stats type size, panel size) still stand. The defaults are what is built.
   - No SFX or caption on loss, since no doc defines one.
 
+### Review Follow-up (2026-10-06)
+
+The review found 1 decision, 4 patches, 4 deferred items and 7 dismissed.
+
+- **Decision (Rylan): keep it.** Debug "+10 sheep" / "+5 food" still work on a lost game; this is dev-only, as gotcha 9 accepted.
+- **Patch 1, verified not a bug:** a disabled `Button` already cannot press or activate (`onDown` checks `enabled`). It keeps its hit zone for the reason tooltip (UX-DR31), and a comment in `setVisible` now explains that.
+- **Patch 2:**
+  - `GameScene.loadState`'s probe also runs `selectLoseView`, because a lost state skips `step()`.
+  - `OverlayScene.create` wraps its at-once show in `try/catch → reportError('ui')`.
+- **Patch 3:** the starvation scenarios now step tick by tick and record the game time of every `SheepDied`.
+  - Same Fullness: all 3 deaths happen on one tick, and `lostAt` is that tick.
+  - Staggered deaths: the first death comes before the last, and `lostAt` is the last.
+  - Mutation check: `lostAt = time − 100` fails both tests (reverted).
+- **Patch 4:** `HudScene.updateTooltip` takes `lost` and never shows the Farm tooltip while the game is lost.
+- **Deferred:** 4 items in `deferred-work.md`, under "Deferred from: code review of 1-8-losing-the-flock".
+- **Result:** `npm test` 153/153. Typecheck, lint and build are clean.
+
 ### File List
 
 - `src/view/scenes/OverlayScene.ts` (new)
@@ -406,3 +435,4 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
 |---|---|
 | 2026-10-06 | Story created (ready-for-dev). |
 | 2026-10-06 | Implemented: loss detection and sim stop (`lostAt`, `Lost`, `checkLastSheepAndLoss`), peak flock in `createSheep`, `OverlayScene` + `LosePanel` with scrim and Restart; 13 new tests (153 total); browser probe 20/20. Status → review. |
+| 2026-10-06 | Code review: 1 decision (keep debug actions), 3 patches applied plus 1 verified not a bug, 4 deferred, 7 dismissed. Status → done. |

@@ -58,9 +58,10 @@ export class HudScene extends Phaser.Scene {
 
   private readonly refresh = (): void => {
     try {
-      const v = selectHudView(this.gameScene.simState, this.view);
+      const state = this.gameScene.simState;
+      const v = selectHudView(state, this.view);
       this.bar.farmProgress.set(v.farmProgress, v.farmPipsPerFood);
-      this.updateTooltip(this.game.loop.time);
+      this.updateTooltip(this.game.loop.time, isLost(state));
     } catch (err) {
       reportError('ui', err);
     }
@@ -99,10 +100,12 @@ export class HudScene extends Phaser.Scene {
     }
   };
 
-  private updateTooltip(now: number): void {
+  private updateTooltip(now: number, lost: boolean): void {
     const b = this.bar.farmButton;
     const since = b.hoverSince;
-    const show = b.tooltip !== undefined && since >= 0 && now - since >= HOVER_DELAY_MS;
+    // While lost the lose scrim takes the pointer, so the button never sees pointer-out: a hover that
+    // began before the loss would otherwise pop its tooltip under the scrim.
+    const show = !lost && b.tooltip !== undefined && since >= 0 && now - since >= HOVER_DELAY_MS;
     if (!show) {
       if (this.tooltipFor !== null) {
         this.tooltip.hide();

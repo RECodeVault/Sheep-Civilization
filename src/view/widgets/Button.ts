@@ -145,6 +145,8 @@ export class Button {
   /** Shows or hides the button; a hidden button takes no input and drops any hover or press. */
   setVisible(visible: boolean): this {
     this.root.setVisible(visible);
+    // Not `visible && enabled`: a disabled button keeps its zone so it can hover for its reason
+    // tooltip (UX-DR31); onDown already refuses to press or activate it while disabled.
     if (this.zone.input) this.zone.input.enabled = visible;
     if (!visible) {
       this.hovered = false;

@@ -88,3 +88,11 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Esc and shortcuts on the lose screen (Story 1.10):** the `Esc` chain must do nothing while the lose panel is up (no pause over a lost game), and the modal check that ignores F/G must include it. Today F is already a no-op when lost (`HudScene.farm` and `applyCommand` both guard). The one scrim lives in `OverlayScene` for the pause and confirm modals to reuse.
 - **`removeSheep` (Story 2.7, sacrifice; 3.1, sell):** it must end with `checkLastSheepAndLoss(state)`, exported from `systems/carcass.ts`; selling or sacrificing the last sheep is a loss.
 - **`LastSheep` (Story 5.5):** emit it from `checkLastSheepAndLoss` when the flock drops to 1 (marked comment).
+
+## Deferred from: code review of 1-8-losing-the-flock (2026-10-06)
+
+- **0 sheep without `lostAt` (Story 1.9):** `checkLastSheepAndLoss` runs only from `killSheep`, so a decoded save with `sheep: []` and no `lostAt` runs forever on an empty pen. Validation should run the loss check on load, or reject the save.
+- **`lostAt` shape (Story 1.9):** `null` makes `isLost` true while `selectLoseView`'s `??` shows `time`. String, negative or `> time` values pass `decodeSave`. This extends the "Validating `lostAt`" item above.
+- **Systems after the loss tick (Stories 2.1, 2.3):** `lostAt` is set inside `updateHunger`, and any system after it in the same `step` still runs. That is harmless while hunger is last. Once lifecycle or births run after hunger, a game could be lost with live sheep: return early from `step` after a loss, or check `lostAt` in those systems.
+- **`Button` hide/show in place (Story 1.10):** `setVisible(false)` while hovered never fires OUT, so the hand cursor stays. `setVisible(true)` under the pointer shows no hover until it moves. The lose panel never hides in place, but pause and confirm will.
+
