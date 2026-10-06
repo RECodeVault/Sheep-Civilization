@@ -3,6 +3,7 @@ import { COLORS } from '../../config/constants';
 import { FixedStepClock } from '../../core/fixedStep';
 import { log } from '../../core/log';
 import { InputController } from '../../input/InputController';
+import { startAutosave, wipeSave, writeSave } from '../../save/saveStore';
 import { applyCommand, type Command } from '../../sim/commands';
 import { clearEvents, drainEvents, type SimEvent } from '../../sim/events';
 import {
@@ -23,7 +24,7 @@ import { FoodSprite } from '../field/FoodSprite';
 import { ObjectPool } from '../field/ObjectPool';
 import { SheepHover } from '../field/SheepHover';
 import { SheepSprite } from '../field/SheepSprite';
-import { markGameStarted, reportError } from '../safetyNet';
+import { markGameStarted, reportError, setForceSave } from '../safetyNet';
 import { Tooltip } from '../widgets/Tooltip';
 
 const SHEEP_POOL_SIZE = 120;
@@ -44,17 +45,25 @@ const MUNCH = {
 // it, and sheep never reach the bar, so the two tooltips never overlap.
 const TOOLTIP_DEPTH = 10_000;
 
-/** Optional scene data: a state to resume instead of a new game (debug load now, Story 1.9 later). */
+/** Optional scene data: a state to resume instead of a new game (a loaded save, or debug Load save). */
 export interface GameSceneData {
   state?: GameState;
 }
 
 // Owns the sim loop: accumulates real frame time into fixed ticks, applies pending commands at the
 // start of each tick, steps the sim, forwards its events, then renders the field from selectors.
-// Pause (Stories 1.9/1.10) = stop advancing the clock, never scene.pause().
+// Pause (hidden tab here, Esc in Story 1.10) = stop advancing the clock, never scene.pause().
+// GameScene never reads storage: the save is loaded before it starts (PreloadScene, TitleScene in
+// 1.10), so a plain restart can never resurrect a wiped save.
 export class GameScene extends Phaser.Scene {
   private state!: GameState;
   private clock!: FixedStepClock;
+  // FR41/AR25: true while the tab is hidden; the clock does not advance. Its own flag, so 1.10's Esc
+  // pause can sit beside it (and the debug pause, simClock.speed = 0, stays separate).
+  private hidden = false;
+  // The first frame after the tab returns adds no time (no catch-up burst).
+  private skipDelta = false;
+  private stopAutosave: () => void = () => {};
   private pendingCommands: Command[] = [];
   private readonly publicSheep: PublicSheep[] = [];
   private sheepLayer!: EntityLayer<PublicSheep, SheepSprite>;
@@ -84,7 +93,7 @@ export class GameScene extends Phaser.Scene {
     markGameStarted();
     // Clear first, so events emitted while a game is built or loaded reach the first drain.
     clearEvents();
-    // Math.random is fine in view code; Story 1.9 swaps this for load-or-new.
+    // Math.random is fine in view code. A resumed save restores its own rng state.
     this.state = data?.state ?? createNewGame(Math.floor(Math.random() * 2 ** 32));
     // Phaser keeps restart data in settings.data and reuses it when a later restart passes none, so
     // consume it: a plain restart must start a new game, not resume this (by then mutated) state.
@@ -105,9 +114,25 @@ export class GameScene extends Phaser.Scene {
     this.sheepHover = new SheepHover(this.input, this.sheepLayer, new Tooltip(this, TOOLTIP_DEPTH));
     const input = new InputController(this.input);
     bus.on('sim', this.onSim, this);
+    // Saving (FR40): every 10 s and on hide (saveStore), and before the error toast (safety net).
+    this.stopAutosave = startAutosave(() => this.state);
+    setForceSave(() => {
+      writeSave(this.state);
+    });
+    // Hidden-tab pause (AR25). Phaser also pauses its loop and resets its delta on hide/show, and the
+    // clock clamps long frames, but the rule is ours: no tick while hidden, nothing added on return.
+    // game.events outlives this scene, so both handlers are removed on SHUTDOWN.
+    this.hidden = document.hidden;
+    this.skipDelta = false;
+    this.game.events.on(Phaser.Core.Events.HIDDEN, this.onHidden, this);
+    this.game.events.on(Phaser.Core.Events.VISIBLE, this.onVisible, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       input.destroy();
       bus.off('sim', this.onSim, this);
+      this.stopAutosave();
+      setForceSave(null);
+      this.game.events.off(Phaser.Core.Events.HIDDEN, this.onHidden, this);
+      this.game.events.off(Phaser.Core.Events.VISIBLE, this.onVisible, this);
     });
     this.render();
     // Run in parallel, drawn above (Overlay on top). `launch` restarts a running scene, so every
@@ -137,7 +162,10 @@ export class GameScene extends Phaser.Scene {
    * Lose → Restart calls it with no confirm. Phaser queues the restart, so input handlers may call it.
    */
   newGame(): void {
-    // Story 1.9: saveStore.wipe() here (Lose → Restart wipes without confirm; settings are kept).
+    // Stop first: an autosave between the wipe and the queued restart would write the old game back.
+    this.stopAutosave();
+    // Lose → Restart wipes without confirm; settings are kept (UX-DR89).
+    wipeSave();
     // create() consumed any earlier data.state, so empty data means createNewGame.
     this.scene.restart({});
   }
@@ -155,8 +183,10 @@ export class GameScene extends Phaser.Scene {
         // FR38: the sim has stopped; the field stays drawn, frozen behind the lose screen. Presses
         // that queued before the loss are dropped (applyCommand would ignore them anyway).
         this.pendingCommands.length = 0;
-      } else {
-        const ticks = this.clock.advance(this.game.loop.rawDelta);
+      } else if (!this.hidden) {
+        // FR41: nothing advances while the tab is hidden; the first frame back adds no time.
+        const ticks = this.clock.advance(this.skipDelta ? 0 : this.game.loop.rawDelta);
+        this.skipDelta = false;
         for (let t = 0; t < ticks; t++) this.tick();
       }
       this.render();
@@ -197,29 +227,23 @@ export class GameScene extends Phaser.Scene {
 
   /**
    * Replaces the game by restarting the scene, so every pooled sprite, the fence and the clock reset.
-   * First runs a copy of the state through the selectors and one tick: a state that would throw in
-   * create() would leave Phaser's restart queue stuck for good. Returns false (game unchanged) if
-   * the copy throws. Story 1.9 replaces this probe with real save validation.
+   * Returns false (game unchanged) if the state cannot run (see stateCanRun).
    */
   loadState(state: GameState): boolean {
-    try {
-      const probe = JSON.parse(JSON.stringify(state)) as GameState;
-      selectPublicSheep(probe, []);
-      fenceBounds(probe);
-      step(probe);
-      selectPublicSheep(probe, []);
-      // A lost state skips step(), and OverlayScene.create reads it through this.
-      selectLoseView(probe, { survivedMs: 0, peakFlock: 0 });
-    } catch (err) {
-      log.warn('save', 'State cannot run; keeping the current game', err);
-      return false;
-    } finally {
-      // The probe tick's events are not the current game's. The queue is empty between frames.
-      clearEvents();
-    }
+    if (!stateCanRun(state)) return false;
     const data: GameSceneData = { state };
     this.scene.restart(data);
     return true;
+  }
+
+  private onHidden(): void {
+    this.hidden = true;
+  }
+
+  private onVisible(): void {
+    this.hidden = false;
+    this.clock.reset();
+    this.skipDelta = true;
   }
 
   private tick(): void {
@@ -239,5 +263,29 @@ export class GameScene extends Phaser.Scene {
     this.foodLayer.sync(selectFoodPieces(this.state), this.clock.alpha, this.state.time);
     selectPublicSheep(this.state, this.publicSheep);
     this.sheepLayer.sync(this.publicSheep, this.clock.alpha, this.state.time);
+  }
+}
+
+/**
+ * Runs a copy of the state through the selectors and one tick. A state that would throw in
+ * GameScene.create would leave Phaser's restart queue stuck for good, so a state is probed before a
+ * scene starts on it. Save validation runs first; this catches anything it does not know about.
+ */
+export function stateCanRun(state: GameState): boolean {
+  try {
+    const probe = JSON.parse(JSON.stringify(state)) as GameState;
+    selectPublicSheep(probe, []);
+    fenceBounds(probe);
+    step(probe);
+    selectPublicSheep(probe, []);
+    // A lost state skips step(), and OverlayScene.create reads it through this.
+    selectLoseView(probe, { survivedMs: 0, peakFlock: 0 });
+    return true;
+  } catch (err) {
+    log.warn('save', 'State cannot run; not starting it', err);
+    return false;
+  } finally {
+    // The probe tick's events are not the current game's. The queue is empty between frames.
+    clearEvents();
   }
 }

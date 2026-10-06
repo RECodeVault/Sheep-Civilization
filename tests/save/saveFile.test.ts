@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SAVE_SCHEMA_VERSION } from '../../src/config/constants';
 import { TUNING } from '../../src/config/tuning';
-import { decodeSave, encodeSave } from '../../src/save/saveFile';
+import { decodeSave, decodeSaveResult, encodeSave } from '../../src/save/saveFile';
 import { newGame, runFor } from '../sim/helpers';
 
 const NOW = new Date('2026-10-06T12:34:56.789Z');
@@ -52,12 +52,33 @@ describe('encodeSave / decodeSave', () => {
       ['carcasses that is not an array', withState({ carcasses: 'none' })],
       ['a string time', withState({ time: '100' })],
       ['a missing time', withState({ time: undefined })],
+      ['a missing savedAt', JSON.stringify({ schemaVersion: SAVE_SCHEMA_VERSION, state: good.state })],
+      ['a numeric savedAt', JSON.stringify({ ...good, savedAt: 0 })],
+      ['a NaN fullness (JSON null)', withState({ sheep: [{ ...(good.state as { sheep: object[] }).sheep[0], fullness: null }] })],
       // JSON cannot carry NaN or Infinity; a huge exponent parses to Infinity.
       ['a non-finite time', JSON.stringify({ ...good, state: { ...(good.state as object), time: 0 } }).replace('"time":0', '"time":1e999')],
     ];
 
     it.each(cases)('%s', (_name, raw) => {
       expect(decodeSave(raw)).toBeNull();
+    });
+  });
+
+  describe('decodeSaveResult', () => {
+    it('returns the state of a good save', () => {
+      const state = newGame(11);
+      expect(decodeSaveResult(encodeSave(state, NOW))).toStrictEqual({ ok: true, state });
+    });
+
+    it('names the reason for a bad save', () => {
+      const r = decodeSaveResult('not a save {');
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.reason).toMatch(/JSON/);
+      const state = newGame(11);
+      state.sheep[0].fullness = Number.NaN;
+      const r2 = decodeSaveResult(encodeSave(state, NOW));
+      expect(r2.ok).toBe(false);
+      if (!r2.ok) expect(r2.reason).toContain('sheep[0].fullness');
     });
   });
 });

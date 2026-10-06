@@ -1,9 +1,9 @@
 // The versioned save envelope (architecture Data Persistence): `{ schemaVersion, savedAt, state }`.
-// Pure encode/decode only; localStorage, autosave and the visibility hook arrive in Story 1.9.
-// Story 1.9 replaces the shape check in decodeSave with migrate → validate (non-finite numbers,
-// duplicate ids: see deferred-work.md).
+// Pure encode/decode only; storage, autosave and the visibility hook live in saveStore.ts.
 import { SAVE_SCHEMA_VERSION } from '../config/constants';
 import type { GameState } from '../sim/state';
+import { migrate } from './migrations';
+import { validateState, type ValidationResult } from './validate';
 
 export interface SaveFile {
   schemaVersion: number;
@@ -17,22 +17,27 @@ export function encodeSave(state: GameState, now: Date = new Date()): string {
   return JSON.stringify(file);
 }
 
-/** Parses a save envelope; returns its state, or null for anything that is not a current-version save. */
-export function decodeSave(raw: string): GameState | null {
+/** Parses a save: JSON → envelope check → migrate → validate (AR9). Never throws. */
+export function decodeSaveResult(raw: string): ValidationResult {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch {
-    return null;
+    return { ok: false, reason: 'not valid JSON' };
   }
-  if (!isPlainObject(parsed) || parsed.schemaVersion !== SAVE_SCHEMA_VERSION) return null;
-  const state = parsed.state;
-  if (!isPlainObject(state)) return null;
-  if (typeof state.time !== 'number' || !Number.isFinite(state.time)) return null;
-  if (!Array.isArray(state.sheep) || !Array.isArray(state.foodPieces) || !Array.isArray(state.carcasses)) {
-    return null;
-  }
-  return state as unknown as GameState;
+  if (!isPlainObject(parsed)) return { ok: false, reason: 'save is not an object' };
+  if (typeof parsed.schemaVersion !== 'number') return { ok: false, reason: 'schemaVersion is missing' };
+  if (typeof parsed.savedAt !== 'string') return { ok: false, reason: 'savedAt is missing' };
+  if (!('state' in parsed)) return { ok: false, reason: 'state is missing' };
+  const migrated = migrate(parsed.schemaVersion, parsed.state);
+  if (!migrated.ok) return migrated;
+  return validateState(migrated.state);
+}
+
+/** Like decodeSaveResult, for callers that only need the state (the debug overlay's Load save). */
+export function decodeSave(raw: string): GameState | null {
+  const r = decodeSaveResult(raw);
+  return r.ok ? r.state : null;
 }
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {

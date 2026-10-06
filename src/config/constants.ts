@@ -10,6 +10,8 @@ export const CANVAS_HEIGHT = 720;
 
 export const SAVE_KEY = 'sheepciv.save.v1';
 export const SETTINGS_KEY = 'sheepciv.settings';
+// Real-time autosave interval (FR40). Not a game-time value, so it is not in TUNING.
+export const AUTOSAVE_MS = 10_000;
 // 2 since Story 1.7 (2026-10-06): `food` removed, `farmProgress` and sheep `targetId` added. No
 // version-1 save was ever persisted (saving starts in 1.9), so older debug saves are simply rejected.
 // Optional fields whose absence keeps the old meaning need no bump: `lostAt` (1.8) is omitted while

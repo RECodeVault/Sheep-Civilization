@@ -40,6 +40,8 @@ let container: HTMLElement | null = null;
 let game: Phaser.Game | null = null;
 let installed = false;
 let gameStarted = false;
+// Set by GameScene while a game runs: writes the save (validated first) before the error toast.
+let forceSave: (() => void) | null = null;
 let toastStack: HTMLDivElement | null = null;
 let lastErrorToastAt = Number.NEGATIVE_INFINITY;
 const seen = new Map<string, Seen>();
@@ -72,14 +74,27 @@ export function markGameStarted(): void {
   gameStarted = true;
 }
 
+/** GameScene registers its save here on create and clears it on shutdown. */
+export function setForceSave(fn: (() => void) | null): void {
+  forceSave = fn;
+}
+
 /** Entry point for caught errors that should be treated like unhandled ones. Never throws. */
 export function reportError(source: LogTag, err: unknown): void {
   try {
     logDeduped('error', source, `Unhandled error: ${describe(err)}`, err);
-    // Story 1.9: forceSave() here, inside its own try/catch, before the toast claims the flock was saved.
     const now = performance.now();
     if (now - lastErrorToastAt >= ERROR_TOAST_COOLDOWN_MS) {
       lastErrorToastAt = now;
+      // Before the toast claims the flock was saved, and on the toast's cooldown: an error repeating
+      // every frame must not serialise the game every frame. Never via reportError (it would recurse).
+      if (gameStarted && forceSave !== null) {
+        try {
+          forceSave();
+        } catch (saveErr) {
+          console.error('[save] Forced save failed', saveErr);
+        }
+      }
       showToast(gameStarted ? STRINGS.errorToast : STRINGS.bootErrorToast);
     }
     scheduleWatchdog();
