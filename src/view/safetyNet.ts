@@ -6,36 +6,49 @@
 // throw anywhere inside a frame ends the loop for good. After each reported error a watchdog checks
 // that frames still advance and restarts the loop if they stopped.
 //
-// The toast is a DOM element, not a Phaser object: it must work before any scene exists, without
+// Toasts are DOM elements, not Phaser objects: they must work before any scene exists, without
 // HudScene, and when the renderer itself is what broke.
 import type Phaser from 'phaser';
 import { COMPONENTS, COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../config/constants';
 import { log, type LogTag } from '../core/log';
 import { STRINGS } from './strings';
 
-// EXPERIENCE.md: announcement toasts last about 4 s.
+// EXPERIENCE.md: announcement toasts last about 4 s; up to 3 stack, newest on top.
 const TOAST_MS = 4_000;
+const MAX_TOASTS = 3;
 // At most one error toast, and one "repeated" log line per message, per this window.
 const ERROR_TOAST_COOLDOWN_MS = 10_000;
 const REPEAT_SUMMARY_MS = 10_000;
-// How long after an error the loop must have produced a frame.
+// The watchdog compares frame counts this far apart; a loop is restarted only after two stalled
+// checks in a row, so one long main-thread block (a prompt, a GC pause) is not mistaken for a stall.
 const WATCHDOG_MS = 250;
+const STALLED_CHECKS = 2;
+// Each restart that does not lead to a healthy loop doubles the wait, up to 2^5 × 250 ms = 8 s.
+const MAX_BACKOFF_SHIFT = 5;
 // Bounds the dedupe table if every error message is unique (e.g. contains a counter).
 const MAX_TRACKED_MESSAGES = 50;
 
 interface Seen {
+  readonly level: 'error' | 'warn';
+  readonly tag: LogTag;
+  readonly message: string;
   suppressed: number;
-  lastLoggedAt: number;
+  timer: ReturnType<typeof setTimeout> | undefined;
 }
 
 let container: HTMLElement | null = null;
 let game: Phaser.Game | null = null;
 let installed = false;
-let toastEl: HTMLDivElement | null = null;
-let toastTimer: ReturnType<typeof setTimeout> | undefined;
+let gameStarted = false;
+let toastStack: HTMLDivElement | null = null;
 let lastErrorToastAt = Number.NEGATIVE_INFINITY;
-let watchdogPending = false;
 const seen = new Map<string, Seen>();
+
+// Watchdog state. `watchFrame` is the loop frame at the latest error (-1 = take a fresh snapshot).
+let watchTimer: ReturnType<typeof setTimeout> | undefined;
+let watchFrame = -1;
+let stalledChecks = 0;
+let failedRestarts = 0;
 
 /** Installs the window handlers. Call first in main.ts, before fonts load, so boot errors are caught. */
 export function installSafetyNet(host: HTMLElement | null): void {
@@ -51,15 +64,23 @@ export function attachGame(g: Phaser.Game): void {
   game = g;
 }
 
+/**
+ * Called when GameScene starts. Before that there is no flock, so errors show the boot toast
+ * instead of claiming the flock was saved.
+ */
+export function markGameStarted(): void {
+  gameStarted = true;
+}
+
 /** Entry point for caught errors that should be treated like unhandled ones. Never throws. */
 export function reportError(source: LogTag, err: unknown): void {
   try {
-    logOnce(source, err);
+    logDeduped('error', source, `Unhandled error: ${describe(err)}`, err);
     // Story 1.9: forceSave() here, inside its own try/catch, before the toast claims the flock was saved.
     const now = performance.now();
     if (now - lastErrorToastAt >= ERROR_TOAST_COOLDOWN_MS) {
       lastErrorToastAt = now;
-      showToast(STRINGS.errorToast);
+      showToast(gameStarted ? STRINGS.errorToast : STRINGS.bootErrorToast);
     }
     scheduleWatchdog();
   } catch (inner) {
@@ -71,19 +92,36 @@ export function reportError(source: LogTag, err: unknown): void {
   }
 }
 
-/** Shows a short top-centre toast that never blocks clicks. Replaces any toast already showing. */
+/**
+ * Shows a short top-centre toast that never blocks clicks. Up to 3 stack, newest on top; showing a
+ * text that is already up moves it to the top and restarts its timer instead of duplicating it.
+ */
 export function showToast(text: string): void {
-  const el = toastEl ?? createToast();
-  el.textContent = text;
-  placeToast(el);
-  el.style.display = 'block';
-  if (toastTimer !== undefined) clearTimeout(toastTimer);
-  toastTimer = setTimeout(hideToast, TOAST_MS);
+  const stack = toastStack ?? createStack();
+  placeStack(stack);
+  let el: HTMLDivElement | null = null;
+  for (const child of Array.from(stack.children)) {
+    if (child.textContent === text) el = child as HTMLDivElement;
+  }
+  if (el === null) {
+    el = createToast(text);
+    while (stack.children.length >= MAX_TOASTS) stack.lastElementChild?.remove();
+  }
+  stack.prepend(el);
+  const timer = Number(el.dataset.timer);
+  if (timer) clearTimeout(timer);
+  const toast = el;
+  el.dataset.timer = String(setTimeout(() => toast.remove(), TOAST_MS));
 }
 
 function onWindowError(event: Event): void {
   // Resource load failures (img/script elements) also fire 'error' but are not script errors.
   if (!(event instanceof ErrorEvent)) return;
+  if (isForeign(event)) {
+    // Browser extensions and cross-origin scripts are not the game: no toast, no watchdog.
+    logDeduped('warn', 'ui', `Ignored error from outside the game: ${event.message}`, event.filename);
+    return;
+  }
   event.preventDefault();
   reportError('ui', event.error ?? event.message);
 }
@@ -91,6 +129,18 @@ function onWindowError(event: Event): void {
 function onUnhandledRejection(event: PromiseRejectionEvent): void {
   event.preventDefault();
   reportError('ui', event.reason);
+}
+
+// Cross-origin script errors arrive sanitised ("Script error.", no error object); extension errors
+// carry a chrome-extension:// or moz-extension:// filename. The game's own code is same-origin.
+function isForeign(event: ErrorEvent): boolean {
+  if (event.error == null && event.message === 'Script error.') return true;
+  if (!event.filename) return false;
+  try {
+    return new URL(event.filename, location.href).origin !== location.origin;
+  } catch {
+    return false;
+  }
 }
 
 function describe(err: unknown): string {
@@ -102,78 +152,123 @@ function describe(err: unknown): string {
   }
 }
 
-// The first occurrence of each message is logged in full (with the Error, so DEV keeps the stack);
-// repeats are counted and summarised at most every REPEAT_SUMMARY_MS.
-function logOnce(source: LogTag, err: unknown): void {
-  const message = describe(err);
-  const key = `${source}|${message}`;
-  const now = performance.now();
+// The first occurrence of each message is logged in full (with the data, so DEV keeps the stack).
+// Repeats within REPEAT_SUMMARY_MS are counted and logged as one summary line when the window ends.
+function logDeduped(level: 'error' | 'warn', tag: LogTag, message: string, data?: unknown): void {
+  const key = `${level}|${tag}|${message}`;
   const entry = seen.get(key);
-  if (entry === undefined) {
-    if (seen.size >= MAX_TRACKED_MESSAGES) seen.clear();
-    seen.set(key, { suppressed: 0, lastLoggedAt: now });
-    log.error(source, `Unhandled error: ${message}`, err);
+  if (entry !== undefined) {
+    entry.suppressed++;
+    if (entry.timer === undefined) entry.timer = setTimeout(flushRepeats, REPEAT_SUMMARY_MS, entry);
     return;
   }
-  entry.suppressed++;
-  if (now - entry.lastLoggedAt >= REPEAT_SUMMARY_MS) {
-    log.error(source, `Repeated ${entry.suppressed}×: ${message}`);
-    entry.suppressed = 0;
-    entry.lastLoggedAt = now;
+  if (seen.size >= MAX_TRACKED_MESSAGES) {
+    for (const e of seen.values()) flushRepeats(e);
+    seen.clear();
+  }
+  seen.set(key, { level, tag, message, suppressed: 0, timer: undefined });
+  log[level](tag, message, data);
+}
+
+function flushRepeats(entry: Seen): void {
+  if (entry.timer !== undefined) clearTimeout(entry.timer);
+  entry.timer = undefined;
+  if (entry.suppressed === 0) return;
+  log[entry.level](entry.tag, `Repeated ${entry.suppressed}×: ${entry.message}`);
+  entry.suppressed = 0;
+}
+
+// Re-armed by every error: the check always compares against the frame at the latest error, so a
+// loop-killing error right after a harmless one is still caught.
+function scheduleWatchdog(): void {
+  if (game === null) return;
+  watchFrame = game.loop.frame;
+  stalledChecks = 0;
+  if (watchTimer === undefined) watchTimer = setTimeout(checkLoop, WATCHDOG_MS << Math.min(failedRestarts, MAX_BACKOFF_SHIFT));
+}
+
+function checkLoop(): void {
+  watchTimer = undefined;
+  const g = game;
+  // A loop that was stopped on purpose (game destroyed) is not ours to restart.
+  if (g === null || !g.loop.running) return;
+  if (document.hidden) {
+    // Hidden tabs get no rAF callbacks, so a still counter means nothing. Keep watching, and take a
+    // fresh snapshot once the tab is visible again (Phaser's onVisible never restarts a dead loop).
+    watchFrame = -1;
+    watchTimer = setTimeout(checkLoop, WATCHDOG_MS);
+    return;
+  }
+  const frame = g.loop.frame;
+  if (watchFrame === -1) {
+    watchFrame = frame;
+    stalledChecks = 0;
+    watchTimer = setTimeout(checkLoop, WATCHDOG_MS);
+    return;
+  }
+  if (frame !== watchFrame) {
+    // Healthy: frames advance again.
+    failedRestarts = 0;
+    return;
+  }
+  if (++stalledChecks < STALLED_CHECKS) {
+    watchTimer = setTimeout(checkLoop, WATCHDOG_MS);
+    return;
+  }
+  failedRestarts++;
+  logDeduped('warn', 'ui', 'Game loop restarted after error');
+  try {
+    g.loop.sleep();
+    // wake() runs one frame synchronously; a throw there is reported (and re-arms the watchdog).
+    g.loop.wake(true);
+  } catch (err) {
+    reportError('ui', err);
+  }
+  // If wake() succeeded but a later frame kills the loop again, the next error re-arms the watchdog.
+  // Until a check sees frames advance, failedRestarts keeps the backoff growing.
+  if (watchTimer === undefined) {
+    watchFrame = g.loop.frame;
+    stalledChecks = 0;
+    watchTimer = setTimeout(checkLoop, WATCHDOG_MS << Math.min(failedRestarts, MAX_BACKOFF_SHIFT));
   }
 }
 
-function scheduleWatchdog(): void {
-  const g = game;
-  if (g === null || watchdogPending) return;
-  watchdogPending = true;
-  const frameAtError = g.loop.frame;
-  setTimeout(() => {
-    watchdogPending = false;
-    // Hidden tabs get no rAF callbacks, so a still frame counter means nothing there.
-    if (document.hidden || !g.loop.running || g.loop.frame !== frameAtError) return;
-    log.warn('ui', 'Game loop restarted after error');
-    try {
-      g.loop.sleep();
-      // wake() runs one frame synchronously; a throw there is reported like any other.
-      g.loop.wake(true);
-    } catch (err) {
-      reportError('ui', err);
-    }
-  }, WATCHDOG_MS);
-}
-
-function createToast(): HTMLDivElement {
-  const spec = COMPONENTS.announcementToast;
-  const type = TYPOGRAPHY[spec.typography];
+function createStack(): HTMLDivElement {
   const el = document.createElement('div');
-  el.setAttribute('role', 'status');
   const s = el.style;
   s.position = 'fixed';
   s.left = '50%';
   s.transform = 'translateX(-50%)';
   s.zIndex = '1000';
   s.pointerEvents = 'none';
-  s.display = 'none';
+  s.display = 'flex';
+  s.flexDirection = 'column';
+  s.alignItems = 'center';
+  s.gap = `${SPACING[2]}px`;
   s.maxWidth = '80vw';
+  (container ?? document.body).appendChild(el);
+  toastStack = el;
+  return el;
+}
+
+function createToast(text: string): HTMLDivElement {
+  const spec = COMPONENTS.announcementToast;
+  const type = TYPOGRAPHY[spec.typography];
+  const el = document.createElement('div');
+  el.setAttribute('role', 'status');
+  const s = el.style;
   s.padding = `${SPACING[2]}px ${SPACING[4]}px`;
   s.borderRadius = `${RADIUS[spec.rounded]}px`;
   s.backgroundColor = COLORS[spec.backgroundColor];
   s.color = COLORS[spec.textColor];
   s.font = `${type.fontWeight} ${type.fontSize}px/${type.lineHeight} "${type.fontFamily}", sans-serif`;
   s.textAlign = 'center';
-  (container ?? document.body).appendChild(el);
-  toastEl = el;
+  el.textContent = text;
   return el;
 }
 
 // Top-centre of the canvas (DESIGN.md layout), below its top edge by the 16 px safe margin.
-function placeToast(el: HTMLDivElement): void {
+function placeStack(stack: HTMLDivElement): void {
   const top = game?.canvas?.getBoundingClientRect().top ?? 0;
-  el.style.top = `${Math.max(0, top) + SPACING[4]}px`;
-}
-
-function hideToast(): void {
-  toastTimer = undefined;
-  if (toastEl !== null) toastEl.style.display = 'none';
+  stack.style.top = `${Math.max(0, top) + SPACING[4]}px`;
 }

@@ -73,7 +73,7 @@ export function installDebugOverlay(game: Phaser.Game): void {
       if (scene === null) return;
       resumeSpeed = sp;
       setSpeed(scene, sp);
-      refresh();
+      refreshSim();
     }),
   );
   const pauseButton = button(row1, 'Pause', () => {
@@ -85,13 +85,13 @@ export function installDebugOverlay(game: Phaser.Game): void {
       resumeSpeed = scene.simClock.speed;
       setSpeed(scene, 0);
     }
-    refresh();
+    refreshSim();
   });
   const stepButton = button(row1, 'Step', () => {
     const scene = activeScene();
     if (scene === null || scene.simClock.speed !== 0) return;
     scene.stepOnce();
-    refresh();
+    refreshSim();
   });
 
   const row2 = buttonRow(panel);
@@ -100,11 +100,11 @@ export function installDebugOverlay(game: Phaser.Game): void {
       // Respects the cap, so a debug session never makes a state the sim could not.
       s.food = Math.min(TUNING.foodCap, s.food + ADD_FOOD);
     });
-    refresh();
+    refreshSim();
   });
   const sheepButton = button(row2, `+${ADD_SHEEP} sheep`, () => {
     activeScene()?.debugMutate(addSheep);
-    refresh();
+    refreshSim();
   });
 
   const row3 = buttonRow(panel);
@@ -143,8 +143,13 @@ export function installDebugOverlay(game: Phaser.Game): void {
     if (e.code !== 'Backquote' || e.repeat) return;
     visible = !visible;
     panel.style.display = visible ? 'block' : 'none';
+    if (!visible) return;
+    // A fresh frame-time window, so time spent hidden does not count.
     resetWindow();
-    if (visible) refresh();
+    lastRefresh = performance.now();
+    fpsLine.textContent = `FPS    ${Math.round(game.loop.actualFps)}`;
+    frameLine.textContent = 'frame  —';
+    refreshSim();
   });
 
   // One handler for the page lifetime; game.events belongs to the game, so a GameScene restart
@@ -160,8 +165,10 @@ export function installDebugOverlay(game: Phaser.Game): void {
     sum += d;
     count++;
     if (d > max) max = d;
-    const now = performance.now();
-    if (now - lastRefresh >= REFRESH_MS) refresh();
+    if (performance.now() - lastRefresh >= REFRESH_MS) {
+      refreshPerf();
+      refreshSim();
+    }
   });
 
   function activeScene(): GameScene | null {
@@ -169,13 +176,17 @@ export function installDebugOverlay(game: Phaser.Game): void {
     return scene !== null && scene.sys.isActive() ? scene : null;
   }
 
-  function refresh(): void {
+  // FPS and the frame-time window: written only from POST_RENDER, every REFRESH_MS.
+  function refreshPerf(): void {
     lastRefresh = performance.now();
     fpsLine.textContent = `FPS    ${Math.round(game.loop.actualFps)}`;
     frameLine.textContent =
       count > 0 ? `frame  ${(sum / count).toFixed(1)} ms avg · ${max.toFixed(1)} max` : 'frame  —';
     resetWindow();
+  }
 
+  // Sim readout and button states: also written straight after each button press.
+  function refreshSim(): void {
     const scene = activeScene();
     for (const b of simButtons) b.disabled = scene === null;
     if (scene === null) {
@@ -193,6 +204,13 @@ export function installDebugOverlay(game: Phaser.Game): void {
     pauseButton.textContent = speed === 0 ? 'Resume' : 'Pause';
     stepButton.disabled = speed !== 0;
     for (let i = 0; i < SPEEDS.length; i++) highlight(speedButtons[i], speed === SPEEDS[i]);
+  }
+
+  // Applies the chosen speed to a scene's clock. Also runs on CREATE after a Load, before that
+  // scene's first update, so a debug-paused game stays paused from its first frame.
+  function applyWantSpeed(scene: GameScene): void {
+    knownClock = scene.simClock;
+    knownClock.speed = wantSpeed;
   }
 
   function setSpeed(scene: GameScene, speed: number): void {
@@ -214,18 +232,21 @@ export function installDebugOverlay(game: Phaser.Game): void {
   async function copySave(): Promise<void> {
     const scene = activeScene();
     if (scene === null) return;
+    const text = encodeSave(scene.simState as GameState);
     try {
-      await navigator.clipboard.writeText(encodeSave(scene.simState as GameState));
+      await navigator.clipboard.writeText(text);
       setStatus('save copied');
     } catch (err) {
-      log.warn('debug', 'Clipboard write failed', err);
-      setStatus('copy failed');
+      // No Clipboard API (insecure context, e.g. `vite --host` over a LAN IP) or the write was
+      // refused (document not focused): hand the text over in a prompt to copy by hand.
+      log.warn('debug', 'Clipboard write failed; showing the save in a prompt', err);
+      window.prompt('Copy the save JSON (Ctrl+C):', text);
+      setStatus('save shown in prompt');
     }
   }
 
   async function loadSave(): Promise<void> {
-    const scene = activeScene();
-    if (scene === null) return;
+    if (activeScene() === null) return;
     const raw = await readClipboard();
     if (raw === null) {
       setStatus('load cancelled');
@@ -237,7 +258,18 @@ export function installDebugOverlay(game: Phaser.Game): void {
       setStatus('invalid save');
       return;
     }
-    scene.loadState(state);
+    // Resolved again after the await: a prompt or permission dialog can outlast the scene.
+    const scene = activeScene();
+    if (scene === null) {
+      setStatus('load failed: game not running');
+      return;
+    }
+    scene.events.once(Phaser.Scenes.Events.CREATE, applyWantSpeed);
+    if (!scene.loadState(state)) {
+      scene.events.off(Phaser.Scenes.Events.CREATE, applyWantSpeed);
+      setStatus('invalid save');
+      return;
+    }
     setStatus('save loaded');
   }
 }
@@ -287,6 +319,9 @@ function button(parent: HTMLElement, label: string, onClick: () => void): HTMLBu
   const b = document.createElement('button');
   b.type = 'button';
   b.textContent = label;
+  // Never takes focus, so a later Space or Enter cannot re-fire the last debug action.
+  b.tabIndex = -1;
+  b.addEventListener('mousedown', preventFocus);
   const s = b.style;
   s.font = 'inherit';
   s.padding = `2px ${SPACING[2]}px`;
@@ -297,6 +332,10 @@ function button(parent: HTMLElement, label: string, onClick: () => void): HTMLBu
   b.addEventListener('click', onClick);
   parent.appendChild(b);
   return b;
+}
+
+function preventFocus(e: MouseEvent): void {
+  e.preventDefault();
 }
 
 function highlight(b: HTMLButtonElement, on: boolean): void {

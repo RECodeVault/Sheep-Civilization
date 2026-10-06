@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { COLORS } from '../../config/constants';
 import { FixedStepClock } from '../../core/fixedStep';
+import { log } from '../../core/log';
 import { applyCommand, type Command } from '../../sim/commands';
 import { clearEvents, drainEvents, type SimEvent } from '../../sim/events';
 import { fenceBounds, selectPublicSheep, type PublicSheep } from '../../sim/selectors';
@@ -11,7 +12,7 @@ import { EntityLayer } from '../field/EntityLayer';
 import { Fence } from '../field/Fence';
 import { ObjectPool } from '../field/ObjectPool';
 import { SheepSprite } from '../field/SheepSprite';
-import { reportError } from '../safetyNet';
+import { markGameStarted, reportError } from '../safetyNet';
 
 const SHEEP_POOL_SIZE = 120;
 
@@ -39,10 +40,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(data?: GameSceneData): void {
+    markGameStarted();
     // Clear first, so events emitted while a game is built or loaded reach the first drain.
     clearEvents();
     // Math.random is fine in view code; Story 1.9 swaps this for load-or-new.
     this.state = data?.state ?? createNewGame(Math.floor(Math.random() * 2 ** 32));
+    // Phaser keeps restart data in settings.data and reuses it when a later restart passes none, so
+    // consume it: a plain restart must start a new game, not resume this (by then mutated) state.
+    if (data !== undefined) delete data.state;
     this.clock = new FixedStepClock();
     this.pendingCommands = [];
     this.publicSheep.length = 0;
@@ -93,8 +98,12 @@ export class GameScene extends Phaser.Scene {
 
   /** Runs exactly one tick and renders it (debug step while paused). */
   stepOnce(): void {
-    this.tick();
-    this.render();
+    try {
+      this.tick();
+      this.render();
+    } catch (err) {
+      reportError('sim', err);
+    }
   }
 
   /**
@@ -106,16 +115,40 @@ export class GameScene extends Phaser.Scene {
     this.render();
   }
 
-  /** Replaces the game by restarting the scene, so every pooled sprite, the fence and the clock reset. */
-  loadState(state: GameState): void {
+  /**
+   * Replaces the game by restarting the scene, so every pooled sprite, the fence and the clock reset.
+   * First runs a copy of the state through the selectors and one tick: a state that would throw in
+   * create() would leave Phaser's restart queue stuck for good. Returns false (game unchanged) if
+   * the copy throws. Story 1.9 replaces this probe with real save validation.
+   */
+  loadState(state: GameState): boolean {
+    try {
+      const probe = JSON.parse(JSON.stringify(state)) as GameState;
+      selectPublicSheep(probe, []);
+      fenceBounds(probe);
+      step(probe);
+      selectPublicSheep(probe, []);
+    } catch (err) {
+      log.warn('save', 'State cannot run; keeping the current game', err);
+      return false;
+    } finally {
+      // The probe tick's events are not the current game's. The queue is empty between frames.
+      clearEvents();
+    }
     const data: GameSceneData = { state };
     this.scene.restart(data);
+    return true;
   }
 
   private tick(): void {
     const cmds = this.pendingCommands;
-    for (let i = 0; i < cmds.length; i++) applyCommand(this.state, cmds[i]);
-    cmds.length = 0;
+    try {
+      for (let i = 0; i < cmds.length; i++) applyCommand(this.state, cmds[i]);
+    } finally {
+      // Always emptied: a command that throws drops itself and the rest of its batch, instead of
+      // re-applying the commands before it and throwing again on every frame.
+      cmds.length = 0;
+    }
     step(this.state);
     drainEvents(this.forwardEvent);
   }

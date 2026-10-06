@@ -4,7 +4,7 @@ baseline_commit: 4d2d1dacbf96b41a341cb4d957dbca4cf7352c4c
 
 # Story 1.4: Developer Debug Overlay and Error Safety Net
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -156,6 +156,31 @@ so that I can speed up, inspect and reproduce the simulation while players never
   - [x] 10.5 **AC 4:** temporarily rename `public/assets/atlases/ui.json` (or point `atlasUrls` at a missing key locally), confirm the `assetLoadFailed` toast and the `warn`, then **revert**. `git status` must be clean for `public/`.
   - [x] 10.6 **AC 5, the formal 100-sheep check:** in DEV, use "+10 sheep" until there are 100, then run at ×1 for 5 minutes with the overlay open and record mean FPS, mean and max frame time, and any hitches. Headless SwiftShader is not the target laptop GPU; if a real browser on Rylan's laptop is not available to you, record the headless numbers and say clearly that the on-hardware run is still open (Story 5.11 repeats it for release).
   - [x] 10.7 Remove every temporary probe (`grep` for it in `src/` and `dist/`) and record evidence for every manual check in the Dev Agent Record.
+
+### Review Findings
+
+Code review 2026-10-06 (Blind Hunter + Edge Case Hunter + Acceptance Auditor) on `4d2d1da..2ccdc8e`. The auditor judged AC 1–6 met (AC 5 only as recorded; NFR1 is not shown on hardware) and the six disclosed deviations justified. Two Phaser claims were checked in `node_modules/phaser/src`: `Systems.start` keeps the old `settings.data` when restarted without data, and `SceneManager.processQueue` leaves its queue uncleared when `create()` throws.
+
+- [x] [Review][Patch] Errors before the game starts must not claim the flock was saved. Decision 2026-10-06 (Rylan): until `GameScene` has started, show a separate boot toast, `STRINGS.bootErrorToast` = "Something went wrong. Try reloading the page." [ASSUMPTION copy]; after that, the usual error toast [src/view/safetyNet.ts:58]
+- [x] [Review][Patch] A command that throws is never removed: earlier commands in the same batch are re-applied every frame, and the sim never advances [src/view/scenes/GameScene.ts:115]
+- [x] [Review][Patch] Watchdog misses a loop-killing error that comes within 250 ms of an earlier non-fatal error (`watchdogPending` suppresses re-arming; the first check sees frames advanced and stands down). Also confirm a stall on two checks, so a long main-thread block does not cause a false restart [src/view/safetyNet.ts:128]
+- [x] [Review][Patch] If the tab is hidden when the watchdog fires, it gives up for good; Phaser's `onVisible` never calls `wake`, so the game stays frozen after the player returns [src/view/safetyNet.ts:134]
+- [x] [Review][Patch] An error that recurs every frame outside GameScene restarts the loop and logs a warn every 250 ms forever: add backoff, and rate-limit the warn [src/view/safetyNet.ts:134]
+- [x] [Review][Patch] A save that passes `decodeSave` but throws in `create`/`render` (e.g. `sheep: [null]`) leaves the restart queue stuck for good, and every overlay button is disabled. Probe the state (clone → `selectPublicSheep` → `step`) before restarting, and report "invalid save" if it throws [src/view/scenes/GameScene.ts:123]
+- [x] [Review][Patch] `scene.restart({ state })` leaves `settings.data.state` set, so a later plain restart or start resumes that stale, already-mutated state instead of a new game. Clear it in `create` [src/view/scenes/GameScene.ts:45]
+- [x] [Review][Patch] After Load while debug-paused, the new clock runs 1–2 ticks before POST_RENDER re-applies speed 0. Apply the speed on the scene's CREATE event instead [src/debug/DebugOverlay.ts:152]
+- [x] [Review][Patch] `stepOnce` has no try/catch, so a sim error from Step is tagged `ui` and arms the watchdog for nothing [src/view/scenes/GameScene.ts:96]
+- [x] [Review][Patch] `loadSave` uses a scene reference captured before `await readClipboard()` (prompt or permission dialog); resolve it again afterwards [src/debug/DebugOverlay.ts:227]
+- [x] [Review][Patch] Debug buttons keep keyboard focus, so a later Space or Enter re-fires the last action (+10 sheep, Load) [src/debug/DebugOverlay.ts:288]
+- [x] [Review][Patch] Repeat counts are lost when a burst stops inside the 10 s window, and `seen.clear()` at 50 entries drops pending counts. Flush the summary on a timer [src/view/safetyNet.ts:118]
+- [x] [Review][Patch] Every button click resets the frame-time window, so the readout shows "—" or a mean of 1–2 samples [src/debug/DebugOverlay.ts:197]
+- [x] [Review][Patch] Error and asset toasts overwrite each other in one element, so "Try reloading" can vanish at once. Stack up to 3, newest on top (EXPERIENCE.md), with no duplicate texts [src/view/safetyNet.ts:75]
+- [x] [Review][Patch] Extension or cross-origin errors ("Script error.", `error === null`, or a non-page `filename`) show the player the error toast and arm the watchdog. Log them at warn only [src/view/safetyNet.ts:84]
+- [x] [Review][Patch] Copy save has no fallback where the Clipboard API is missing or refused (`vite --host` over a LAN IP, unfocused document). Fall back to `prompt` with the text preselected [src/debug/DebugOverlay.ts:214]
+- [x] [Review][Patch] `deferred-work.md` still lists "Failed asset load (Story 1.4)" as open; mark it resolved [_bmad-output/implementation-artifacts/deferred-work.md:23]
+- [x] [Review][Defer] The watchdog can misfire in an offscreen cross-origin iframe (itch.io embed), where rAF is throttled without `document.hidden`: one extra frame and a false "loop restarted" warn [src/view/safetyNet.ts:131] — deferred to Story 5.2: check it in the real itch.io embed
+- [x] [Review][Defer] NFR1 (60 FPS with 100 sheep, 5 min) is not shown on target hardware; the headless run averaged 51.7 FPS, against 50.2 for the 1.3 baseline [_bmad-output/implementation-artifacts/1-4-developer-debug-overlay-and-error-safety-net.md] — deferred to Story 5.11. Decision 2026-10-06 (Rylan): close 1.4. Reason: it needs a real browser on Rylan's hardware; headless SwiftShader cannot measure it
+- [x] [Review][Defer] After `step()` throws mid-tick, play continues on half-mutated state, and Story 1.9's `forceSave()` in the safety net would write it to disk [src/view/scenes/GameScene.ts:74] — deferred to Story 1.9: decide whether to validate before forcing a save after a sim error
 
 ## Dev Notes
 
@@ -379,6 +404,56 @@ Claude Opus 5.5 (claude-opus-5-5[1m]) via Claude Code, gds-dev-story workflow.
   - The error toast says "your flock was saved" although saving arrives only in Story 1.9, as the AC allows.
   - **A fixed asset path can still look broken in dev:** a dev or preview server serves `index.html` for missing files, so a wrong asset path shows up as a JSON parse error in the console, not a 404.
 
+### Review Follow-up (2026-10-06)
+
+Both decisions are resolved: boot errors get their own toast (patch), and NFR1 on hardware is deferred to Story 5.11. All 17 patches were applied. 3 items are deferred to `deferred-work.md`.
+
+- **Boot toast:** `STRINGS.bootErrorToast` = "Something went wrong. Try reloading the page." ([ASSUMPTION] copy). It is shown until `GameScene.create` calls `markGameStarted()`, and the "flock was saved" toast after that.
+- **Command queue:** `tick()` empties `pendingCommands` in a `finally`, so a throwing command drops itself and the rest of its batch once.
+- **Watchdog** (`safetyNet.ts`):
+  - Every error re-arms it from the frame at the latest error.
+  - It restarts only after 2 stalled checks 250 ms apart.
+  - While `document.hidden` it keeps polling and takes a fresh snapshot once visible.
+  - Each restart that does not lead to a healthy check doubles the wait (up to 8 s); a healthy check resets it.
+  - The restart `warn` goes through the dedupe.
+- **Dedupe:**
+  - `logDeduped(level, tag, message, data)` is used for errors, foreign-error warns and restart warns.
+  - Repeats are flushed by a timer 10 s after the first repeat, so a burst that stops still gets its summary line.
+  - Hitting the 50-message cap flushes every pending count before clearing.
+- **Foreign errors:** `ErrorEvent`s that are "Script error." with no error object, or that come from a cross-origin or extension `filename`, are logged at `warn`. They get no toast, no `preventDefault()` and no watchdog. Rejections cannot be attributed, so they are still reported.
+- **Toast stack:** up to 3 toasts, newest on top. A text already showing moves to the top and restarts its 4 s timer instead of being duplicated.
+- **`GameScene`:**
+  - `create` deletes `data.state` after use, because Phaser's `Systems.start` keeps `settings.data` when a restart passes none.
+  - `stepOnce` reports through `reportError('sim')`.
+  - `loadState` returns `boolean`. It probes a JSON copy (`selectPublicSheep` → `fenceBounds` → `step` → `selectPublicSheep`), clears the probe's events, and returns false without restarting if the copy throws.
+- **Overlay:**
+  - Speed is re-applied on the scene's `CREATE` event, which fires before the first `update`. The POST_RENDER check stays as a fallback.
+  - The scene is resolved again after the clipboard await.
+  - Buttons have `tabIndex = -1` and suppress focus on `mousedown`.
+  - The perf readout (`refreshPerf`, from POST_RENDER only) is split from the sim readout (`refreshSim`, also on clicks).
+  - Copy save falls back to a `prompt` holding the save text.
+- **`deferred-work.md`:** "Failed asset load (Story 1.4)" is marked resolved. New entries: the watchdog in itch.io embeds (5.2), saving after a sim error (1.9), and NFR1 on hardware (5.11).
+- **Verification** (headless Chrome, scratchpad `playwright-core`):
+  - **New production checks, 15/15:**
+    - A boot-phase error shows the boot toast and the game still boots.
+    - Extension and "Script error." events get a warn and no toast.
+    - A harmless rejection followed 50 ms later by a loop-killing frame: restarted, 60 rAF/s.
+    - A loop killed while hidden is not restarted until visible, then restarted.
+    - An error every frame for 3 s gives 1 error line, 0 extra warns, then "Repeated 5×" restarts and "Repeated 3×" errors; the game recovers once the error stops.
+    - A 20-error burst gives 1 line, then "Repeated 19×" about 10 s later.
+  - **New DEV checks, 9/9:**
+    - Space and Enter after a click do nothing, and no button holds focus.
+    - A click does not blank the frame readout.
+    - Load while paused runs 0 ticks (4 900 vs 4 900 ms).
+    - A `sheep: [null]` save gives "invalid save"; the game, its time and its buttons are unaffected, and play resumes.
+    - Copy without a Clipboard API shows a prompt holding a valid envelope.
+  - **Regression:** the original DEV suite 27/27 and production suite 15/15. The production watchdog check now waits 1 s instead of 300 ms, because a restart needs two stalled checks.
+  - **Asset failure on the dev parse path:** the asset toast and the boot toast stack.
+  - **Command queue and restart data** (temporary DEV `__probeGame`, removed afterwards; `src/main.ts` matches the commit):
+    - `[Farm, Bogus]` → food 5 → 6 once, 1 error line, the sim advanced 1 400 ms, and the queue is empty.
+    - After a load, a plain `scene.restart()` gives time 500 (a new game), and `settings.data` has no `state`.
+- **Gate:** `npm test` 97/97 in 16 files. Typecheck, lint and build are clean. No probe strings are in `src/` or `dist/`, and no overlay strings are in `dist/`.
+
 ### File List
 
 - `src/view/safetyNet.ts` (new)
@@ -393,6 +468,7 @@ Claude Opus 5.5 (claude-opus-5-5[1m]) via Claude Code, gds-dev-story workflow.
 - `src/debug/.gitkeep` (deleted)
 - `src/save/.gitkeep` (deleted)
 - `tests/save/.gitkeep` (deleted)
+- `_bmad-output/implementation-artifacts/deferred-work.md` (modified in review)
 - `_bmad-output/implementation-artifacts/sprint-status.yaml` (modified)
 - `_bmad-output/implementation-artifacts/1-4-developer-debug-overlay-and-error-safety-net.md` (this story)
 
@@ -401,3 +477,4 @@ Claude Opus 5.5 (claude-opus-5-5[1m]) via Claude Code, gds-dev-story workflow.
 | Date | Change |
 |---|---|
 | 2026-10-06 | Implemented the global error safety net (dedupe, DOM toast, loop watchdog), sim error containment in `GameScene`, the DEV-only debug overlay (speed, pause, step, food, sheep, dump, clipboard save copy and load, safety-net probes), the save envelope codec, and the missing-atlas toast. Tests 97/97. The formal 103-sheep, 5-minute run was recorded headless. Status → review. |
+| 2026-10-06 | Code review: 2 decisions resolved (boot toast; NFR1 on hardware deferred to 5.11), 17 patches applied (command queue, watchdog re-arm/hidden/backoff, load probe, restart data, toast stack, foreign errors, repeat flush, overlay focus/speed/readout/copy fallback, deferred-work), 3 items deferred. Tests 97/97. Status → done. |
