@@ -210,3 +210,8 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Audio (Story 5.6):** the cash-register ding on `Sold` (UX-DR82), and a caption if captions cover it.
 - **Reduced motion (Story 5.7):** the outline pulse, awning flap, tag growth and stall nudge (`MARKET_MOTION` in `Market.ts`) and the sale hop (`SALE` in `GameScene.ts`) are juice; the outline, tag and "Too young" are information and stay.
 - **An intermittent first drag in the browser probe (investigate any time):** in the scratchpad Playwright probe, about 1 in 10 runs the first drag after the session's first debug Load never starts (the sheep stays put; no command is sent). It happens on the pre-3.1 commit too (2 of 10 runs), so 3.1 did not cause it, and it never happened on a later drag in the same session (10 of 10 fast sales passed). Unknown whether it is the probe's synthetic pointer timing or a real drag-start edge case in `InputController.updateClick`; worth a look with real mouse input.
+
+## Deferred from: code review of 3-1-sell-sheep-at-the-market (2026-10-07)
+
+- **Pending-slot eviction (DEV speed 0 only):** `SheepDrag.settle` lets the oldest of its 4 pending slots go when a fifth release arrives before a tick. If that slot was `leaving` (a sacrifice from 2.7, or a sale since 3.1), the sheep is drawn back at its pickup spot and `begin` no longer refuses it, so it can be grabbed until its queued command removes it. The sim stays consistent (removed once). Only reachable with the debug clock at speed 0; fix by never evicting a `leaving` slot (grow the slots, or refuse the grab) if it ever matters.
+

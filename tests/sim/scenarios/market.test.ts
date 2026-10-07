@@ -4,7 +4,7 @@ import { TUNING } from '../../../src/config/tuning';
 import { applyCommand } from '../../../src/sim/commands';
 import { selectHudView, type HudView } from '../../../src/sim/selectors';
 import { infectSheep } from '../../../src/sim/systems/virus';
-import { newGame, runFor } from '../helpers';
+import { innerFence, newGame, runFor } from '../helpers';
 
 const hud = (): HudView => ({
   farmProgress: 0,
@@ -73,7 +73,23 @@ describe('the Market in play', () => {
     expect(state.money).toBe(TUNING.sellPriceAdult);
   });
 
-  it('a lamb dropped on the Market (a Drop) walks again on the next tick', () => {
+  it('the view path for a lamb on the stall: a Drop at the stall is clamped into the fence, with no sale', () => {
+    const state = newGame(78);
+    const lamb = state.sheep[2];
+    const r = innerFence(state);
+    applyCommand(state, { type: 'PickUp', id: lamb.id });
+    runFor(state, TICK_MS);
+    // Released over the stall, outside the fence on the right (MARKET is at world x 1180, y 280).
+    const [stallX, stallY] = [r.right + 200, (r.top + r.bottom) / 2];
+    applyCommand(state, { type: 'Drop', id: lamb.id, x: stallX, y: stallY });
+    expect([lamb.x, lamb.y]).toEqual([r.right, stallY]);
+    expect(lamb.activity).toBe('wander');
+    expect(state.money).toBe(0);
+    expect(state.stats.sold).toBe(0);
+    expect(runFor(state, TICK_MS).some((e) => e.type === 'Sold')).toBe(false);
+  });
+
+  it('a stray Sell for a dragged lamb (the sim guard) puts it down, and it walks again', () => {
     const state = newGame(78);
     const lamb = state.sheep[2];
     applyCommand(state, { type: 'PickUp', id: lamb.id });

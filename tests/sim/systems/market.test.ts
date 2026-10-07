@@ -38,7 +38,8 @@ describe('sell (Sell command, FR17)', () => {
   it('sells an elder for the elder price', () => {
     const state = newGame(5);
     const s = state.sheep[0];
-    s.bornAt = state.time - TUNING.elderFromMs;
+    // Well into the elder stage (the exact boundary has its own test below).
+    s.bornAt = state.time - (TUNING.elderFromMs + TUNING.oldAgeMs) / 2;
     drained();
     sell(state, s.id);
     expect(state.money).toBe(TUNING.sellPriceElder);

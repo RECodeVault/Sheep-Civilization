@@ -4,7 +4,7 @@ baseline_commit: 26fdb5b
 
 # Story 3.1: Sell Sheep at the Market
 
-Status: review
+Status: done
 
 <!-- Created 2026-10-07 by create-story. Builds on 2.7 (drag, SheepDrag, BetterPlace, removeSheep, play-area camera, suction ghost), 2.8 (save bump pattern, HUD popups) and 1.9 (save encode/validate/migrate). -->
 
@@ -137,6 +137,14 @@ so that I can earn money — at the cost of a smaller flock.
   - [x] 10.2 `deferred-work.md`:
     - Mark resolved: "The Market (Story 3.1)" (2.7 section); the 3.1 part of the field-camera note ("3.1 adds the Market to `GameScene.playArea`"); "Exit animations" ("3.1 can reuse the ghost for the sale" → done).
     - Add a 3.1 section: **3.2** money counter reads `state.money` (via `HudView`); **3.3** the later land tiers vs the stall (Land I ends at x 1062; check II/III never reach x 1080) and recompute both camera rects when the fence grows; **4.1** `stageOf` must report lamb for the Abomination, which is what keeps it unsellable; **5.3** names in the sold toast; **5.6** the cash-register ding and a `[ding]` caption if captions cover it; **5.7** reduced motion for the outline pulse, awning flap, tag growth and sale hop.
+
+### Review Findings
+
+- [x] [Review][Patch] The scenario "a lamb dropped on the Market (a Drop)" sends a `Sell`, not the `Drop` the view sends; no sim test covers a lamb `Drop` at the stall's coordinates being clamped into the fence. Rename it and add the real-path test. [tests/sim/scenarios/market.test.ts:76]
+- [x] [Review][Patch] The Market tag sits in the ground depth band, so a sheep held near the top of the stall is drawn over its own "$10" / "Too young" tag; the tag is information. Draw it in the world-overlay band, above the dragged sheep. [src/view/field/Market.ts:108]
+- [x] [Review][Patch] The elder unit test sets the age exactly at `elderFromMs` (the boundary has its own test); Task 8.1 asks for a sheep past it. [tests/sim/systems/market.test.ts:38]
+- [x] [Review][Patch] Task 9 is marked done without recorded evidence for: the stall clear of the era-badge corner, 960×540 at the pan limits, "leave → back to armed", the tag never over a HUD control, the stall nudge, the "$5" popup, and the lamb's "no slide from its pickup spot". Run and record them. [this story, Dev Agent Record]
+- [x] [Review][Defer] With all 4 pending release slots busy (only reachable at DEV speed 0), evicting a `leaving` slot snaps a sold or sacrificed sheep back to its pickup spot and lets it be grabbed again until its command applies (the sim stays consistent). [src/view/field/SheepDrag.ts:settle] — deferred, pre-existing (2.7's slot eviction; 3.1 only extends it to sales)
 
 ## Dev Notes
 
@@ -348,6 +356,24 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
   - **9.9 Performance** (SwiftShader, 103 sheep, ×1, overlay open): 40 FPS idle and 38 while dragging over the hovered stall (2.7/2.8 baseline: 39–41 idle, 35 dragging). `Market.setHighlight` and `update` return early without a change, and `SheepDrag.sync` allocates nothing (an index scan).
   - **9.10:** no console errors or warnings.
 
+- **Code review fixes (2026-10-07):** all 4 patch findings applied; tests 515 pass, and typecheck and lint are clean.
+  - **Tests:**
+    - The scenario that was mislabelled "a lamb dropped on the Market (a Drop)" now runs the real view path: a lamb's `Drop` at the stall's coordinates is clamped to the fence's edge, with no sale and no `Sold`.
+    - The old test is kept, renamed as the sim's guard against a stray `Sell` for a lamb.
+    - The elder unit test now uses an age well into the elder stage.
+  - **The Market tag** now draws at `FIELD_DEPTH.overlay`, above a dragged sheep (`depths.ts` doc updated).
+- **Review browser evidence** (probe as above; no console errors at either size):
+  - **Leave → armed:** after hovering the stall and moving away, the tag is back to normal size and the outline is pulsing.
+  - **Tag over a held sheep:** with an adult held at the top of the stall, the grown "$10" tag draws over it.
+  - **Nudge:** in frames after an adult sale, the stall's counter measures 164 px wide, then 170 px for one frame, then 164 again (the 1.06× squash).
+  - **"$5" popup:** after an elder sale, "$5" rises over the stall.
+  - **Lamb, no slide:** in 6 frames 30 ms apart after a lamb's release on the stall, it is drawn only at its clamped spot (world 896, 370), never at its pickup spot (850, 470).
+  - **Pan limits** (stall awning measured in canvas px, the same at 1280×720 and 960×540):
+    - left limit x 1088–1227; right limit x 674–813; top limit y 210–255; bottom limit y 142–187.
+    - At the left limit the outline ends at canvas x 1264, the 16 px safe edge.
+    - At the bottom limit (scroll y 56) the grown tag's top is at about y 72, clear of the top-right era-badge corner (y 16–56, Story 3.5).
+    - The stall never reaches the bottom bar (y ≥ 608) or the Pause button (top-left), so the tag can never sit over a HUD control.
+
 ### Completion Notes List
 
 - 2026-10-07: Story created. Ultimate context engine analysis completed — comprehensive developer guide created.
@@ -382,6 +408,7 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
 - `src/view/field/Market.ts` (new)
 - `src/view/field/SheepDrag.ts` (modified)
 - `src/view/field/PenCamera.ts` (modified)
+- `src/view/field/depths.ts` (modified, doc comment)
 - `src/view/scenes/GameScene.ts` (modified)
 - `src/view/scenes/HudScene.ts` (modified)
 - `src/view/strings.ts` (modified)
@@ -403,6 +430,10 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
 - `_bmad-output/implementation-artifacts/3-1-sell-sheep-at-the-market.md` (this story)
 
 ### Change Log
+
+- 2026-10-07: Code review: 4 patch findings fixed, 1 deferred (pending-slot eviction at DEV speed 0, pre-existing from 2.7) and 13 dismissed.
+  - The fixes: the lamb-on-stall test now uses the real `Drop` path; the Market tag draws above dragged sheep; the elder test is past the boundary; the missing browser evidence is recorded.
+  - Tests: 515. Typecheck and lint are clean. Status → done.
 
 - 2026-10-07: Implemented Story 3.1. Selling at the Market:
   - the `Sell` command, `market.ts` and the `Sold` event; `state.money` with save schema 7 (migration and validation); `salePrice`;

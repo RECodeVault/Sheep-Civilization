@@ -104,8 +104,9 @@ export class Market {
     // text sit that much up and right of the container's anchor.
     this.tagText = scene.add.text(-DROP_PX / 2, -TAG_PAD_Y - DROP_PX, '', textStyle('label', SPEC.priceTagText)).setOrigin(0.5, 1);
     this.tagBox = scene.add.image(0, 0, '__DEFAULT').setOrigin(0.5, 1);
-    // Anchored at the tag's bottom centre, so it grows upward off the outline.
-    this.tag = scene.add.container(MARKET.x, TAG_BOTTOM, [this.tagBox, this.tagText]).setDepth(d + 2);
+    // Anchored at the tag's bottom centre, so it grows upward off the outline. The tag is information,
+    // so it draws in the world-overlay band, above a sheep held near the top of the stall.
+    this.tag = scene.add.container(MARKET.x, TAG_BOTTOM, [this.tagBox, this.tagText]).setDepth(FIELD_DEPTH.overlay);
     this.apply();
   }
 

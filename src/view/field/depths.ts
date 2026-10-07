@@ -8,7 +8,7 @@ export const FIELD_DEPTH = Object.freeze({
   ground: -10,
   /** A sheep being dragged (Story 2.7): above every world y, under its own hearts and markers. */
   dragged: 9_996,
-  /** Ready, pinned and pregnancy hearts and the infection marker. */
+  /** Ready, pinned and pregnancy hearts, the infection marker and the Market's price tag (3.1). */
   overlay: 9_997,
   /** The munch, poof and dust emitters. */
   particles: 9_998,
