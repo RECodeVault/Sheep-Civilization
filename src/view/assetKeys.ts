@@ -27,6 +27,7 @@ export const FRAME = Object.freeze({
   poof: 'poof',
   carcass: 'carcass',
   dust: 'dust',
+  infectionMarker: 'infection-marker',
   munchCrumb: 'munch-crumb',
   pipFood: 'pip-food',
   pipBreeding: 'pip-breeding',

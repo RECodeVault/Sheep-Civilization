@@ -13,7 +13,7 @@ export type ValidationResult = { ok: true; state: GameState } | { ok: false; rea
 
 type Obj = Record<string, unknown>;
 
-const ACTIVITIES: readonly SheepActivity[] = ['wander', 'seekFood', 'seekBreedingFood', 'eating'];
+const ACTIVITIES: readonly SheepActivity[] = ['wander', 'seekFood', 'seekBreedingFood', 'seekCarcass', 'eating'];
 const ERAS: readonly Era[] = ['pasture', 'village', 'town', 'wool-empire'];
 const STAT_COUNTS = ['died', 'sold', 'sacrificed', 'peakFlock'] as const;
 const RNG_MAX = 0xffffffff;
@@ -120,7 +120,8 @@ function check(x: unknown): void {
     const sy = finite(o, 'y', p);
     finite(o, 'heading', p);
     finite(o, 'restUntil', p);
-    if (finite(o, 'bornAt', p) > time) fail(`${p}.bornAt is after time`);
+    const bornAt = finite(o, 'bornAt', p);
+    if (bornAt > time) fail(`${p}.bornAt is after time`);
     const full = finite(o, 'fullness', p);
     if (full < 0 || full > TUNING.fullnessMax) fail(`${p}.fullness is outside [0, ${TUNING.fullnessMax}]`);
     if (!ACTIVITIES.includes(o.activity as SheepActivity)) fail(`${p}.activity is not a known activity`);
@@ -130,6 +131,13 @@ function check(x: unknown): void {
     if (cool < 0 || cool > time + TUNING.breedCooldownMs) fail(`${p}.cooldownUntil is outside [0, time + breedCooldownMs]`);
     // A stale target is fine (feeding reverts the sheep to wander); a malformed one is not.
     if ('targetId' in o) int(o, 'targetId', p, 1);
+    // Absent while healthy; infection happens on a tick in the sheep's life, never after `time`, and a
+    // saved infection is still running: the virus kills at infectedAt + virusDeathMs (FR15).
+    if ('infectedAt' in o) {
+      const inf = int(o, 'infectedAt', p, 0, time);
+      if (inf < bornAt) fail(`${p}.infectedAt is before bornAt`);
+      if (inf + TUNING.virusDeathMs <= time) fail(`${p}.infectedAt is past its virus death`);
+    }
     within(sx, f.x, f.x + f.width, `${p}.x`);
     within(sy, f.y, f.y + f.height, `${p}.y`);
   }
@@ -169,9 +177,10 @@ function check(x: unknown): void {
     const o = carcasses[i];
     const p = `carcasses[${i}]`;
     claimId(o, p);
-    // Where a sheep died, so inside the fence like a sheep; created at a tick time, never later.
-    within(finite(o, 'x', p), f.x, f.x + f.width, `${p}.x`);
-    within(finite(o, 'y', p), f.y, f.y + f.height, `${p}.y`);
+    // Where a sheep died, so inside the inner fence a sheep centre keeps to; one outside it could
+    // never be eaten (FR14) and would trap its seeker. Created at a tick time, never later.
+    within(finite(o, 'x', p), inner.left, inner.right, `${p}.x`);
+    within(finite(o, 'y', p), inner.top, inner.bottom, `${p}.y`);
     int(o, 'createdAt', p, 0, time);
   }
 

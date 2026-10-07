@@ -5,7 +5,7 @@ import { TUNING } from '../../config/tuning';
 import { assertNever } from '../../core/types';
 import { queryNeighbours, rebuildGrid } from '../grid';
 import { rng, rngRange } from '../rng';
-import { breedingPieceIndex, fenceBounds, pieceIndex } from '../selectors';
+import { breedingPieceIndex, carcassIndex, fenceBounds, pieceIndex } from '../selectors';
 import type { GameState } from '../state';
 
 const TAU = 2 * Math.PI;
@@ -21,6 +21,31 @@ function wrapAngle(a: number): number {
   a %= TAU;
   if (a < 0) a += TAU;
   return a >= TAU ? 0 : a + 0;
+}
+
+/** The piece or carcass a seeker walks to, or undefined if it is gone. No allocation. */
+function seekTarget(
+  state: GameState,
+  activity: 'seekFood' | 'seekBreedingFood' | 'seekCarcass',
+  id: number | undefined,
+): { x: number; y: number } | undefined {
+  if (id === undefined) return undefined;
+  switch (activity) {
+    case 'seekFood': {
+      const k = pieceIndex(state, id);
+      return k < 0 ? undefined : state.foodPieces[k];
+    }
+    case 'seekBreedingFood': {
+      const k = breedingPieceIndex(state, id);
+      return k < 0 ? undefined : state.breedingPieces[k];
+    }
+    case 'seekCarcass': {
+      const k = carcassIndex(state, id);
+      return k < 0 ? undefined : state.carcasses[k];
+    }
+    default:
+      return assertNever(activity);
+  }
 }
 
 /**
@@ -76,15 +101,14 @@ export function updateMovement(state: GameState): void {
         }
         break;
       case 'seekFood':
-      case 'seekBreedingFood': {
-        // Straight at the claimed piece (food or breeding), slowing onto it so a 6 px step never
-        // overshoots or orbits. A missing piece means no walk this tick; feeding releases the claim
-        // next tick. `walking` stays false, so the crowd-turn below never rewrites the seek heading.
-        const food = s.activity === 'seekFood';
-        const k =
-          s.targetId === undefined ? -1 : food ? pieceIndex(state, s.targetId) : breedingPieceIndex(state, s.targetId);
-        if (k < 0) break;
-        const p = food ? state.foodPieces[k] : state.breedingPieces[k];
+      case 'seekBreedingFood':
+      case 'seekCarcass': {
+        // Straight at the target (a food or breeding piece, or a carcass), slowing onto it so a 6 px
+        // step never overshoots or orbits. A missing target means no walk this tick; feeding (pieces)
+        // or carcass.ts (carcasses) releases it next tick. `walking` stays false, so the crowd-turn
+        // below never rewrites the seek heading.
+        const p = seekTarget(state, s.activity, s.targetId);
+        if (p === undefined) break;
         const dx = p.x - s.x;
         const dy = p.y - s.y;
         const d = Math.sqrt(dx * dx + dy * dy);

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { TICK_MS } from '../../config/constants';
+import { COLOR_INT, TICK_MS } from '../../config/constants';
 import type { Hunger, PublicSheep, Stage } from '../../sim/selectors';
 import { ATLAS, FRAME } from '../assetKeys';
 import type { PooledEntitySprite } from './EntityLayer';
@@ -18,6 +18,9 @@ const FACING_DEADBAND_PX = 1.5;
 // the world-overlay layer itself arrives with pings in Story 2.6.
 export const READY_DEPTH = 9_998;
 const READY_GAP_PX = 2;
+// The lamb is drawn at the bottom of its frame (see the top of this file): its head starts 10 art rows
+// down, so overlays over a lamb (the infection marker) drop by that much to sit on its head.
+const LAMB_HEAD_INSET_PX = 10 * SHEEP_SCALE;
 
 /** UX-DR56/UX-DR69 breed-mode markers: none, a pulsing ready heart (may be picked), or A's pinned heart. */
 export type BreedMarker = 'none' | 'candidate' | 'pinned';
@@ -25,6 +28,11 @@ export type BreedMarker = 'none' | 'candidate' | 'pinned';
 const CANDIDATE_PULSE = { scale: 1.3, durationMs: 300 } as const;
 const PIN_BOB = { px: 4, durationMs: 400 } as const;
 const SHAKE = { angle: 10, durationMs: 40, repeats: 2 } as const;
+// UX-DR55/UX-DR58 infection: the marker bobs above the head, and the sheep wobbles. The wobble is
+// gameplay information, not juice: Story 5.7's reduced motion must never turn it off (UX-DR84).
+// [ASSUMPTION, tuned in the browser] values.
+const MARKER_BOB = { px: 3, durationMs: 500 } as const;
+const WOBBLE = { angle: 8, durationMs: 220 } as const;
 
 // FR7 / UX-DR58: the stage picks the art (lamb smaller, elder greyer); FR2 / UX-DR57: the hunger
 // state picks the pose within it (normal, drooping, thin). Elders are grey in their art, not by tint:
@@ -61,6 +69,14 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
   private lastReady = false;
   /** The pinned heart's bob offset, tweened (visual only). */
   private readonly pinBob = { y: 0 };
+  /** UX-DR55 infection marker, owned and pooled like the hearts; shown while the sheep is infected. */
+  private readonly infectionMarker: Phaser.GameObjects.Image;
+  private shownInfected = false;
+  /** The marker's bob offset and the sickly wobble's angle, tweened while infected. */
+  private readonly markerBob = { y: 0 };
+  private readonly wobble = { angle: 0 };
+  /** True while shake() owns the angle; the wobble waits for it. */
+  private shaking = false;
 
   constructor(scene: Phaser.Scene) {
     // The placeholder adult frame faces right; flipX makes it face left.
@@ -75,6 +91,12 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
       .setVisible(false);
     this.pinnedHeart = scene.add
       .image(0, 0, ATLAS.sheepWorld, FRAME.breedHeart)
+      .setScale(SHEEP_SCALE)
+      .setOrigin(0.5, 1)
+      .setDepth(READY_DEPTH)
+      .setVisible(false);
+    this.infectionMarker = scene.add
+      .image(0, 0, ATLAS.sheepWorld, FRAME.infectionMarker)
       .setScale(SHEEP_SCALE)
       .setOrigin(0.5, 1)
       .setDepth(READY_DEPTH)
@@ -136,6 +158,8 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
       // Lower sheep draw in front.
       this.setDepth(y);
     }
+    const infectedChanged = pub.infected !== this.shownInfected;
+    if (infectedChanged) this.setInfected(pub.infected);
     // The pinned heart takes the ready heart's place while this sheep is A.
     this.lastReady = pub.ready;
     const ready = pub.ready && this.marker !== 'pinned';
@@ -144,11 +168,80 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
       this.shownReady = ready;
       this.readyHeart.setVisible(ready);
     }
-    // Follows the drawn (interpolated) position. Only adults are ready, so the frame height is steady.
-    const headY = y - this.displayHeight / 2 - READY_GAP_PX;
-    if (ready && (moved || shown)) this.readyHeart.setPosition(x, headY);
+    // Follows the drawn (interpolated) position. The stage can change the frame height (a lamb grows),
+    // so it is read each time.
+    const headY = this.headY(y);
+    const heartY = this.heartY(y);
+    if (ready && (moved || shown || infectedChanged)) this.readyHeart.setPosition(x, heartY);
     // Bobbing, so it moves every frame; only one sheep is ever pinned.
-    if (this.marker === 'pinned') this.pinnedHeart.setPosition(x, headY + this.pinBob.y);
+    if (this.marker === 'pinned') this.pinnedHeart.setPosition(x, heartY + this.pinBob.y);
+    if (this.shownInfected) {
+      // Both bob or wobble, so they change every frame.
+      this.infectionMarker.setPosition(x, headY + this.markerBob.y);
+      if (!this.shaking) this.setAngle(this.wobble.angle);
+    }
+  }
+
+  /**
+   * How far a heart over this sheep (ready, pinned or pregnancy) is lifted to clear the infection
+   * bubbles at the top of their bob: 0 while healthy.
+   */
+  get overlayLift(): number {
+    return this.shownInfected ? this.infectionMarker.displayHeight + READY_GAP_PX + MARKER_BOB.px : 0;
+  }
+
+  /** Where the ready or pinned heart sits: over the head, or stacked above the infection bubbles. */
+  private heartY(y: number): number {
+    return this.headY(y) - this.overlayLift;
+  }
+
+  /** Just above the drawn head at sprite centre `y`, for the stage showing. */
+  private headY(y: number): number {
+    const inset = this.shownStage === 'lamb' ? LAMB_HEAD_INSET_PX : 0;
+    return y - this.displayHeight / 2 + inset - READY_GAP_PX;
+  }
+
+  /**
+   * UX-DR55/UX-DR58/UX-DR85: infection is never colour only. The `infection` tint (MULTIPLY keeps the
+   * outline, eyes and hunger poses), plus the bubble marker, plus the wobble; all undone on recovery
+   * (medicine, Story 4.5). Called on a change only, so no tween is created per frame.
+   */
+  private setInfected(infected: boolean): void {
+    this.shownInfected = infected;
+    this.stopInfection();
+    if (!infected) return;
+    const tweens = this.scene.tweens;
+    this.setTint(COLOR_INT.infection).setTintMode(Phaser.TintModes.MULTIPLY);
+    this.infectionMarker.setVisible(true).setPosition(this.x, this.headY(this.y));
+    tweens.add({
+      targets: this.markerBob,
+      y: -MARKER_BOB.px,
+      duration: MARKER_BOB.durationMs,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+    this.wobble.angle = -WOBBLE.angle;
+    tweens.add({
+      targets: this.wobble,
+      angle: WOBBLE.angle,
+      duration: WOBBLE.durationMs,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+  }
+
+  /** Clears the tint, marker and wobble. */
+  private stopInfection(): void {
+    const tweens = this.scene.tweens;
+    tweens.killTweensOf(this.markerBob);
+    tweens.killTweensOf(this.wobble);
+    this.markerBob.y = 0;
+    this.wobble.angle = 0;
+    this.clearTint();
+    this.infectionMarker.setVisible(false);
+    if (!this.shaking) this.setAngle(0);
   }
 
   /**
@@ -164,7 +257,7 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
     if (ready !== this.shownReady) {
       this.shownReady = ready;
       this.readyHeart.setVisible(ready);
-      if (ready) this.readyHeart.setPosition(this.x, this.y - this.displayHeight / 2 - READY_GAP_PX);
+      if (ready) this.readyHeart.setPosition(this.x, this.heartY(this.y));
     }
     const tweens = this.scene.tweens;
     if (marker === 'candidate') {
@@ -177,7 +270,7 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
         ease: 'Sine.easeInOut',
       });
     } else if (marker === 'pinned') {
-      this.pinnedHeart.setVisible(true).setPosition(this.x, this.y - this.displayHeight / 2 - READY_GAP_PX);
+      this.pinnedHeart.setVisible(true).setPosition(this.x, this.heartY(this.y));
       tweens.add({ targets: this.pinBob, y: -PIN_BOB.px, duration: PIN_BOB.durationMs, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
   }
@@ -186,6 +279,8 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
   shake(): void {
     const tweens = this.scene.tweens;
     tweens.killTweensOf(this);
+    // The shake owns the angle while it runs; an infected sheep's wobble resumes after it.
+    this.shaking = true;
     this.setAngle(-SHAKE.angle);
     tweens.add({
       targets: this,
@@ -194,7 +289,10 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
       yoyo: true,
       repeat: SHAKE.repeats,
       ease: 'Sine.easeInOut',
-      onComplete: () => this.setAngle(0),
+      onComplete: () => {
+        this.shaking = false;
+        this.setAngle(0);
+      },
     });
   }
 
@@ -222,6 +320,10 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
     this.readyHeart.setVisible(false);
     this.clearMarker();
     this.scene.tweens.killTweensOf(this);
+    // A reused sprite must never come back green, bubbled or wobbling.
+    this.shaking = false;
+    this.shownInfected = false;
+    this.stopInfection();
     this.setAngle(0);
     this.setFlipX(false);
     this.setActive(false).setVisible(false);

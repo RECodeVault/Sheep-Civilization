@@ -142,8 +142,10 @@ export class GameScene extends Phaser.Scene {
   // error or drop the frame's remaining ticks.
   private readonly onSim = (e: SimEvent): void => {
     try {
-      if (e.type === 'FoodEaten' || e.type === 'BreedingFoodEaten') this.munch.explode(MUNCH_CRUMBS, e.x, e.y);
-      else if (e.type === 'LambBorn') this.poof.explode(POOF_PUFFS, e.x, e.y);
+      // A carcass a sheep ate (FR14) munches like a piece; its sprite leaves through the layer's sweep.
+      if (e.type === 'FoodEaten' || e.type === 'BreedingFoodEaten' || e.type === 'CarcassEaten') {
+        this.munch.explode(MUNCH_CRUMBS, e.x, e.y);
+      } else if (e.type === 'LambBorn') this.poof.explode(POOF_PUFFS, e.x, e.y);
       else if (e.type === 'CarcassSpawned') this.dust.explode(DUST_SPAWN_PUFFS, e.x, e.y);
       else if (e.type === 'CarcassCleared') this.dust.explode(DUST_CLEAR_PUFFS, e.x, e.y);
     } catch (err) {
@@ -499,11 +501,12 @@ export class GameScene extends Phaser.Scene {
       const b = this.sheepLayer.spriteFor(g.parentB);
       if (a !== undefined && b !== undefined) {
         g.x = (a.x + b.x) / 2;
-        g.y = (a.y + b.y) / 2;
+        // Lifted clear of an infected parent's bubbles (UX-DR55), as its own hearts are.
+        g.y = (a.y + b.y) / 2 - Math.max(a.overlayLift, b.overlayLift);
       } else if (a !== undefined || b !== undefined) {
         const s = (a ?? b) as SheepSprite;
         g.x = s.x;
-        g.y = s.y;
+        g.y = s.y - s.overlayLift;
       }
     }
     return list;

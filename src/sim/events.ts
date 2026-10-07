@@ -1,7 +1,7 @@
 // Sim → view events. The sim appends to a per-tick queue that lives outside GameState (events are
 // never saved); after each tick GameScene drains it onto the EventBus. Variants: SheepDied,
-// CarcassSpawned, CarcassCleared, Farmed, FoodDropped, FoodEaten, BreedingFoodDropped,
-// BreedingFoodEaten, Bred, LambBorn, Lost.
+// CarcassSpawned, CarcassCleared, CarcassEaten, Infected, Farmed, FoodDropped, FoodEaten,
+// BreedingFoodDropped, BreedingFoodEaten, Bred, LambBorn, Lost.
 
 export type DeathCause = 'starved' | 'oldAge' | 'virus' | 'abomination';
 
@@ -15,6 +15,10 @@ export type SimEvent =
   | { type: 'CarcassSpawned'; id: number; x: number; y: number }
   // A ClearCarcass removed carcass `id` from (x, y) (FR13).
   | { type: 'CarcassCleared'; id: number; x: number; y: number }
+  // A Starving sheep ate carcass `carcassId` (FR14); (x, y) is where the carcass lay (the munch spot).
+  | { type: 'CarcassEaten'; sheepId: number; carcassId: number; x: number; y: number }
+  // Sheep `id` became infected (FR15; virus.ts infectSheep). Story 2.6 pings on it; 4.6 emits it too.
+  | { type: 'Infected'; id: number; x: number; y: number }
   // Every Farm and FarmBreeding command emits Farmed, after any FoodDropped it caused. `added` is what
   // it made: the pieces (food or breeding) dropped into the pen, 0 until a bar completes.
   | { type: 'Farmed'; resource: FarmResource; added: number }

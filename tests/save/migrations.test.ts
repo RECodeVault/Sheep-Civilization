@@ -52,6 +52,16 @@ describe('migrate', () => {
     expect(validateState(r.state).ok).toBe(true);
   });
 
+  it('migrates a version-4 state (before the virus) unchanged: nobody infected, nobody seeking a carcass', () => {
+    const state = newGame(3);
+    const v4 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+    const r = migrate(4, v4);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.state).toStrictEqual(state);
+    expect(validateState(r.state).ok).toBe(true);
+  });
+
   it('leaves a non-array sheep in a version-3 state for validation to reject', () => {
     const r = migrate(3, { time: 0, sheep: 'nope' });
     expect(r.ok).toBe(true);

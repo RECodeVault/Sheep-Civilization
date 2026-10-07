@@ -6,9 +6,10 @@ import { fenceBounds } from './selectors';
 
 /**
  * The sheep's explicit state machine; feeding.ts owns the seekFood/seekBreedingFood/eating
- * transitions. Later stories add seekCarcass (2.5), stalking (4.3) and dragged (2.7).
+ * transitions and carcass.ts owns seekCarcass (FR14). Later stories add stalking (4.3) and dragged
+ * (2.7).
  */
-export type SheepActivity = 'wander' | 'seekFood' | 'seekBreedingFood' | 'eating';
+export type SheepActivity = 'wander' | 'seekFood' | 'seekBreedingFood' | 'seekCarcass' | 'eating';
 
 export interface Sheep {
   id: number;
@@ -26,14 +27,19 @@ export interface Sheep {
    */
   restUntil: number;
   /**
-   * Id of the piece a `seekFood` (food piece) or `seekBreedingFood` (breeding piece) sheep walks to.
-   * Omitted (deleted) when there is none.
+   * Id of what a seeker walks to: a food piece (`seekFood`), a breeding piece (`seekBreedingFood`) or a
+   * carcass (`seekCarcass`). Omitted (deleted) when there is none.
    */
   targetId?: number;
   /** Ate a breeding piece and can be paired by the Breed tool (FR8a). Cleared on turning elder. */
   breedReady: boolean;
   /** Game-ms deadline of the breeding cooldown (FR10); 0 = never bred. On cooldown is derived. */
   cooldownUntil: number;
+  /**
+   * Game-ms of infection (FR15), omitted while healthy. Infected is derived from it, and so is the
+   * virus death at `infectedAt + TUNING.virusDeathMs` (virus.ts).
+   */
+  infectedAt?: number;
 }
 
 export interface FoodPiece {

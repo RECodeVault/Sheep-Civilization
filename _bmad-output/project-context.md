@@ -31,7 +31,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 ### Engine-Specific Rules (Phaser 4)
 
-- **v4 API, not v3:** no `setTintFill()` → `setTint(c).setTintMode(Phaser.TintModes.FILL)` (infection tint, reveal flash). FX/masks are **Filters**; no `BitmapMask`, no `preFX`/`postFX`. Verify any other API via Context7 before use.
+- **v4 API, not v3:** no `setTintFill()` → `setTint(c).setTintMode(Phaser.TintModes.FILL)` (the Abomination reveal flash). The infection tint is `setTint(COLOR_INT.infection).setTintMode(Phaser.TintModes.MULTIPLY)`, which greens the wool and keeps the outline, eyes and hunger poses (Story 2.5, Rylan). FX/masks are **Filters**; no `BitmapMask`, no `preFX`/`postFX`. Verify any other API via Context7 before use.
 - **Game config:** `type: Phaser.AUTO`, 1280×720, `pixelArt: true` (nearest-neighbour; no `roundPixels` hacks), `scale: { mode: FIT, autoCenter: CENTER_BOTH }`, **no `physics` key** — Arcade/Matter are not used.
 - **Scenes:** `BootScene → PreloadScene → TitleScene → GameScene` + `HudScene` and `OverlayScene` launched in parallel. Scene key string = class name. Only `GameScene` runs the sim loop; HUD/Overlay never step the sim.
 - **Pausing:** pause = stop accumulating sim time in `GameScene`. Do NOT use `scene.pause()` on GameScene for gameplay pause (it also freezes the field rendering needed behind the pause scrim and breaks the accumulator).

@@ -5,7 +5,8 @@
 // the canvas or the gameplay InputController, and a real button click is the user gesture the
 // Clipboard API needs. Backtick toggles it.
 //
-// Later stories add their buttons here: Infect sheep (2.5), Add money (3.2), Reveal Abomination (4.1). src/debug/ is the only non-sim code allowed to read isAbomination.
+// Later stories add their buttons here: Add money (3.2), Reveal Abomination (4.1). src/debug/ is the
+// only non-sim code allowed to read isAbomination.
 import Phaser from 'phaser';
 import { COLORS, RADIUS, SPACING } from '../config/constants';
 import { TUNING } from '../config/tuning';
@@ -18,6 +19,7 @@ import { fenceBounds, innerFence, stageOf } from '../sim/selectors';
 import { createSheep, type GameState } from '../sim/state';
 import { createCarcass } from '../sim/systems/carcass';
 import { createBreedingPiece, createFoodPiece } from '../sim/systems/feeding';
+import { infectSheep } from '../sim/systems/virus';
 import type { GameScene } from '../view/scenes/GameScene';
 
 const SPEEDS = [1, 4, 16] as const;
@@ -165,6 +167,16 @@ export function installDebugOverlay(game: Phaser.Game): void {
     });
     refreshSim();
   });
+  // Story 2.5: infects one random healthy sheep through the real helper (its Infected event is drained
+  // with the next tick), for checking the tint, marker, wobble and the 20 s virus death quickly.
+  const infectButton = button(row2, 'Infect one', () => {
+    activeScene()?.debugMutate((s) => {
+      const healthy = s.sheep.filter((x) => x.infectedAt === undefined);
+      if (healthy.length === 0) return;
+      infectSheep(s, healthy[Math.floor(Math.random() * healthy.length)]);
+    });
+    refreshSim();
+  });
 
   const row3 = buttonRow(panel);
   const dumpButton = button(row3, 'Dump state', () => {
@@ -204,6 +216,7 @@ export function installDebugOverlay(game: Phaser.Game): void {
     feedButton,
     carcassButton,
     starveButton,
+    infectButton,
     dumpButton,
     copyButton,
     loadButton,
@@ -271,7 +284,7 @@ export function installDebugOverlay(game: Phaser.Game): void {
     const s = scene.simState;
     const speed = scene.simClock.speed;
     timeLine.textContent = `time   ${formatGameTime(s.time)} (${s.time} ms) · ${speed === 0 ? 'paused' : `×${speed}`}`;
-    sheepLine.textContent = `sheep  ${s.sheep.length} · carcasses ${s.carcasses.length}`;
+    sheepLine.textContent = `sheep  ${s.sheep.length} · carcasses ${s.carcasses.length} · infected ${countInfected(s)}`;
     foodLine.textContent = `food   pieces ${s.foodPieces.length} · bar ${s.farmProgress}/${TUNING.farmPipsPerFood}`;
     pauseButton.textContent = speed === 0 ? 'Resume' : 'Pause';
     stepButton.disabled = speed !== 0;
@@ -412,4 +425,11 @@ function preventFocus(e: MouseEvent): void {
 function highlight(b: HTMLButtonElement, on: boolean): void {
   b.style.backgroundColor = on ? COLORS.hay : COLORS.dusk;
   b.style.color = on ? COLORS.bark : COLORS.wool;
+}
+
+/** Infected sheep, for the counts line (refreshed every REFRESH_MS, not per frame). */
+function countInfected(s: Readonly<GameState>): number {
+  let n = 0;
+  for (const sheep of s.sheep) if (sheep.infectedAt !== undefined) n++;
+  return n;
 }

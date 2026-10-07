@@ -5,10 +5,11 @@
 // Claim model: a seeker keeps its `targetId` until it eats the piece or the piece is gone, so sheep
 // never jitter between pieces. Each piece has at most one seeker and each sheep at most one piece.
 // Food comes first: food claims run before breeding claims and may take a hungry sheep off its way to
-// a breeding piece, and a hungry sheep does not start for breeding food while food lies in the pen.
+// a breeding piece or a carcass (carcass.ts, FR14), and a hungry sheep does not start for breeding food
+// while food lies in the pen.
 import { TUNING } from '../../config/tuning';
 import { emit } from '../events';
-import { breedingPieceIndex, innerFence, onCooldown, pieceIndex, stageOf } from '../selectors';
+import { breedingPieceIndex, hungerOf, innerFence, onCooldown, pieceIndex, stageOf } from '../selectors';
 import { nextId, type BreedingPiece, type FoodPiece, type GameState, type Sheep } from '../state';
 
 /** A piece in one of the two piece arrays; both have the same shape. */
@@ -149,27 +150,34 @@ function claimPieces(state: GameState, pieces: readonly Piece[], food: boolean, 
     claimed[pick] = 1;
     unclaimed--;
     eligible--;
-    // A sheep on its way to a breeding piece drops it for food: its old target is simply replaced.
+    // A sheep on its way to a breeding piece or a carcass drops it for food: its old target is simply
+    // replaced.
     s.activity = seeking;
     s.targetId = pieces[pick].id;
   }
 }
 
-/** FR5: a free (or breeding-food-bound) sheep below seekBelowFullness may claim food. */
+/** FR5/FR14: a free (or breeding-food- or carcass-bound) sheep below seekBelowFullness may claim food. */
 function mayEatFood(s: Sheep): boolean {
-  return (s.activity === 'wander' || s.activity === 'seekBreedingFood') && s.fullness < TUNING.seekBelowFullness;
+  return (
+    (s.activity === 'wander' || s.activity === 'seekBreedingFood' || s.activity === 'seekCarcass') &&
+    s.fullness < TUNING.seekBelowFullness
+  );
 }
 
 /**
  * FR8a: a free adult that is not ready and not on breeding cooldown may claim breeding food, unless
- * it is hungry while food lies in the pen (food first). Story 4.1: the Abomination is never an adult
- * (it stays a lamb).
+ * it is hungry while food lies in the pen (food first) or Starving while a carcass and no food lie
+ * there (FR14). Story 4.1: the Abomination is never an adult (it stays a lamb).
  */
 function mayEatBreedingFood(s: Sheep, state: GameState): boolean {
   return (
     s.activity === 'wander' &&
     canUseBreedingFood(s, state) &&
-    !(s.fullness < TUNING.seekBelowFullness && state.foodPieces.length > 0)
+    !(s.fullness < TUNING.seekBelowFullness && state.foodPieces.length > 0) &&
+    // FR14: a Starving sheep goes for a carcass when there is no food (carcass.ts runs next and would
+    // take it off this piece, wasting the claim for a tick).
+    !(state.foodPieces.length === 0 && state.carcasses.length > 0 && hungerOf(s.fullness) === 'starving')
   );
 }
 

@@ -1,14 +1,19 @@
 // Advances the sim by one fixed tick. The only place systems are called from.
 import { TICK_MS } from '../config/constants';
 import type { GameState } from './state';
+import { updateCarcassEating } from './systems/carcass';
 import { updateFeeding } from './systems/feeding';
 import { updateHunger } from './systems/hunger';
 import { updateLifecycle } from './systems/lifecycle';
 import { updateMovement } from './systems/movement';
+import { updateVirus } from './systems/virus';
 
 /*
  * Systems run in this fixed order, after time has advanced. Intended order as systems arrive:
- *   movement → feeding → hunger → lifecycle → virus → abomination → overcrowding → autoFeeder → eras
+ *   movement → feeding → carcassEating → hunger → lifecycle → virus → abomination → overcrowding →
+ *   autoFeeder → eras
+ * Carcass eating follows feeding, so food claims win first (FR14), and precedes hunger, so a sheep that
+ * eats on the tick it would starve lives.
  * Systems never call each other; they share data only through GameState.
  */
 export type System = (state: GameState) => void;
@@ -16,8 +21,10 @@ export type System = (state: GameState) => void;
 const SYSTEMS: readonly System[] = [
   updateMovement,
   updateFeeding,
+  updateCarcassEating,
   updateHunger,
   updateLifecycle,
+  updateVirus,
 ];
 
 export function step(state: GameState): void {

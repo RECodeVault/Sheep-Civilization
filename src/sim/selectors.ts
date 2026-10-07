@@ -86,7 +86,7 @@ export function breedBlock(state: GameState): BreedBlock {
   return eligible < 2 ? 'notReady' : null;
 }
 
-/** The only sheep shape the view may consume. Later stories add name, infected, gait, activity. */
+/** The only sheep shape the view may consume. Later stories add name, gait, activity. */
 export interface PublicSheep {
   id: number;
   x: number;
@@ -99,6 +99,8 @@ export interface PublicSheep {
   onCooldown: boolean;
   /** May be picked by the Breed tool (canBreed). Not secret either: the Abomination is never an adult. */
   canBreed: boolean;
+  /** Infected (FR15): the tint, marker and wobble. Not secret: the Abomination can catch it like any lamb. */
+  infected: boolean;
 }
 
 export function publicSheep(s: Sheep, state: GameState): PublicSheep {
@@ -111,6 +113,7 @@ export function publicSheep(s: Sheep, state: GameState): PublicSheep {
     ready: s.breedReady,
     onCooldown: onCooldown(s, state),
     canBreed: canBreed(s, state),
+    infected: s.infectedAt !== undefined,
   };
 }
 
@@ -124,7 +127,7 @@ export function selectPublicSheep(state: GameState, out: PublicSheep[]): PublicS
     const s = sheep[i];
     let p = out[i];
     if (p === undefined) {
-      p = { id: 0, x: 0, y: 0, stage: 'adult', hunger: 'fed', ready: false, onCooldown: false, canBreed: false };
+      p = { id: 0, x: 0, y: 0, stage: 'adult', hunger: 'fed', ready: false, onCooldown: false, canBreed: false, infected: false };
       out[i] = p;
     }
     p.id = s.id;
@@ -135,6 +138,7 @@ export function selectPublicSheep(state: GameState, out: PublicSheep[]): PublicS
     p.ready = s.breedReady;
     p.onCooldown = onCooldown(s, state);
     p.canBreed = canBreed(s, state);
+    p.infected = s.infectedAt !== undefined;
   }
   out.length = sheep.length;
   return out;

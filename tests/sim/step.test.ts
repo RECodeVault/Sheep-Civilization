@@ -56,6 +56,19 @@ describe('step', () => {
     expect(state.lostAt).toBe(state.time);
   });
 
+  it('a virus death of the last sheep loses the game through step() (FR15, FR38)', () => {
+    const state = newGame();
+    for (const id of state.sheep.slice(1).map((s) => s.id)) killSheep(state, id, 'starved');
+    clearEvents();
+    const s = state.sheep[0];
+    s.infectedAt = state.time;
+    const events = runFor(state, TUNING.virusDeathMs);
+    expect(events.map((e) => e.type)).toEqual(['SheepDied', 'CarcassSpawned', 'Lost']);
+    expect(events[0]).toMatchObject({ id: s.id, cause: 'virus' });
+    expect(state.lostAt).toBe(s.infectedAt + TUNING.virusDeathMs);
+    expect(runFor(state, 1_000)).toEqual([]);
+  });
+
   it('a sheep that starves and reaches old age on one tick dies once, of starvation', () => {
     // The last sheep both starves and reaches old age on the same tick: hunger (first) loses the
     // game, so lifecycle must not run on the lost state. One death, then Lost, nothing after.

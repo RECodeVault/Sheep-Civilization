@@ -68,7 +68,7 @@ describe('publicSheep / selectPublicSheep', () => {
     const state = newGame();
     const s = state.sheep[0];
     s.fullness = TUNING.starvingBelow - 1;
-    expect(publicSheep(s, state)).toEqual({ id: s.id, x: s.x, y: s.y, stage: 'adult', hunger: 'starving', ready: false, onCooldown: false, canBreed: false });
+    expect(publicSheep(s, state)).toEqual({ id: s.id, x: s.x, y: s.y, stage: 'adult', hunger: 'starving', ready: false, onCooldown: false, canBreed: false, infected: false });
   });
 
   it('exposes breedReady as ready', () => {
@@ -82,6 +82,24 @@ describe('publicSheep / selectPublicSheep', () => {
     s.breedReady = false;
     selectPublicSheep(state, out);
     expect(out[0].ready).toBe(false);
+  });
+
+  it('exposes infected from infectedAt (FR15), and updates a reused out object', () => {
+    const state = newGame();
+    const s = state.sheep[0];
+    expect(publicSheep(s, state).infected).toBe(false);
+    const out: PublicSheep[] = [];
+    selectPublicSheep(state, out);
+    expect(out.map((p) => p.infected)).toEqual([false, false, false]);
+    s.infectedAt = state.time;
+    expect(publicSheep(s, state).infected).toBe(true);
+    const first = out[0];
+    selectPublicSheep(state, out);
+    expect(out[0]).toBe(first);
+    expect(out.map((p) => p.infected)).toEqual([true, false, false]);
+    delete s.infectedAt;
+    selectPublicSheep(state, out);
+    expect(out[0].infected).toBe(false);
   });
 
   it('fills stage and hunger into the objects already in out', () => {

@@ -21,6 +21,9 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = Object.freeze({
     pregnancies: [],
     sheep: Array.isArray(s.sheep) ? s.sheep.map((x: unknown) => (isObj(x) ? { ...x, cooldownUntil: 0 } : x)) : s.sheep,
   }),
+  // Story 2.5: `infectedAt` (optional, absent = healthy) and the `seekCarcass` activity arrive. No
+  // version-4 save holds either, so the state is unchanged.
+  4: (s) => s,
 });
 
 export type MigrationResult = { ok: true; state: unknown } | { ok: false; reason: string };

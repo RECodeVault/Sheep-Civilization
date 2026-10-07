@@ -5,7 +5,10 @@
 // sacrificing the last sheep is a loss too.
 //
 // Carcasses live here too (System Location Mapping): createCarcass, clearCarcass (FR13, the player's
-// click), and from Story 2.5 starving sheep eating them.
+// click), and updateCarcassEating (FR14): a Starving sheep walks to its nearest carcass and eats it,
+// but only while no food piece is on the field (breeding pieces are not food). There is no exclusive
+// claim: several sheep may head for one carcass, the first to reach it eats it, and the others pick
+// again. Eating infects the sheep through virus.ts's infectSheep (FR15). feeding.ts ends the munch.
 //
 // Callers: killSheep *replaces* state.sheep with a new, shorter array. A system that kills while
 // looping must loop over the array it captured before the loop (see updateHunger), never re-read
@@ -14,8 +17,9 @@
 import { TUNING } from '../../config/tuning';
 import { invariant } from '../../core/invariant';
 import { emit, type DeathCause } from '../events';
-import { carcassIndex } from '../selectors';
-import { nextId, type Carcass, type GameState } from '../state';
+import { carcassIndex, hungerOf } from '../selectors';
+import { nextId, type Carcass, type GameState, type Sheep } from '../state';
+import { infectSheep } from './virus';
 
 export function killSheep(state: GameState, id: number, cause: DeathCause): void {
   const s = state.sheep.find((x) => x.id === id);
@@ -52,6 +56,81 @@ export function clearCarcass(state: GameState, id: number): void {
   // A rare event, so the splice is fine.
   state.carcasses.splice(i, 1);
   emit({ type: 'CarcassCleared', id: c.id, x: c.x, y: c.y });
+}
+
+/**
+ * FR14/FR15: Starving sheep seek and eat carcasses while no food piece is on the field. Pass 1 releases
+ * seekers that can no longer eat and eats on arrival; pass 2 sends each free Starving sheep to its
+ * nearest carcass, eating it at once if it is already in reach. Plain loops: no allocation and no rng, except when a carcass is eaten (an event).
+ */
+export function updateCarcassEating(state: GameState): void {
+  const sheep = state.sheep;
+  const noFood = state.foodPieces.length === 0;
+  const reach2 = TUNING.eatReachPx * TUNING.eatReachPx;
+
+  // Pass 1: release and eat.
+  for (let i = 0; i < sheep.length; i++) {
+    const s = sheep[i];
+    if (s.activity !== 'seekCarcass') continue;
+    const k = s.targetId === undefined ? -1 : carcassIndex(state, s.targetId);
+    if (!noFood || k < 0 || hungerOf(s.fullness) !== 'starving') {
+      s.activity = 'wander';
+      delete s.targetId;
+      continue;
+    }
+    const c = state.carcasses[k];
+    const dx = c.x - s.x;
+    const dy = c.y - s.y;
+    if (dx * dx + dy * dy <= reach2) eatCarcass(state, s, k);
+  }
+
+  // Pass 2: claims.
+  const list = state.carcasses;
+  if (!noFood || list.length === 0) return;
+  for (let i = 0; i < sheep.length; i++) {
+    const s = sheep[i];
+    // Hunger beats breeding: a Starving adult on its way to a breeding piece turns to the carcass. A
+    // seeker whose carcass a sheep later in the array ate this tick picks again now, not a tick late.
+    const free =
+      s.activity === 'wander' ||
+      s.activity === 'seekBreedingFood' ||
+      (s.activity === 'seekCarcass' && (s.targetId === undefined || carcassIndex(state, s.targetId) < 0));
+    if (!free || hungerOf(s.fullness) !== 'starving') continue;
+    // Strict `<` gives ties to the lower index: deterministic.
+    let best = -1;
+    let bestD = Infinity;
+    for (let k = 0; k < list.length; k++) {
+      const dx = list[k].x - s.x;
+      const dy = list[k].y - s.y;
+      const d = dx * dx + dy * dy;
+      if (d < bestD) {
+        bestD = d;
+        best = k;
+      }
+    }
+    // Only a non-finite position (a corrupt save) can leave every distance un-comparable.
+    if (best < 0) continue;
+    // Already in reach (it was standing there when the carcass appeared): eat now, not next tick.
+    if (bestD <= reach2) {
+      eatCarcass(state, s, best);
+      continue;
+    }
+    s.activity = 'seekCarcass';
+    s.targetId = list[best].id;
+  }
+}
+
+/** Sheep `s` eats carcass `k`: it is gone, the sheep is fed and munches, and it is infected (FR15). */
+function eatCarcass(state: GameState, s: Sheep, k: number): void {
+  const c = state.carcasses[k];
+  // A rare event, so the splice is fine.
+  state.carcasses.splice(k, 1);
+  s.fullness = Math.min(TUNING.fullnessMax, s.fullness + TUNING.carcassFullness);
+  s.activity = 'eating';
+  delete s.targetId;
+  s.restUntil = state.time + TUNING.eatMs;
+  emit({ type: 'CarcassEaten', sheepId: s.id, carcassId: c.id, x: c.x, y: c.y });
+  infectSheep(state, s);
 }
 
 /**

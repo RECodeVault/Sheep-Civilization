@@ -55,6 +55,11 @@ export const TUNING = Object.freeze({
   // separationWeight). Then it stands munching for eatMs before it wanders again.
   eatReachPx: 12,
   eatMs: 1_500,
+  // FR15 / GDD Virus: "Death 20 s after infection".
+  virusDeathMs: 20_000,
+  // [ASSUMPTION, Story 2.5 Open Question 1; tune in 3.6] A carcass feeds like a food piece, so the virus
+  // (not hunger) is what kills the sheep that ate it.
+  carcassFullness: 35,
   // GDD Starting flock: the founding adults are aged 60 s.
   startAdultAgeMs: 60_000,
   // FR6 / GDD Starting flock: 2 adults aged 60 s and 1 newborn lamb.

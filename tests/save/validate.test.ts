@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { TICK_MS } from '../../src/config/constants';
 import { TUNING } from '../../src/config/tuning';
 import { validateState } from '../../src/save/validate';
 import { fenceBounds, innerFence } from '../../src/sim/selectors';
@@ -67,6 +68,19 @@ describe('validateState', () => {
     r.sheep[1].activity = 'seekBreedingFood';
     r.sheep[1].targetId = r.breedingPieces[0].id;
     r.breedingProgress = TUNING.breedingPipsPerFood - 1;
+    expect(validateState(r).ok).toBe(true);
+  });
+
+  it('accepts a sheep seeking a carcass and an infected sheep (Story 2.5)', () => {
+    const r = raw();
+    r.sheep[2].activity = 'seekCarcass';
+    r.sheep[2].targetId = r.carcasses[0].id;
+    // Later in the game, with the fixture's own infection moved along with the clock.
+    r.time = (r.time as number) + TUNING.virusDeathMs;
+    for (const x of r.sheep) if ('infectedAt' in x) x.infectedAt = r.time;
+    r.sheep[3].infectedAt = r.time;
+    // The earliest a saved infection can be: one tick earlier would have killed the sheep already.
+    r.sheep[4].infectedAt = (r.time as number) - TUNING.virusDeathMs + TICK_MS;
     expect(validateState(r).ok).toBe(true);
   });
 
@@ -183,6 +197,29 @@ describe('validateState', () => {
     ['a carcass left of the fence', (r) => (r.carcasses[0].x = f.x - 1), 'carcasses[0].x'],
     ['a carcass below the fence', (r) => (r.carcasses[0].y = f.y + f.height + 1), 'carcasses[0].y'],
     ['a NaN carcass x', (r) => (r.carcasses[0].x = Number.NaN), 'carcasses[0].x'],
+    ['a NaN infectedAt', (r) => (r.sheep[0].infectedAt = Number.NaN), 'sheep[0].infectedAt'],
+    ['a string infectedAt', (r) => (r.sheep[0].infectedAt = '0'), 'sheep[0].infectedAt'],
+    ['a null infectedAt', (r) => (r.sheep[0].infectedAt = null), 'sheep[0].infectedAt'],
+    ['a fractional infectedAt', (r) => (r.sheep[0].infectedAt = 0.5), 'sheep[0].infectedAt'],
+    ['a negative infectedAt', (r) => (r.sheep[0].infectedAt = -100), 'sheep[0].infectedAt'],
+    ['an infectedAt after time', (r) => (r.sheep[0].infectedAt = (r.time as number) + 100), 'sheep[0].infectedAt'],
+    [
+      'an infectedAt before bornAt',
+      (r) => {
+        r.sheep[0].bornAt = r.time;
+        r.sheep[0].infectedAt = (r.time as number) - 100;
+      },
+      'sheep[0].infectedAt',
+    ],
+    [
+      'an infection past its virus death',
+      (r) => {
+        r.time = (r.time as number) + TUNING.virusDeathMs;
+        r.sheep[0].infectedAt = (r.time as number) - TUNING.virusDeathMs;
+      },
+      'sheep[0].infectedAt',
+    ],
+    ['a carcass outside the inner fence', (r) => (r.carcasses[0].x = inner.left - 1), 'carcasses[0].x'],
     ['a null lostAt', (r) => (r.lostAt = null), 'lostAt'],
     ['a string lostAt', (r) => (r.lostAt = '0'), 'lostAt'],
     ['a negative lostAt', (r) => (r.lostAt = -100), 'lostAt'],

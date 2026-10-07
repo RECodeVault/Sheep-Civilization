@@ -3,6 +3,7 @@ import { TICK_MS } from '../../../src/config/constants';
 import { TUNING } from '../../../src/config/tuning';
 import { drainEvents, type SimEvent } from '../../../src/sim/events';
 import { createSheep, type GameState, type Sheep } from '../../../src/sim/state';
+import { createCarcass } from '../../../src/sim/systems/carcass';
 import { createBreedingPiece, createFoodPiece, updateFeeding } from '../../../src/sim/systems/feeding';
 import { innerFence, newGame, runFor } from '../helpers';
 
@@ -285,6 +286,31 @@ describe('updateFeeding breeding food (FR8a)', () => {
     updateFeeding(state);
     expect(s).toMatchObject({ activity: 'seekFood', targetId: food.id });
     expect(state.breedingPieces).toEqual([bp]);
+  });
+
+  it('a sheep on its way to a carcass switches to food when a piece lands (FR14)', () => {
+    const c = mid(newGame());
+    const state = gameWith([{ x: c.x, y: c.y, fullness: TUNING.starvingBelow - 5 }]);
+    const s = state.sheep[0];
+    s.activity = 'seekCarcass';
+    s.targetId = 9_999;
+    const food = createFoodPiece(state, c.x - 100, c.y);
+    updateFeeding(state);
+    expect(s).toMatchObject({ activity: 'seekFood', targetId: food.id });
+  });
+
+  it('a Starving adult does not claim breeding food while a carcass and no food lie in the pen (FR14)', () => {
+    const c = mid(newGame());
+    const state = gameWith([
+      { x: c.x - 20, y: c.y, fullness: TUNING.starvingBelow - 5 },
+      { x: c.x + 100, y: c.y, fullness: FED },
+    ]);
+    const [starving, fed] = state.sheep;
+    const bp = createBreedingPiece(state, c.x - 30, c.y);
+    createCarcass(state, c.x - 150, c.y);
+    updateFeeding(state);
+    expect(starving.activity).toBe('wander');
+    expect(fed).toMatchObject({ activity: 'seekBreedingFood', targetId: bp.id });
   });
 
   it('gives two breeding pieces to two adults, one each', () => {

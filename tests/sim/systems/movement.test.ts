@@ -3,6 +3,7 @@ import { TICK_MS } from '../../../src/config/constants';
 import { TUNING } from '../../../src/config/tuning';
 import { createSheep, type GameState, type Sheep } from '../../../src/sim/state';
 import { step } from '../../../src/sim/step';
+import { createCarcass } from '../../../src/sim/systems/carcass';
 import { createBreedingPiece, createFoodPiece } from '../../../src/sim/systems/feeding';
 import { updateMovement } from '../../../src/sim/systems/movement';
 import { fillFlock, innerFence, newGame, runFor } from '../helpers';
@@ -217,6 +218,26 @@ describe('updateMovement seekFood / eating', () => {
     expect(prev).toBeLessThan(1e-6);
   });
 
+  it('walks a carcass seeker straight to its carcass the same way (FR14)', () => {
+    const c = centre(newGame());
+    const state = gameWith([{ x: c.x + 50, y: c.y - 7 }]);
+    const s = state.sheep[0];
+    const k = createCarcass(state, c.x, c.y);
+    s.activity = 'seekCarcass';
+    s.targetId = k.id;
+    let prev = Math.hypot(k.x - s.x, k.y - s.y);
+    for (let t = 0; t < 20; t++) {
+      const bx = s.x;
+      const by = s.y;
+      updateMovement(state);
+      expect(Math.hypot(s.x - bx, s.y - by)).toBeLessThanOrEqual(MAX_STEP + 1e-9);
+      const d = Math.hypot(k.x - s.x, k.y - s.y);
+      expect(d).toBeLessThanOrEqual(prev + 1e-9);
+      prev = d;
+    }
+    expect(prev).toBeLessThan(1e-6);
+  });
+
   it('keeps a seeker inside the inner fence', () => {
     const state = gameWith([{ x: 0, y: 0 }]);
     const r = innerFence(state);
@@ -242,6 +263,9 @@ describe('updateMovement seekFood / eating', () => {
     eater.activity = 'eating';
     lost.activity = 'seekFood';
     lost.targetId = 9999;
+    const lostCarcass = createSheep(state, { x: c.x, y: c.y + 60, bornAt: -TUNING.startAdultAgeMs });
+    lostCarcass.activity = 'seekCarcass';
+    lostCarcass.targetId = 9998;
     const before = state.sheep.map((x) => [x.x, x.y]);
     for (let t = 0; t < 10; t++) updateMovement(state);
     expect(state.sheep.map((x) => [x.x, x.y])).toEqual(before);

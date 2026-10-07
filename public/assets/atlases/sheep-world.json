@@ -336,10 +336,34 @@
         "y": 0.5
       }
     },
-    "breeding-piece": {
+    "infection-marker": {
       "frame": {
         "x": 58,
         "y": 109,
+        "w": 9,
+        "h": 8
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 9,
+        "h": 8
+      },
+      "sourceSize": {
+        "w": 9,
+        "h": 8
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "breeding-piece": {
+      "frame": {
+        "x": 73,
+        "y": 99,
         "w": 8,
         "h": 7
       },
@@ -362,8 +386,8 @@
     },
     "food-piece": {
       "frame": {
-        "x": 72,
-        "y": 99,
+        "x": 73,
+        "y": 112,
         "w": 8,
         "h": 6
       },
@@ -386,8 +410,8 @@
     },
     "heart-outline": {
       "frame": {
-        "x": 72,
-        "y": 111,
+        "x": 87,
+        "y": 99,
         "w": 7,
         "h": 6
       },
@@ -410,8 +434,8 @@
     },
     "ready-heart": {
       "frame": {
-        "x": 85,
-        "y": 111,
+        "x": 100,
+        "y": 99,
         "w": 7,
         "h": 6
       },
@@ -482,8 +506,8 @@
     },
     "munch-crumb": {
       "frame": {
-        "x": 43,
-        "y": 123,
+        "x": 65,
+        "y": 99,
         "w": 2,
         "h": 2
       },
