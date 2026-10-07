@@ -17,8 +17,9 @@ export const TUNING = Object.freeze({
   // FR2: Fed above 50, Starving below 25, Hungry in between (both bounds inclusive).
   fedAbove: 50,
   starvingBelow: 25,
-  // Architecture N1 Epic 1 staging: killSheep spawns no carcass until Story 2.4 turns this on.
-  carcassesEnabled: false,
+  // Architecture N1: off in Epic 1 (staging); on since Story 2.4, so every non-sacrifice death leaves a
+  // carcass (FR12) for the contagion chain.
+  carcassesEnabled: true,
   // FR7 stage thresholds by age: Lamb 0–60 s, Adult 60–420 s, Elder from 420 s. Adulthood was 60–300 s
   // in the GDD; Rylan lengthened it to 6 minutes on 2026-10-07 to give the player time to breed.
   lambUntilMs: 60_000,

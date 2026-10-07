@@ -2,12 +2,13 @@ import { TUNING } from '../../src/config/tuning';
 import { applyCommand } from '../../src/sim/commands';
 import { drainEvents } from '../../src/sim/events';
 import type { GameState } from '../../src/sim/state';
+import { createCarcass } from '../../src/sim/systems/carcass';
 import { fillFlock, innerFence, newGame, runFor } from '../sim/helpers';
 
 /**
  * A mid-game state with every saved field in use: a 12-sheep flock, pieces on the ground with
  * seekers walking to them, a half-filled Farm bar, breeding pieces with seekers and a part-filled
- * breeding bar, a ready sheep, a pregnancy with its parents on cooldown and an advanced rng. Callers
+ * breeding bar, a ready sheep, a pregnancy with its parents on cooldown, a carcass and an advanced rng. Callers
  * assert it is busy.
  */
 export function busyGame(seed = 31337): GameState {
@@ -34,6 +35,8 @@ export function busyGame(seed = 31337): GameState {
     x: Math.min(r.right, Math.max(r.left, (a.x + b.x) / 2)),
     y: Math.min(r.bottom, Math.max(r.top, (a.y + b.y) / 2)),
   });
+  // A carcass (Story 2.4), inside the fence like the sheep that left it.
+  createCarcass(state, (r.left + r.right) / 2, (r.top + r.bottom) / 2);
   drainEvents(() => {});
   runFor(state, 1_000);
   return state;
@@ -41,7 +44,7 @@ export function busyGame(seed = 31337): GameState {
 
 /**
  * True when the state exercises both kinds of seeker, targets, pieces, both part-filled bars, a ready
- * sheep, a sheep on cooldown and a pregnancy.
+ * sheep, a sheep on cooldown, a pregnancy and a carcass.
  */
 export function isBusy(state: GameState): boolean {
   return (
@@ -53,6 +56,7 @@ export function isBusy(state: GameState): boolean {
     state.sheep.some((s) => s.activity === 'seekBreedingFood' && s.targetId !== undefined) &&
     state.sheep.some((s) => s.breedReady) &&
     state.sheep.some((s) => state.time < s.cooldownUntil) &&
-    state.pregnancies.length > 0
+    state.pregnancies.length > 0 &&
+    state.carcasses.length > 0
   );
 }

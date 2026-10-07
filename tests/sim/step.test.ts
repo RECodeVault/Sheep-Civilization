@@ -66,7 +66,7 @@ describe('step', () => {
     s.fullness = 0;
     s.bornAt = state.time + TICK_MS - TUNING.oldAgeMs;
     const events = runFor(state, TICK_MS);
-    expect(events.map((e) => e.type)).toEqual(['SheepDied', 'Lost']);
+    expect(events.map((e) => e.type)).toEqual(['SheepDied', 'CarcassSpawned', 'Lost']);
     expect(events[0]).toMatchObject({ cause: 'starved' });
     expect(state.lostAt).toBe(state.time);
   });

@@ -169,9 +169,10 @@ function check(x: unknown): void {
     const o = carcasses[i];
     const p = `carcasses[${i}]`;
     claimId(o, p);
-    finite(o, 'x', p);
-    finite(o, 'y', p);
-    finite(o, 'createdAt', p);
+    // Where a sheep died, so inside the fence like a sheep; created at a tick time, never later.
+    within(finite(o, 'x', p), f.x, f.x + f.width, `${p}.x`);
+    within(finite(o, 'y', p), f.y, f.y + f.height, `${p}.y`);
+    int(o, 'createdAt', p, 0, time);
   }
 
   // After the entities, so a bad entity field is reported rather than the id it happens to use.

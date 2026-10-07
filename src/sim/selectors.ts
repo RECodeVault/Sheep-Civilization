@@ -1,6 +1,6 @@
 // Read-only views of GameState. The view layer reads state only through these.
 import { TUNING, type Rect } from '../config/tuning';
-import type { BreedingPiece, FoodPiece, GameState, Pregnancy, Sheep } from './state';
+import type { BreedingPiece, Carcass, FoodPiece, GameState, Pregnancy, Sheep } from './state';
 
 /** The fenced area sheep live in. Epic 3 makes it depend on the land tier. */
 export function fenceBounds(_state: GameState): Rect {
@@ -213,6 +213,21 @@ export function breedingPieceIndex(state: GameState, id: number): number {
 /** Breeding pieces hold no secrets either: the live array, as selectFoodPieces. */
 export function selectBreedingPieces(state: GameState): readonly BreedingPiece[] {
   return state.breedingPieces;
+}
+
+/** Index of the carcass with `id` in state.carcasses, or -1. A plain loop, like pieceIndex. */
+export function carcassIndex(state: GameState, id: number): number {
+  const list = state.carcasses;
+  for (let i = 0; i < list.length; i++) if (list[i].id === id) return i;
+  return -1;
+}
+
+/**
+ * Carcasses hold no secrets either (an Abomination victim's carcass is just a carcass): the live
+ * array, as selectFoodPieces.
+ */
+export function selectCarcasses(state: GameState): readonly Carcass[] {
+  return state.carcasses;
 }
 
 /** Food pieces hold no secrets: the view reads the live array (no copy, no allocation). */

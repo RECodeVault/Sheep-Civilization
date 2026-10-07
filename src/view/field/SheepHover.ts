@@ -4,37 +4,8 @@ import { FRAME } from '../assetKeys';
 import { STRINGS } from '../strings';
 import { HOVER_DELAY_MS, type Tooltip } from '../widgets/Tooltip';
 import type { EntityLayer } from './EntityLayer';
+import { spriteIndexAt } from './hitTest';
 import type { SheepSprite } from './SheepSprite';
-
-// UX-DR90: sheep hit targets are the sprite bounds plus 6 px.
-const HIT_PAD_PX = 6;
-
-/**
- * Index in `items` of the front-most sheep under (x, y), or -1, tested against the rendered sprites.
- * Shared so Story 2.4's pointer clicks agree with the hover on what counts as a sheep.
- * Allocates nothing.
- */
-export function sheepIndexAt(
-  items: readonly PublicSheep[],
-  layer: EntityLayer<PublicSheep, SheepSprite>,
-  x: number,
-  y: number,
-): number {
-  let best = -1;
-  let bestY = -Infinity;
-  for (let i = 0; i < items.length; i++) {
-    const spr = layer.spriteFor(items[i].id);
-    if (spr === undefined) continue;
-    const halfW = spr.displayWidth / 2 + HIT_PAD_PX;
-    const halfH = spr.displayHeight / 2 + HIT_PAD_PX;
-    // Lower sheep draw in front (depth = y), so the largest y wins.
-    if (Math.abs(x - spr.x) <= halfW && Math.abs(y - spr.y) <= halfH && spr.y > bestY) {
-      best = i;
-      bestY = spr.y;
-    }
-  }
-  return best;
-}
 
 /**
  * Shows the sheep tooltip (FR42, UX-DR43) for the sheep under the pointer. Reads the pointer and the
@@ -75,7 +46,7 @@ export class SheepHover {
       this.clear();
       return;
     }
-    const hit = sheepIndexAt(items, this.layer, p.x + this.camera.scrollX, p.y + this.camera.scrollY);
+    const hit = spriteIndexAt(items, this.layer, p.x + this.camera.scrollX, p.y + this.camera.scrollY);
     if (hit < 0) {
       this.clear();
       return;

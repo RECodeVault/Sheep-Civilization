@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLORS } from '../../config/constants';
+import { COLORS, LAYOUT } from '../../config/constants';
 import { FixedStepClock } from '../../core/fixedStep';
 import { log } from '../../core/log';
 import { InputController } from '../../input/InputController';
@@ -11,6 +11,7 @@ import {
   fenceBounds,
   isLost,
   selectBreedingPieces,
+  selectCarcasses,
   selectFoodPieces,
   selectLoseView,
   selectPregnancies,
@@ -18,17 +19,19 @@ import {
   type PublicPregnancy,
   type PublicSheep,
 } from '../../sim/selectors';
-import { createNewGame, type BreedingPiece, type FoodPiece, type GameState } from '../../sim/state';
+import { createNewGame, type BreedingPiece, type Carcass, type FoodPiece, type GameState } from '../../sim/state';
 import { step } from '../../sim/step';
 import { ATLAS, FRAME, HEART_CURSOR } from '../assetKeys';
 import { bus } from '../bus';
+import { CarcassSprite } from '../field/CarcassSprite';
 import { EntityLayer } from '../field/EntityLayer';
 import { Fence } from '../field/Fence';
 import { FoodSprite } from '../field/FoodSprite';
 import { ObjectPool } from '../field/ObjectPool';
 import { PenCamera } from '../field/PenCamera';
 import { PregnancyHeart } from '../field/PregnancyHeart';
-import { SheepHover, sheepIndexAt } from '../field/SheepHover';
+import { spriteIndexAt } from '../field/hitTest';
+import { SheepHover } from '../field/SheepHover';
 import { SheepSprite } from '../field/SheepSprite';
 import { markGameStarted, reportError, setForceSave, showToast } from '../safetyNet';
 import { STRINGS } from '../strings';
@@ -44,6 +47,8 @@ const FOOD_POOL_SIZE = 60;
 const BREEDING_POOL_SIZE = 30;
 // Pending lambs (FR9): few at once (each pair is on a 60 s cooldown); grows on demand.
 const PREGNANCY_POOL_SIZE = 10;
+// Architecture N3: carcasses stay until clicked (FR13), so the pool grows on demand.
+const CARCASS_POOL_SIZE = 40;
 // UX-DR78 munch crumbs: a short hay burst where a piece was eaten. Visual only (Math.random inside
 // the emitter is fine); the munch SFX arrives with AudioDirector in Story 5.6.
 const MUNCH_CRUMBS = 6;
@@ -62,6 +67,19 @@ const POOF = {
   speed: { min: 20, max: 60 },
   angle: { min: 0, max: 360 },
   gravityY: -20,
+  scale: { start: 2, end: 3 },
+  alpha: { start: 1, end: 0 },
+} as const;
+// UX-DR59/UX-DR79 dust: a puff where a carcass lands, and a smaller one where it is cleared (click
+// feedback). Visual only, like the munch.
+const DUST_SPAWN_PUFFS = 8;
+const DUST_CLEAR_PUFFS = 4;
+// Fast and wide enough to clear the carcass's own (light) body, so the puff reads against the grass.
+const DUST = {
+  lifespan: 450,
+  speed: { min: 60, max: 120 },
+  angle: { min: 160, max: 380 },
+  gravityY: 60,
   scale: { start: 2, end: 3 },
   alpha: { start: 1, end: 0 },
 } as const;
@@ -101,9 +119,11 @@ export class GameScene extends Phaser.Scene {
   private foodLayer!: EntityLayer<FoodPiece, FoodSprite>;
   private breedingLayer!: EntityLayer<BreedingPiece, FoodSprite>;
   private pregnancyLayer!: EntityLayer<PublicPregnancy, PregnancyHeart>;
+  private carcassLayer!: EntityLayer<Carcass, CarcassSprite>;
   private readonly publicPregnancies: PublicPregnancy[] = [];
   private munch!: Phaser.GameObjects.Particles.ParticleEmitter;
   private poof!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private dust!: Phaser.GameObjects.Particles.ParticleEmitter;
   // Bound once so the per-tick drain allocates no closure.
   private readonly forwardEvent = (e: SimEvent): void => {
     bus.emit('sim', e);
@@ -114,6 +134,8 @@ export class GameScene extends Phaser.Scene {
     try {
       if (e.type === 'FoodEaten' || e.type === 'BreedingFoodEaten') this.munch.explode(MUNCH_CRUMBS, e.x, e.y);
       else if (e.type === 'LambBorn') this.poof.explode(POOF_PUFFS, e.x, e.y);
+      else if (e.type === 'CarcassSpawned') this.dust.explode(DUST_SPAWN_PUFFS, e.x, e.y);
+      else if (e.type === 'CarcassCleared') this.dust.explode(DUST_CLEAR_PUFFS, e.x, e.y);
     } catch (err) {
       reportError('ui', err);
     }
@@ -152,6 +174,7 @@ export class GameScene extends Phaser.Scene {
     // Every game (new, continued, restarted) opens with the pen centred above the bar (Rylan).
     this.penCamera = new PenCamera(this.cameras.main);
     this.penCamera.centreOn(fenceBounds(this.state));
+    this.carcassLayer = new EntityLayer(new ObjectPool(() => new CarcassSprite(this), CARCASS_POOL_SIZE));
     this.foodLayer = new EntityLayer(new ObjectPool(() => new FoodSprite(this), FOOD_POOL_SIZE));
     this.breedingLayer = new EntityLayer(
       new ObjectPool(() => new FoodSprite(this, FRAME.breedingPiece), BREEDING_POOL_SIZE),
@@ -164,6 +187,9 @@ export class GameScene extends Phaser.Scene {
       .setDepth(TOOLTIP_DEPTH - 1);
     this.poof = this.add
       .particles(0, 0, ATLAS.sheepWorld, { frame: FRAME.poof, emitting: false, ...POOF })
+      .setDepth(TOOLTIP_DEPTH - 1);
+    this.dust = this.add
+      .particles(0, 0, ATLAS.sheepWorld, { frame: FRAME.dust, emitting: false, ...DUST })
       .setDepth(TOOLTIP_DEPTH - 1);
     this.sheepHover = new SheepHover(this.input, this.cameras.main, this.sheepLayer, new Tooltip(this, TOOLTIP_DEPTH));
     // The Esc chain (UX-DR73). OverlayScene is launched after this and replaced on every restart,
@@ -182,8 +208,14 @@ export class GameScene extends Phaser.Scene {
       panBy: (dx, dy) => this.penCamera.panBy(dx, dy, fenceBounds(this.state)),
       // World point as SheepHover takes it: the pointer plus this frame's scroll (zoom 1).
       sheepAt: (sx, sy) => {
-        const i = sheepIndexAt(this.publicSheep, this.sheepLayer, sx + camera.scrollX, sy + camera.scrollY);
+        const i = spriteIndexAt(this.publicSheep, this.sheepLayer, sx + camera.scrollX, sy + camera.scrollY);
         return i < 0 ? 0 : this.publicSheep[i].id;
+      },
+      // UX-DR90: a carcass is at least hit-min square, beyond its bounds plus the pad.
+      carcassAt: (sx, sy) => {
+        const list = selectCarcasses(this.state);
+        const i = spriteIndexAt(list, this.carcassLayer, sx + camera.scrollX, sy + camera.scrollY, LAYOUT.hitMin / 2);
+        return i < 0 ? 0 : list[i].id;
       },
       canBreed: (id) => {
         const list = this.publicSheep;
@@ -427,6 +459,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private render(): void {
+    this.carcassLayer.sync(selectCarcasses(this.state), this.clock.alpha, this.state.time);
     this.foodLayer.sync(selectFoodPieces(this.state), this.clock.alpha, this.state.time);
     this.breedingLayer.sync(selectBreedingPieces(this.state), this.clock.alpha, this.state.time);
     selectPublicSheep(this.state, this.publicSheep);

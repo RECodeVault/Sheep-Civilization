@@ -129,15 +129,18 @@ export function guarded<A extends unknown[]>(fn: (...args: A) => void): (...args
 }
 
 /**
- * Shows a short top-centre toast that never blocks clicks. Up to 3 stack, newest on top; showing a
- * text that is already up moves it to the top and restarts its timer instead of duplicating it.
+ * Shows a short top-centre toast that never blocks clicks. Up to 3 stack, newest on top. By default,
+ * showing a text that is already up moves it to the top and restarts its timer instead of
+ * duplicating it; `merge: false` always adds a new toast (announcements: every death gets its own).
  */
-export function showToast(text: string): void {
+export function showToast(text: string, { merge = true }: { merge?: boolean } = {}): void {
   const stack = toastStack ?? createStack();
   placeStack(stack);
   let el: HTMLDivElement | null = null;
-  for (const child of Array.from(stack.children)) {
-    if (child.textContent === text) el = child as HTMLDivElement;
+  if (merge) {
+    for (const child of Array.from(stack.children)) {
+      if (child.textContent === text) el = child as HTMLDivElement;
+    }
   }
   if (el === null) {
     el = createToast(text);

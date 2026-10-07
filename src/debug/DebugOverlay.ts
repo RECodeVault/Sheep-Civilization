@@ -5,8 +5,7 @@
 // the canvas or the gameplay InputController, and a real button click is the user gesture the
 // Clipboard API needs. Backtick toggles it.
 //
-// Later stories add their buttons here: Spawn carcass (2.4), Infect sheep (2.5), Add money (3.2),
-// Reveal Abomination (4.1). src/debug/ is the only non-sim code allowed to read isAbomination.
+// Later stories add their buttons here: Infect sheep (2.5), Add money (3.2), Reveal Abomination (4.1). src/debug/ is the only non-sim code allowed to read isAbomination.
 import Phaser from 'phaser';
 import { COLORS, RADIUS, SPACING } from '../config/constants';
 import { TUNING } from '../config/tuning';
@@ -17,6 +16,7 @@ import { decodeSave, encodeSave } from '../save/saveFile';
 import { rngRange } from '../sim/rng';
 import { fenceBounds, innerFence, stageOf } from '../sim/selectors';
 import { createSheep, type GameState } from '../sim/state';
+import { createCarcass } from '../sim/systems/carcass';
 import { createBreedingPiece, createFoodPiece } from '../sim/systems/feeding';
 import type { GameScene } from '../view/scenes/GameScene';
 
@@ -142,6 +142,24 @@ export function installDebugOverlay(game: Phaser.Game): void {
     });
     refreshSim();
   });
+  // Story 2.4: a carcass at a Math.random spot in the pen (the seeded rng stream is untouched). No
+  // event, so it flops in on bind without the dust puff.
+  const carcassButton = button(row2, 'Spawn carcass', () => {
+    activeScene()?.debugMutate((s) => {
+      const r = innerFence(s);
+      createCarcass(s, r.left + Math.random() * (r.right - r.left), r.top + Math.random() * (r.bottom - r.top));
+    });
+    refreshSim();
+  });
+  // Empties one random sheep, so the next tick starves it through the real pipeline: toast, carcass
+  // and dust (and the loss, if it was the last).
+  const starveButton = button(row2, 'Starve one', () => {
+    activeScene()?.debugMutate((s) => {
+      if (s.sheep.length === 0) return;
+      s.sheep[Math.floor(Math.random() * s.sheep.length)].fullness = 0;
+    });
+    refreshSim();
+  });
 
   const row3 = buttonRow(panel);
   const dumpButton = button(row3, 'Dump state', () => {
@@ -179,6 +197,8 @@ export function installDebugOverlay(game: Phaser.Game): void {
     sheepButton,
     readyButton,
     feedButton,
+    carcassButton,
+    starveButton,
     dumpButton,
     copyButton,
     loadButton,

@@ -63,6 +63,10 @@ export interface Pregnancy {
   y: number;
 }
 
+/**
+ * FR12/FR13: left by every non-sacrifice death at the sheep's spot (killSheep); it stays until the
+ * player clears it (ClearCarcass). `createdAt` is game-ms.
+ */
 export interface Carcass {
   id: number;
   x: number;

@@ -6,14 +6,17 @@ import { rngRange } from './rng';
 import { innerFence } from './selectors';
 import type { GameState } from './state';
 import { breed } from './systems/breeding';
+import { clearCarcass } from './systems/carcass';
 import { createBreedingPiece, createFoodPiece } from './systems/feeding';
 
-// Later stories append ClearCarcass, Sell, Sacrifice, Buy, …
+// Later stories append Sell, Sacrifice, Buy, …
 export type Command =
   | { type: 'Farm' }
   | { type: 'FarmBreeding' }
   // FR9: the Breed tool picked sheep a, then sheep b. breeding.ts checks the pair again.
-  | { type: 'Breed'; a: number; b: number };
+  | { type: 'Breed'; a: number; b: number }
+  // FR13: a left click on a carcass in the default input mode. carcass.ts ignores an id that is gone.
+  | { type: 'ClearCarcass'; id: number };
 
 export function applyCommand(state: GameState, cmd: Command): void {
   // FR38: a lost game takes no more commands. The sim is the authority; view guards are for feel.
@@ -27,6 +30,9 @@ export function applyCommand(state: GameState, cmd: Command): void {
       return;
     case 'Breed':
       breed(state, cmd.a, cmd.b);
+      return;
+    case 'ClearCarcass':
+      clearCarcass(state, cmd.id);
       return;
     default:
       assertNever(cmd);

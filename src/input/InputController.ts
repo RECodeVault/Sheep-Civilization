@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { LAYOUT } from '../config/constants';
 import { log } from '../core/log';
+import { assertNever } from '../core/types';
 import type { Command } from '../sim/commands';
 import { bus } from '../view/bus';
 import { reportError } from '../view/safetyNet';
@@ -19,6 +20,8 @@ export interface InputHooks {
   panBy(dx: number, dy: number): void;
   /** Id of the front-most sheep under a canvas (screen) point, or 0; hit-tested in world coordinates. */
   sheepAt(screenX: number, screenY: number): number;
+  /** Id of the front-most carcass under a canvas (screen) point, or 0; hit-tested like sheepAt. */
+  carcassAt(screenX: number, screenY: number): number;
   /** Whether the sheep may be picked by the Breed tool (this frame's PublicSheep.canBreed); false if gone. */
   canBreed(id: number): boolean;
   /** Shakes a sheep that cannot be picked (UX-DR70). View only. */
@@ -40,8 +43,8 @@ const FIELD_BOTTOM = LAYOUT.canvasHeight - LAYOUT.hudBarHeight;
  * The single owner of gameplay pointer and keyboard input (AR8). 1.6 added F, 1.10 the Esc chain,
  * the modal check and right-drag panning, 2.2 G, 2.3 breed mode (`idle` / `breeding`): the Breed
  * tool toggles it, a left click picks adult A then adult B, and right-click, Esc, the tool again or a
- * modal cancel it. 2.4 adds idle-mode field clicks (carcass clearing) by generalising the breed-mode
- * click, and 2.7 drag. Turns input into commands or UI events; never touches GameState.
+ * modal cancel it. 2.4 added field clicks in `idle` (a click on a carcass clears it, FR13); 2.7 adds
+ * drag. Turns input into commands or UI events; never touches GameState.
  */
 export class InputController {
   private readonly keyboard: Phaser.Input.Keyboard.KeyboardPlugin | null;
@@ -59,13 +62,15 @@ export class InputController {
   // The input mode (AR8): Story 2.7 adds 'dragging'. pickA is breed mode's first-picked adult, 0 for none.
   private mode: 'idle' | 'breeding' = 'idle';
   private pickA = 0;
-  // A left press on the field in breed mode: a click if released within the threshold, acting on the
-  // sheep that was under the press (hit-tested at the press, so a sheep wandering under a held
-  // pointer is never picked instead). 0 = empty field.
+  // A left press on the field, in either mode: a click if released within the threshold, acting on
+  // what was under the press (hit-tested at the press, so a sheep wandering under a held pointer is
+  // never picked instead): a carcass in idle, a sheep in breed mode. 0 = nothing. A press whose mode
+  // changes before the release is dropped.
   private clickArmed = false;
+  private clickMode: 'idle' | 'breeding' = 'idle';
   private clickDownX = 0;
   private clickDownY = 0;
-  private clickSheep = 0;
+  private clickTarget = 0;
   // Phaser's KeyboardManager replays its whole per-step queue on every new key event, and its
   // duplicate check compares only with the event before, so with three or more key events in one
   // step an earlier keydown is dispatched again (KeyboardPlugin.update). Each handler ignores an
@@ -166,11 +171,11 @@ export class InputController {
   private updateClick(): void {
     if (!this.clickArmed) return;
     const p = this.input.activePointer;
-    if (this.mode !== 'breeding' || this.hooks.modalOpen()) {
+    if (this.mode !== this.clickMode || this.hooks.modalOpen()) {
       this.clickArmed = false;
       return;
     }
-    // Moving past the threshold makes it a drag, which breed mode ignores (2.7 adds sheep drags).
+    // Moving past the threshold makes it a drag, which both modes ignore (2.7 adds sheep drags).
     // Checked while held and again at the release point (upX/upY), so a press, move and release
     // inside one frame is no click either.
     const down = p.leftButtonDown();
@@ -182,10 +187,22 @@ export class InputController {
     }
     if (down) return;
     this.clickArmed = false;
-    this.pick(this.clickSheep);
+    const mode = this.mode;
+    switch (mode) {
+      case 'idle':
+        // FR13 / UX-DR65: a click on a carcass clears it; a sheep or empty field does nothing. A rare
+        // event, so the command object is fine; the sim ignores a carcass that is already gone.
+        if (this.clickTarget !== 0) this.hooks.dispatch({ type: 'ClearCarcass', id: this.clickTarget });
+        return;
+      case 'breeding':
+        this.pick(this.clickTarget);
+        return;
+      default:
+        assertNever(mode);
+    }
   }
 
-  /** Drops a breed-mode click in progress (released outside the canvas, pointer left it). */
+  /** Drops a field click in progress (released outside the canvas, pointer left it). */
   private cancelClick(): void {
     this.clickArmed = false;
   }
@@ -290,11 +307,14 @@ export class InputController {
         this.panDownY = this.panLastY = pointer.y;
         return;
       }
-      if (pointer.leftButtonDown() && this.mode === 'breeding' && onField && !this.hooks.pointerOnHud()) {
+      if (pointer.leftButtonDown() && onField && !this.hooks.pointerOnHud()) {
         this.clickArmed = true;
+        this.clickMode = this.mode;
         this.clickDownX = pointer.x;
         this.clickDownY = pointer.y;
-        this.clickSheep = this.hooks.sheepAt(pointer.x, pointer.y);
+        // Breed mode only picks sheep; idle clears carcasses, even one with a sheep standing on it.
+        this.clickTarget =
+          this.mode === 'breeding' ? this.hooks.sheepAt(pointer.x, pointer.y) : this.hooks.carcassAt(pointer.x, pointer.y);
       }
     } catch (err) {
       reportError('ui', err);

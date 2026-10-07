@@ -5,11 +5,13 @@ import {
   breedBlock,
   canBreed,
   capacity,
+  carcassIndex,
   hungerOf,
   isLost,
   onCooldown,
   publicSheep,
   selectBreedingPieces,
+  selectCarcasses,
   selectFoodPieces,
   selectHudView,
   selectLoseView,
@@ -22,7 +24,7 @@ import {
   type PublicPregnancy,
   type PublicSheep,
 } from '../../src/sim/selectors';
-import { killSheep } from '../../src/sim/systems/carcass';
+import { createCarcass, killSheep } from '../../src/sim/systems/carcass';
 import { fillFlock, newGame, runFor } from './helpers';
 
 describe('hungerOf', () => {
@@ -239,6 +241,22 @@ describe('selectBreedingPieces', () => {
   it('returns the live breeding pieces array without copying', () => {
     const state = newGame();
     expect(selectBreedingPieces(state)).toBe(state.breedingPieces);
+  });
+});
+
+describe('selectCarcasses / carcassIndex', () => {
+  it('returns the live carcasses array without copying', () => {
+    const state = newGame();
+    expect(selectCarcasses(state)).toBe(state.carcasses);
+  });
+
+  it('finds a carcass index by id, or -1', () => {
+    const state = newGame();
+    createCarcass(state, 600, 400);
+    const b = createCarcass(state, 650, 420);
+    expect(carcassIndex(state, b.id)).toBe(1);
+    expect(carcassIndex(state, state.sheep[0].id)).toBe(-1);
+    expect(carcassIndex(state, 9_999)).toBe(-1);
   });
 });
 

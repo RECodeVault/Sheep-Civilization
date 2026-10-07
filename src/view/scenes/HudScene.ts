@@ -6,7 +6,7 @@ import { selectHudView, type HudView } from '../../sim/selectors';
 import { bus } from '../bus';
 import { BottomBar } from '../hud/BottomBar';
 import { FloatPopups } from '../juice/FloatPopups';
-import { reportError } from '../safetyNet';
+import { reportError, showToast } from '../safetyNet';
 import { STRINGS } from '../strings';
 import { Button } from '../widgets/Button';
 import { HOVER_DELAY_MS, Tooltip } from '../widgets/Tooltip';
@@ -223,6 +223,9 @@ export class HudScene extends Phaser.Scene {
         // The same for the breeding bar: "+N" when a full bar drops its breeding piece (FR8).
         const b = this.bar.breedFoodButton;
         this.popups.spawn(b.x + b.width / 2, b.y - POPUP_LIFT_PX, STRINGS.farmPopup(e.added));
+      } else if (e.type === 'SheepDied') {
+        // UX-DR41/UX-DR92: every death gets its own toast, so a flock starving on one tick shows each.
+        showToast(STRINGS.deathToast[e.cause], { merge: false });
       }
     } catch (err) {
       reportError('ui', err);

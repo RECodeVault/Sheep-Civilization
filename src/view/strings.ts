@@ -1,9 +1,18 @@
 // All player-facing copy (EXPERIENCE.md Voice and Tone). Components read text from here, never
 // inline literals. Rules: no "!" except "Last sheep!"; never "corpse", "blood" or "kill".
+import type { DeathCause } from '../sim/events';
 import type { Hunger, Stage } from '../sim/selectors';
 
 const STAGE: Readonly<Record<Stage, string>> = Object.freeze({ lamb: 'Lamb', adult: 'Adult', elder: 'Elder' });
 const HUNGER: Readonly<Record<Hunger, string>> = Object.freeze({ fed: 'Fed', hungry: 'Hungry', starving: 'Starving' });
+// Death toasts (UX-DR92, UX-DR97): "A sheep" until names arrive; Story 5.3 puts the name there, in
+// `halo`. The Abomination's victims never get a cause (UX-DR64). Old age is 540 s: nine minutes.
+const DEATH_TOAST: Readonly<Record<DeathCause, string>> = Object.freeze({
+  starved: 'A sheep starved.',
+  oldAge: 'A sheep died of old age. A long, full nine minutes.',
+  virus: 'A sheep caught the carcass sickness.',
+  abomination: 'A sheep just… fell over.',
+});
 
 export const STRINGS = Object.freeze({
   // Global safety net toast (architecture Error Handling).
@@ -16,6 +25,7 @@ export const STRINGS = Object.freeze({
   assetLoadFailed: "Some of the pasture didn't load. Try reloading the page.",
   stage: STAGE,
   hunger: HUNGER,
+  deathToast: DEATH_TOAST,
   // Sheep tooltip (UX-DR43, UX-DR96), e.g. "Adult · Hungry". Story 5.3 adds the name line above it.
   sheepTooltip: (stage: Stage, hunger: Hunger): string => `${STAGE[stage]} · ${HUNGER[hunger]}`,
   // Farm button (UX-DR26, UX-DR75, UX-DR96). The tooltip does not depend on Better Hoe (2026-10-06).

@@ -3,7 +3,7 @@ import { TUNING } from '../../src/config/tuning';
 import { applyCommand } from '../../src/sim/commands';
 import { drainEvents, type SimEvent } from '../../src/sim/events';
 import type { GameState } from '../../src/sim/state';
-import { killSheep } from '../../src/sim/systems/carcass';
+import { createCarcass, killSheep } from '../../src/sim/systems/carcass';
 import { innerFence, newGame } from './helpers';
 
 function drained(): SimEvent[] {
@@ -180,5 +180,36 @@ describe('applyCommand on a lost game', () => {
     applyCommand(state, { type: 'FarmBreeding' });
     expect(state).toStrictEqual(before);
     expect(drained()).toEqual([]);
+  });
+
+  it('ignores ClearCarcass: the carcass stays, no event', () => {
+    const state = newGame();
+    for (const id of state.sheep.map((s) => s.id)) killSheep(state, id, 'starved');
+    drained();
+    const c = state.carcasses[0];
+    const before = structuredClone(state);
+    applyCommand(state, { type: 'ClearCarcass', id: c.id });
+    expect(state).toStrictEqual(before);
+    expect(drained()).toEqual([]);
+  });
+});
+
+describe('applyCommand ClearCarcass (FR13)', () => {
+  it('removes the carcass and emits CarcassCleared', () => {
+    const state = newGame();
+    const c = createCarcass(state, 600, 400);
+    applyCommand(state, { type: 'ClearCarcass', id: c.id });
+    expect(state.carcasses).toEqual([]);
+    expect(drained()).toEqual([{ type: 'CarcassCleared', id: c.id, x: c.x, y: c.y }]);
+  });
+
+  it('two ClearCarcass for one id in one batch (a double click) clear it once', () => {
+    const state = newGame();
+    const c = createCarcass(state, 600, 400);
+    const other = createCarcass(state, 650, 420);
+    applyCommand(state, { type: 'ClearCarcass', id: c.id });
+    applyCommand(state, { type: 'ClearCarcass', id: c.id });
+    expect(state.carcasses).toEqual([other]);
+    expect(drained()).toEqual([{ type: 'CarcassCleared', id: c.id, x: c.x, y: c.y }]);
   });
 });

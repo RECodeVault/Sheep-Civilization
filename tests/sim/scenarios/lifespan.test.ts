@@ -58,7 +58,7 @@ describe('lifespan scenario (FR6, FR7)', () => {
 
     // The lamb dies of old age last, at oldAgeMs, and that is the loss.
     runFedUntil(state, TUNING.oldAgeMs, log);
-    expect(log.map((x) => x.e.type).slice(-2)).toEqual(['SheepDied', 'Lost']);
-    expect(log[log.length - 2]).toEqual({ t: TUNING.oldAgeMs, e: { type: 'SheepDied', id: lamb.id, cause: 'oldAge', x: lamb.x, y: lamb.y } });
+    expect(log.map((x) => x.e.type).slice(-3)).toEqual(['SheepDied', 'CarcassSpawned', 'Lost']);
+    expect(log[log.length - 3]).toEqual({ t: TUNING.oldAgeMs, e: { type: 'SheepDied', id: lamb.id, cause: 'oldAge', x: lamb.x, y: lamb.y } });
   });
 });

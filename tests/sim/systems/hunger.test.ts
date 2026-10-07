@@ -21,6 +21,15 @@ function gameWith(fullness: readonly number[]): GameState {
 }
 
 describe('updateHunger', () => {
+  it('a starvation leaves a carcass at the sheep’s last position (FR12)', () => {
+    const state = gameWith([TUNING.fullnessMax, 0]);
+    const starved = state.sheep[1];
+    runFor(state, TICK_MS);
+    expect(state.sheep).toHaveLength(1);
+    expect(state.carcasses).toHaveLength(1);
+    expect(state.carcasses[0]).toMatchObject({ x: starved.x, y: starved.y, createdAt: state.time });
+  });
+
   it('starves a full sheep on exactly the starveMs tick', () => {
     const state = gameWith([TUNING.fullnessMax]);
     expect(runFor(state, TUNING.starveMs - TICK_MS)).toEqual([]);
@@ -29,7 +38,7 @@ describe('updateHunger', () => {
     const events = runFor(state, TICK_MS);
     expect(state.sheep).toHaveLength(0);
     // The only sheep, so its death is also the loss (Story 1.8).
-    expect(events.map((e) => e.type)).toEqual(['SheepDied', 'Lost']);
+    expect(events.map((e) => e.type)).toEqual(['SheepDied', 'CarcassSpawned', 'Lost']);
     expect(events[0]).toMatchObject({ type: 'SheepDied', cause: 'starved' });
   });
 
@@ -58,7 +67,8 @@ describe('updateHunger', () => {
     const state = gameWith([DRAIN_PER_TICK, TUNING.fullnessMax, DRAIN_PER_TICK]);
     const [a, b, c] = state.sheep;
     const events = runFor(state, TICK_MS);
-    expect(events).toHaveLength(2);
+    // Each death is followed by its carcass.
+    expect(events.map((e) => e.type)).toEqual(['SheepDied', 'CarcassSpawned', 'SheepDied', 'CarcassSpawned']);
     expect(events.filter((e) => e.type === 'SheepDied').map((e) => e.id)).toEqual([a.id, c.id]);
     expect(state.sheep.map((s) => s.id)).toEqual([b.id]);
     expect(state.stats.died).toBe(2);
