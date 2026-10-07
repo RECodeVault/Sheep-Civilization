@@ -1,8 +1,32 @@
 {
   "frames": {
-    "pip-breeding": {
+    "icon-heart": {
       "frame": {
         "x": 3,
+        "y": 3,
+        "w": 9,
+        "h": 8
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 9,
+        "h": 8
+      },
+      "sourceSize": {
+        "w": 9,
+        "h": 8
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "pip-breeding": {
+      "frame": {
+        "x": 18,
         "y": 3,
         "w": 7,
         "h": 14
@@ -26,8 +50,8 @@
     },
     "pip-empty": {
       "frame": {
-        "x": 3,
-        "y": 23,
+        "x": 31,
+        "y": 3,
         "w": 7,
         "h": 14
       },
@@ -50,8 +74,8 @@
     },
     "pip-food": {
       "frame": {
-        "x": 3,
-        "y": 43,
+        "x": 44,
+        "y": 3,
         "w": 7,
         "h": 14
       },
@@ -79,8 +103,8 @@
     "image": "ui.png",
     "format": "RGBA8888",
     "size": {
-      "w": 13,
-      "h": 60
+      "w": 54,
+      "h": 20
     },
     "scale": 1
   }

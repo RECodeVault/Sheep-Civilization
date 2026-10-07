@@ -9,6 +9,11 @@ export type BusEvents = {
   'farm:pressed': undefined;
   // The G key (InputController); HudScene runs the same Farm Breeding Food action as a click.
   'farmBreeding:pressed': undefined;
+  // The Breed tool was clicked (HudScene); InputController toggles breed mode (UX-DR71).
+  'breedTool:pressed': undefined;
+  // InputController entered or left breed mode, or picked or dropped adult A (0 = none). HudScene
+  // shows the tool's active look; GameScene the cursor and the sheep markers.
+  'breedMode:changed': { active: boolean; pickedA: number };
 };
 
 export const bus = new EventBus<BusEvents>();

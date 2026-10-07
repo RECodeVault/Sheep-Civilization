@@ -36,9 +36,17 @@ export class HudScene extends Phaser.Scene {
   private popups!: FloatPopups;
   private tooltip!: Tooltip;
   private tooltipFor: Button | null = null;
+  // The text the tooltip shows for tooltipFor: a button's tooltip can change while shown (Breed's reason).
+  private tooltipText: string | undefined = undefined;
   // Whether a modal was up last frame, to clear stale button hover once when one opens.
   private wasModal = false;
-  private readonly view: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0 };
+  private readonly view: HudView = {
+    farmProgress: 0,
+    farmPipsPerFood: 0,
+    breedingProgress: 0,
+    breedingPipsPerFood: 0,
+    breedBlock: 'notReady',
+  };
   // The buttons that can show a tooltip; built once, so updateTooltip allocates nothing per frame.
   private tooltipButtons: readonly Button[] = [];
 
@@ -49,8 +57,9 @@ export class HudScene extends Phaser.Scene {
   create(): void {
     this.gameScene = this.scene.get('GameScene') as GameScene;
     this.tooltipFor = null;
+    this.tooltipText = undefined;
     this.wasModal = false;
-    this.bar = new BottomBar(this, this.farm, this.farmBreeding);
+    this.bar = new BottomBar(this, this.farm, this.farmBreeding, this.breedTool);
     this.pauseButton = new Button(this, PAUSE, {
       x: LAYOUT.safeMargin,
       y: LAYOUT.safeMargin,
@@ -61,13 +70,14 @@ export class HudScene extends Phaser.Scene {
       activateOn: 'release',
       onActivate: this.pause,
     });
-    this.tooltipButtons = [this.pauseButton, this.bar.farmButton, this.bar.breedFoodButton];
+    this.tooltipButtons = [this.pauseButton, this.bar.farmButton, this.bar.breedFoodButton, this.bar.breedButton];
     this.popups = new FloatPopups(this, POPUP_DEPTH);
     this.tooltip = new Tooltip(this, TOOLTIP_DEPTH);
 
     bus.on('sim', this.onSim, this);
     bus.on('farm:pressed', this.farm, this);
     bus.on('farmBreeding:pressed', this.farmBreeding, this);
+    bus.on('breedMode:changed', this.onBreedMode, this);
     // Phaser updates scenes in REVERSE array order (SceneManager.update), so HudScene's update()
     // would run before GameScene ticks and show last frame's food. PRE_RENDER fires after every
     // scene has updated, so the meter shows a change on the frame it happens (UX-DR29).
@@ -77,6 +87,7 @@ export class HudScene extends Phaser.Scene {
       bus.off('sim', this.onSim, this);
       bus.off('farm:pressed', this.farm, this);
       bus.off('farmBreeding:pressed', this.farmBreeding, this);
+      bus.off('breedMode:changed', this.onBreedMode, this);
       this.events.off(Phaser.Scenes.Events.PRE_RENDER, this.refresh, this);
     });
   }
@@ -87,12 +98,14 @@ export class HudScene extends Phaser.Scene {
       const v = selectHudView(state, this.view);
       this.bar.farmProgress.set(v.farmProgress, v.farmPipsPerFood);
       this.bar.breedingProgress.set(v.breedingProgress, v.breedingPipsPerFood);
+      // FR11 / UX-DR31: greyed with the reason as its tooltip. Both calls are no-ops without a change.
+      const breed = this.bar.breedButton;
+      breed.setEnabled(v.breedBlock === null);
+      breed.setTooltip(
+        v.breedBlock === 'capacity' ? STRINGS.breedNoRoom : v.breedBlock === 'notReady' ? STRINGS.breedNotReady : STRINGS.breedTooltip,
+      );
       const modal = this.gameScene.modalOpen;
-      if (modal && !this.wasModal) {
-        this.pauseButton.clearHover();
-        this.bar.farmButton.clearHover();
-        this.bar.breedFoodButton.clearHover();
-      }
+      if (modal && !this.wasModal) for (const b of this.tooltipButtons) b.clearHover();
       this.wasModal = modal;
       this.updateTooltip(this.game.loop.time, modal);
     } catch (err) {
@@ -111,6 +124,8 @@ export class HudScene extends Phaser.Scene {
       // while paused, so nothing bursts on resume.
       if (this.gameScene.modalOpen) return;
       const b = this.bar.farmButton;
+      // Never greyed today, but the key must not do what a greyed button would refuse.
+      if (!b.isEnabled) return;
       b.squash();
       // A press hides the tooltip, from the key as from the pointer (Task 5.4).
       b.suppressTooltip();
@@ -127,6 +142,7 @@ export class HudScene extends Phaser.Scene {
     try {
       if (this.gameScene.modalOpen) return;
       const b = this.bar.breedFoodButton;
+      if (!b.isEnabled) return;
       b.squash();
       b.suppressTooltip();
       this.gameScene.dispatch(FARM_BREEDING);
@@ -136,11 +152,32 @@ export class HudScene extends Phaser.Scene {
   };
 
   /**
+   * The Breed tool (UX-DR31): InputController owns breed mode, so the click only asks it to toggle.
+   * Button refuses presses while greyed. Guarded like farm.
+   */
+  private readonly breedTool = (): void => {
+    try {
+      if (this.gameScene.modalOpen) return;
+      this.bar.breedButton.suppressTooltip();
+      bus.emit('breedTool:pressed', undefined);
+    } catch (err) {
+      reportError('ui', err);
+    }
+  };
+
+  /** The tool's active look follows breed mode (heart-deep fill, wool label). */
+  private readonly onBreedMode = (e: { active: boolean }): void => {
+    this.bar.breedButton.setToggled(e.active);
+  };
+
+  /**
    * True while the pointer is on a HUD control. The field camera can pan the pen under the Pause
    * button, so GameScene's sheep hover (which reads the raw pointer) skips while this is true.
    */
   get pointerOverControl(): boolean {
-    return this.pauseButton.isHovered || this.bar.farmButton.isHovered || this.bar.breedFoodButton.isHovered;
+    const buttons = this.tooltipButtons;
+    for (let i = 0; i < buttons.length; i++) if (buttons[i].isHovered) return true;
+    return false;
   }
 
   /** The top-left Pause button (UX-DR76: pause is mouse-reachable); the same menu as Esc. */
@@ -187,11 +224,13 @@ export class HudScene extends Phaser.Scene {
       if (this.tooltipFor !== null) {
         this.tooltip.hide();
         this.tooltipFor = null;
+        this.tooltipText = undefined;
       }
       return;
     }
-    if (this.tooltipFor === b) return;
+    if (this.tooltipFor === b && this.tooltipText === b.tooltip) return;
     this.tooltipFor = b;
+    this.tooltipText = b.tooltip;
     this.tooltip.setText(b.tooltip);
     this.tooltip.showAt(b.x + b.width / 2, b.y, b.y + b.height);
   }

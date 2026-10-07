@@ -68,6 +68,10 @@ Real issues found in reviews that are not actionable in the story where they wer
   - A button re-enabled under the pointer gets no tooltip until the pointer re-enters.
   - The hand cursor is not updated while the pointer is over a button that changes state.
   - The F path (`HudScene.farm`) does not check `enabled`.
+  - **Resolved in Story 2.3:**
+    - A disabled button still hovers, so its tooltip gives the reason, and `setTooltip` changes the text; `HudScene` re-sets a shown tooltip when its text changes.
+    - Re-enabled under the pointer, the tooltip comes back and the canvas cursor follows at once.
+    - `HudScene.farm`/`farmBreeding` return early on a disabled button.
 - **Farm tooltip value (Story 4.7):** `BottomBar` builds the tooltip once from `TUNING.farmFoodPerClick`, and `Button.tooltip` is readonly. Better Hoe must be able to update it.
   - **Resolved in Story 1.7:** the Farm progress bar change (2026-10-06) made the tooltip a constant ("Farm: fill the bar for 1 food (F)") that does not depend on the hoe.
 - **Baked box textures (Stories 1.8, 1.10, 3.2):** `boxTexture` caches one texture per size and style in the game `TextureManager` and never evicts. Keep `Panel` sizes fixed, or remove stale keys when a panel resizes.
@@ -136,6 +140,7 @@ Real issues found in reviews that are not actionable in the story where they wer
   - **Partly resolved in the 1.10 review:** HUD buttons now clear their hover when a modal opens (`Button.clearHover`), so no stale tooltip, fill or hand cursor comes back. Hover returns once the pointer leaves and re-enters the button.
 - **Field camera (Rylan, 2026-10-06; built in 1.10):** right-drag pans the field, pinned to the pen (`view/field/PenCamera.ts`). Later stories must account for it:
   - **2.3:** a right press that never passes 6 px is a right-click. Cancel breed mode in `InputController.update`, where the pan disarms (marked comment).
+    - **Resolved in Story 2.3:** any right-click on the canvas (field or bar) cancels breed mode; only a press that began on the field pans. Breed-mode clicks hit-test in world coordinates (`sheepIndexAt` at pointer + scroll).
   - **2.4 / 2.7:** field clicks and sheep drags must hit-test in world coordinates (`camera.getWorldPoint`, as `SheepHover` does), and the sheep drag must not start on a right press.
   - **2.7 / 3.1:** the Better Place and the Market were placed in canvas terms (upper-left x ≈ 450–590; right edge). They are world objects now, so place them relative to the pen, and consider pinning the camera to the pen plus both targets so a drag can always reach them.
   - **3.3:** when the fence grows, re-clamp (or re-centre) the camera; `PenCamera` centres a pen too big to fit.
@@ -143,3 +148,4 @@ Real issues found in reviews that are not actionable in the story where they wer
 ## Deferred from: code review of 2-1-life-stages-and-the-gdd-starting-flock (2026-10-06)
 
 - **Long dev runs end by ~7 min (Story 2.3):** every sheep now dies of old age by 420 s, and "+10 sheep" gives all ten the same `bornAt`, so they die on one tick 360 s after the click. With no births until Story 2.3, the NFR1 100-sheep, 5-minute run above must start within ~1 min of adding sheep (or re-add them), and nothing can soak longer than ~6 min. Once births exist, or if needed earlier, give the debug overlay a way to keep sheep young (for example a "rejuvenate" button that resets `bornAt`).
+  - **Resolved in Story 2.3:** births exist, and the debug overlay's **Ready adults** button makes every adult pickable, so a long run can breed its way on.

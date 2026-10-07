@@ -22,13 +22,23 @@ export const FRAME = Object.freeze({
   foodPiece: 'food-piece',
   breedingPiece: 'breeding-piece',
   readyHeart: 'ready-heart',
+  breedHeart: 'breed-heart',
+  heartOutline: 'heart-outline',
+  poof: 'poof',
   munchCrumb: 'munch-crumb',
   pipFood: 'pip-food',
   pipBreeding: 'pip-breeding',
   pipEmpty: 'pip-empty',
+  iconHeart: 'icon-heart',
 } as const);
 
 /** Relative URLs (no leading slash) so the build works under any subpath. */
 export function atlasUrls(key: string): { png: string; json: string } {
   return { png: `assets/atlases/${key}.png`, json: `assets/atlases/${key}.json` };
 }
+
+/**
+ * The Breed tool's heart cursor (UX-DR31): a CSS cursor, so a loose PNG (assets/cursors/, copied by
+ * `npm run assets`), hotspot at its centre, with the hand as the fallback. Relative URL, like atlasUrls.
+ */
+export const HEART_CURSOR = 'url(assets/cursors/heart.png) 16 16, pointer';

@@ -32,6 +32,8 @@ export interface Sheep {
   targetId?: number;
   /** Ate a breeding piece and can be paired by the Breed tool (FR8a). Cleared on turning elder. */
   breedReady: boolean;
+  /** Game-ms deadline of the breeding cooldown (FR10); 0 = never bred. On cooldown is derived. */
+  cooldownUntil: number;
 }
 
 export interface FoodPiece {
@@ -43,6 +45,20 @@ export interface FoodPiece {
 /** A breeding-food piece in the pen (FR8): an adult that eats it becomes ready to breed. */
 export interface BreedingPiece {
   id: number;
+  x: number;
+  y: number;
+}
+
+/**
+ * A lamb on the way (FR9): born at `dueAt` beside its parents. It takes a capacity slot from the
+ * moment of breeding (AR21). `id` is for view reconciliation (N3); (x, y) is where the pair bred,
+ * used when both parents are gone by the birth.
+ */
+export interface Pregnancy {
+  id: number;
+  parentA: number;
+  parentB: number;
+  dueAt: number;
   x: number;
   y: number;
 }
@@ -78,6 +94,7 @@ export interface GameState {
   /** Pips in the current breeding bar, 0 to `TUNING.breedingPipsPerFood − 1` (FR8). */
   breedingProgress: number;
   breedingPieces: BreedingPiece[];
+  pregnancies: Pregnancy[];
   carcasses: Carcass[];
   stats: Stats;
   /** Change-detection cache for EraChanged only; display reads currentEra(state). */
@@ -104,6 +121,7 @@ export function createSheep(state: GameState, o: { x: number; y: number; bornAt:
     heading: rngRange(state, 0, 2 * Math.PI),
     restUntil: 0,
     breedReady: false,
+    cooldownUntil: 0,
   };
   state.sheep.push(s);
   // The one place a sheep is added, so the peak covers new games, births and debug sheep alike.
@@ -121,6 +139,7 @@ export function createNewGame(seed: number): GameState {
     foodPieces: [],
     breedingProgress: 0,
     breedingPieces: [],
+    pregnancies: [],
     carcasses: [],
     stats: { died: 0, sold: 0, sacrificed: 0, moneyEarned: 0, peakFlock: 0 },
     lastEra: 'pasture',

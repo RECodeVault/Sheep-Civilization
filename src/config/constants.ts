@@ -21,7 +21,9 @@ export const AUTOSAVE_MS = 10_000;
 // playing, so a version-2 save without it is still a game in progress.
 // 3 since Story 2.2: the breeding bar `breedingProgress`, `breedingPieces` and sheep `breedReady`
 // added (a version-2 save migrates with an empty bar, no pieces and nobody ready).
-export const SAVE_SCHEMA_VERSION = 3;
+// 4 since Story 2.3: sheep `cooldownUntil` and `pregnancies` added (a version-3 save migrates with
+// nobody on cooldown and no lamb on the way).
+export const SAVE_SCHEMA_VERSION = 4;
 
 /*
  * Colour-usage rules (DESIGN.md Colors, Do's and Don'ts — UX-DR2):
@@ -169,12 +171,14 @@ export const COMPONENTS = defineComponents({
     rounded: 'md',
     height: 64,
   },
+  // DESIGN.md gives no typography for the Breed tool; `label`, like every other button label (UX-DR4).
   buttonBreedTool: {
     backgroundColor: 'wool',
     borderColor: 'heartDeep',
     textColor: 'bark',
     activeBackgroundColor: 'heartDeep',
     activeTextColor: 'wool',
+    typography: 'label',
     rounded: 'md',
     height: 56,
   },

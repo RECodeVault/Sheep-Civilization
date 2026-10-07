@@ -81,6 +81,7 @@ function check(x: unknown): void {
   const sheep = array(s, 'sheep');
   const pieces = array(s, 'foodPieces');
   const breedingPieces = array(s, 'breedingPieces');
+  const pregnancies = array(s, 'pregnancies');
   const carcasses = array(s, 'carcasses');
 
   if (!isObj(s.stats)) fail('stats is not an object');
@@ -124,6 +125,9 @@ function check(x: unknown): void {
     if (full < 0 || full > TUNING.fullnessMax) fail(`${p}.fullness is outside [0, ${TUNING.fullnessMax}]`);
     if (!ACTIVITIES.includes(o.activity as SheepActivity)) fail(`${p}.activity is not a known activity`);
     if (typeof o.breedReady !== 'boolean') fail(`${p}.breedReady is not a boolean`);
+    // A deadline Breed set at most breedCooldownMs ago, or 0 for never bred.
+    const cool = finite(o, 'cooldownUntil', p);
+    if (cool < 0 || cool > time + TUNING.breedCooldownMs) fail(`${p}.cooldownUntil is outside [0, time + breedCooldownMs]`);
     // A stale target is fine (feeding reverts the sheep to wander); a malformed one is not.
     if ('targetId' in o) int(o, 'targetId', p, 1);
     within(sx, f.x, f.x + f.width, `${p}.x`);
@@ -144,6 +148,19 @@ function check(x: unknown): void {
     const p = `breedingPieces[${i}]`;
     claimId(o, p);
     // Clamped like food pieces, so one outside the inner fence could never be reached.
+    within(finite(o, 'x', p), inner.left, inner.right, `${p}.x`);
+    within(finite(o, 'y', p), inner.top, inner.bottom, `${p}.y`);
+  }
+
+  for (let i = 0; i < pregnancies.length; i++) {
+    const o = pregnancies[i];
+    const p = `pregnancies[${i}]`;
+    claimId(o, p);
+    // Parent ids may name sheep that have since died (the lamb is still born), so only the shape counts.
+    int(o, 'parentA', p, 1);
+    int(o, 'parentB', p, 1);
+    if (finite(o, 'dueAt', p) > time + TUNING.gestationMs) fail(`${p}.dueAt is after time + gestationMs`);
+    // Breed clamps the spot to the inner fence, where a lamb born there can move.
     within(finite(o, 'x', p), inner.left, inner.right, `${p}.x`);
     within(finite(o, 'y', p), inner.top, inner.bottom, `${p}.y`);
   }

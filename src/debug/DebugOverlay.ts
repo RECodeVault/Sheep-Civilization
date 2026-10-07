@@ -15,7 +15,7 @@ import { formatGameTime } from '../core/format';
 import { log } from '../core/log';
 import { decodeSave, encodeSave } from '../save/saveFile';
 import { rngRange } from '../sim/rng';
-import { fenceBounds, innerFence } from '../sim/selectors';
+import { fenceBounds, innerFence, stageOf } from '../sim/selectors';
 import { createSheep, type GameState } from '../sim/state';
 import { createBreedingPiece, createFoodPiece } from '../sim/systems/feeding';
 import type { GameScene } from '../view/scenes/GameScene';
@@ -122,8 +122,20 @@ export function installDebugOverlay(game: Phaser.Game): void {
     activeScene()?.debugMutate(addSheep);
     refreshSim();
   });
+  // Makes every adult pickable by the Breed tool (ready, off cooldown), for checking breed mode fast.
+  const readyButton = button(row2, 'Ready adults', () => {
+    activeScene()?.debugMutate((s) => {
+      for (const sheep of s.sheep) {
+        if (stageOf(sheep, s) !== 'adult') continue;
+        sheep.breedReady = true;
+        sheep.cooldownUntil = 0;
+      }
+    });
+    refreshSim();
+  });
   // Sheep starve 72 s into a new game; Feed all keeps them fed. It cannot stop old age: every sheep
-  // dies by 420 s, and added sheep 360 s after the click, so a long run ends there until births (2.3).
+  // dies by 420 s and added sheep 360 s after the click, so a long run needs births (Ready adults,
+  // then the Breed tool) to go on.
   const feedButton = button(row2, 'Feed all', () => {
     activeScene()?.debugMutate((s) => {
       for (const sheep of s.sheep) sheep.fullness = TUNING.fullnessMax;
@@ -165,6 +177,7 @@ export function installDebugOverlay(game: Phaser.Game): void {
     foodButton,
     breedingButton,
     sheepButton,
+    readyButton,
     feedButton,
     dumpButton,
     copyButton,

@@ -344,6 +344,33 @@ describe('updateFeeding breeding food (FR8a)', () => {
     expect(state.breedingPieces).toEqual([p]);
   });
 
+  it('an adult on breeding cooldown does not claim a breeding piece, until the tick it ends (FR10)', () => {
+    const c = mid(newGame());
+    const state = gameWith([{ x: c.x, y: c.y, fullness: FED }]);
+    const s = state.sheep[0];
+    const p = createBreedingPiece(state, c.x + 40, c.y);
+    s.cooldownUntil = state.time + 1;
+    updateFeeding(state);
+    expect(s.activity).toBe('wander');
+    state.time = s.cooldownUntil;
+    updateFeeding(state);
+    expect(s).toMatchObject({ activity: 'seekBreedingFood', targetId: p.id });
+  });
+
+  it('releases the claim of a seeker that is on cooldown (a corrupt save) without eating', () => {
+    const c = mid(newGame());
+    const state = gameWith([{ x: c.x, y: c.y, fullness: FED }]);
+    const s = state.sheep[0];
+    const p = createBreedingPiece(state, c.x, c.y);
+    s.activity = 'seekBreedingFood';
+    s.targetId = p.id;
+    s.cooldownUntil = state.time + TUNING.breedCooldownMs;
+    updateFeeding(state);
+    expect(s.activity).toBe('wander');
+    expect(s.breedReady).toBe(false);
+    expect(state.breedingPieces).toEqual([p]);
+  });
+
   it('walks to a breeding piece and eats it over time, then the piece is gone', () => {
     const c = mid(newGame());
     const state = gameWith([{ x: c.x - 80, y: c.y, fullness: TUNING.fullnessMax }]);

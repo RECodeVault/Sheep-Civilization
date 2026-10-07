@@ -16,8 +16,15 @@ const FACING_DEADBAND_PX = 1.5;
 // UX-DR30a ready marker: a small heart floating just above a ready sheep's head. Drawn above every
 // sheep (sheep depth = y ≤ 720) and below GameScene's munch crumbs and tooltip (10 000 − 1 and up);
 // the world-overlay layer itself arrives with pings in Story 2.6.
-const READY_DEPTH = 9_998;
+export const READY_DEPTH = 9_998;
 const READY_GAP_PX = 2;
+
+/** UX-DR56/UX-DR69 breed-mode markers: none, a pulsing ready heart (may be picked), or A's pinned heart. */
+export type BreedMarker = 'none' | 'candidate' | 'pinned';
+// Breed-mode juice. Visual only; Story 5.7's reduced motion revisits these, so they are named here.
+const CANDIDATE_PULSE = { scale: 1.3, durationMs: 300 } as const;
+const PIN_BOB = { px: 4, durationMs: 400 } as const;
+const SHAKE = { angle: 10, durationMs: 40, repeats: 2 } as const;
 
 // FR7 / UX-DR58: the stage picks the art (lamb smaller, elder greyer); FR2 / UX-DR57: the hunger
 // state picks the pose within it (normal, drooping, thin). Elders are grey in their art, not by tint:
@@ -47,6 +54,11 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
   /** The ready heart, owned by this sprite and pooled with it; shown while the sheep is ready (FR8a). */
   private readonly readyHeart: Phaser.GameObjects.Image;
   private shownReady = false;
+  /** Breed mode's pinned heart over adult A (UX-DR56), owned and pooled like the ready heart. */
+  private readonly pinnedHeart: Phaser.GameObjects.Image;
+  private marker: BreedMarker = 'none';
+  /** The pinned heart's bob offset, tweened (visual only). */
+  private readonly pinBob = { y: 0 };
 
   constructor(scene: Phaser.Scene) {
     // The placeholder adult frame faces right; flipX makes it face left.
@@ -55,6 +67,12 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
     scene.add.existing(this);
     this.readyHeart = scene.add
       .image(0, 0, ATLAS.sheepWorld, FRAME.readyHeart)
+      .setScale(SHEEP_SCALE)
+      .setOrigin(0.5, 1)
+      .setDepth(READY_DEPTH)
+      .setVisible(false);
+    this.pinnedHeart = scene.add
+      .image(0, 0, ATLAS.sheepWorld, FRAME.breedHeart)
       .setScale(SHEEP_SCALE)
       .setOrigin(0.5, 1)
       .setDepth(READY_DEPTH)
@@ -116,13 +134,68 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
       // Lower sheep draw in front.
       this.setDepth(y);
     }
-    const shown = pub.ready !== this.shownReady;
+    // The pinned heart takes the ready heart's place while this sheep is A.
+    const ready = pub.ready && this.marker !== 'pinned';
+    const shown = ready !== this.shownReady;
     if (shown) {
-      this.shownReady = pub.ready;
-      this.readyHeart.setVisible(pub.ready);
+      this.shownReady = ready;
+      this.readyHeart.setVisible(ready);
     }
     // Follows the drawn (interpolated) position. Only adults are ready, so the frame height is steady.
-    if (pub.ready && (moved || shown)) this.readyHeart.setPosition(x, y - this.displayHeight / 2 - READY_GAP_PX);
+    const headY = y - this.displayHeight / 2 - READY_GAP_PX;
+    if (ready && (moved || shown)) this.readyHeart.setPosition(x, headY);
+    // Bobbing, so it moves every frame; only one sheep is ever pinned.
+    if (this.marker === 'pinned') this.pinnedHeart.setPosition(x, headY + this.pinBob.y);
+  }
+
+  /**
+   * Breed mode's marker for this sheep (UX-DR56, UX-DR69). Called every frame by GameScene; does work
+   * only on a change, so no tween is created per frame.
+   */
+  setBreedMarker(marker: BreedMarker): void {
+    if (marker === this.marker) return;
+    this.clearMarker();
+    this.marker = marker;
+    const tweens = this.scene.tweens;
+    if (marker === 'candidate') {
+      tweens.add({
+        targets: this.readyHeart,
+        scale: SHEEP_SCALE * CANDIDATE_PULSE.scale,
+        duration: CANDIDATE_PULSE.durationMs,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    } else if (marker === 'pinned') {
+      this.pinnedHeart.setVisible(true).setPosition(this.x, this.y - this.displayHeight / 2 - READY_GAP_PX);
+      tweens.add({ targets: this.pinBob, y: -PIN_BOB.px, duration: PIN_BOB.durationMs, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    }
+  }
+
+  /** UX-DR70: a short wobble for a sheep breed mode cannot pick. Rotation only: sync owns the position. */
+  shake(): void {
+    const tweens = this.scene.tweens;
+    tweens.killTweensOf(this);
+    this.setAngle(-SHAKE.angle);
+    tweens.add({
+      targets: this,
+      angle: SHAKE.angle,
+      duration: SHAKE.durationMs,
+      yoyo: true,
+      repeat: SHAKE.repeats,
+      ease: 'Sine.easeInOut',
+      onComplete: () => this.setAngle(0),
+    });
+  }
+
+  private clearMarker(): void {
+    const tweens = this.scene.tweens;
+    tweens.killTweensOf(this.readyHeart);
+    tweens.killTweensOf(this.pinBob);
+    this.readyHeart.setScale(SHEEP_SCALE);
+    this.pinBob.y = 0;
+    this.pinnedHeart.setVisible(false);
+    this.marker = 'none';
   }
 
   playExit(): void {
@@ -136,6 +209,9 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
     this.shownHunger = null;
     this.shownReady = false;
     this.readyHeart.setVisible(false);
+    this.clearMarker();
+    this.scene.tweens.killTweensOf(this);
+    this.setAngle(0);
     this.setFlipX(false);
     this.setActive(false).setVisible(false);
   }

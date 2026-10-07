@@ -1,5 +1,6 @@
 import type Phaser from 'phaser';
 import type { Hunger, PublicSheep, Stage } from '../../sim/selectors';
+import { FRAME } from '../assetKeys';
 import { STRINGS } from '../strings';
 import { HOVER_DELAY_MS, type Tooltip } from '../widgets/Tooltip';
 import type { EntityLayer } from './EntityLayer';
@@ -48,6 +49,7 @@ export class SheepHover {
   private hoverSince = 0;
   private shownStage: Stage | null = null;
   private shownHunger: Hunger | null = null;
+  private shownCooldown: boolean | null = null;
 
   constructor(
     input: Phaser.Input.InputPlugin,
@@ -92,6 +94,11 @@ export class SheepHover {
       this.shownHunger = pub.hunger;
       this.tooltip.setText(STRINGS.sheepTooltip(pub.stage, pub.hunger));
     }
+    // FR10 / UX-DR43: a heart outline after the second line while the sheep is on breeding cooldown.
+    if (pub.onCooldown !== this.shownCooldown) {
+      this.shownCooldown = pub.onCooldown;
+      this.tooltip.setIcon(pub.onCooldown ? FRAME.heartOutline : null);
+    }
     const spr = this.layer.spriteFor(pub.id);
     if (spr === undefined) return;
     // The tooltip is fixed to the screen (Tooltip ignores camera scroll), so pass screen coordinates.
@@ -106,6 +113,7 @@ export class SheepHover {
     this.hoveredId = 0;
     this.shownStage = null;
     this.shownHunger = null;
+    this.shownCooldown = null;
     if (this.tooltip.visible) this.tooltip.hide();
   }
 }

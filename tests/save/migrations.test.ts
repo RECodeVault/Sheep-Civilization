@@ -4,9 +4,17 @@ import { MIGRATIONS, migrate, type Migration } from '../../src/save/migrations';
 import { validateState } from '../../src/save/validate';
 import { newGame } from '../sim/helpers';
 
+/** A JSON copy of a current-version state in the version-3 shape (before Story 2.3's breeding fields). */
+function toVersion3(state: object): Record<string, unknown> {
+  const v3 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+  delete v3.pregnancies;
+  for (const s of v3.sheep as Record<string, unknown>[]) delete s.cooldownUntil;
+  return v3;
+}
+
 /** A JSON copy of a current-version state in the version-2 shape (before Story 2.2's breeding fields). */
 function toVersion2(state: object): Record<string, unknown> {
-  const v2 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+  const v2 = toVersion3(state);
   delete v2.breedingProgress;
   delete v2.breedingPieces;
   for (const s of v2.sheep as Record<string, unknown>[]) delete s.breedReady;
@@ -33,6 +41,21 @@ describe('migrate', () => {
     if (!r.ok) return;
     expect(r.state).toStrictEqual(state);
     expect(validateState(r.state).ok).toBe(true);
+  });
+
+  it('migrates a version-3 state (before breeding) with no pregnancies and nobody on cooldown', () => {
+    const state = newGame(3);
+    const r = migrate(3, toVersion3(state));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.state).toStrictEqual(state);
+    expect(validateState(r.state).ok).toBe(true);
+  });
+
+  it('leaves a non-array sheep in a version-3 state for validation to reject', () => {
+    const r = migrate(3, { time: 0, sheep: 'nope' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(validateState(r.state).ok).toBe(false);
   });
 
   it('leaves a non-array sheep in a version-2 state for validation to reject', () => {

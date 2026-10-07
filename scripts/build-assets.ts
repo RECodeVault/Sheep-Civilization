@@ -1,5 +1,5 @@
 // Asset pipeline (`npm run assets`): packs the source PNGs in assets/art/ into the two runtime
-// atlases and syncs the fonts, writing everything to public/assets/ (committed, so deploy is
+// atlases and syncs the fonts and CSS cursors, writing everything to public/assets/ (committed, so deploy is
 // `vite build` only). Run by Node 24 type stripping: erasable TypeScript only, one file.
 import { copyFile, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -12,6 +12,9 @@ const ART = path.join(ROOT, 'assets', 'art');
 const OUT_ATLASES = path.join(ROOT, 'public', 'assets', 'atlases');
 const SRC_FONTS = path.join(ROOT, 'assets', 'fonts');
 const OUT_FONTS = path.join(ROOT, 'public', 'assets', 'fonts');
+// CSS cursors (the Breed tool's heart) are loose PNGs, not atlas frames: the browser draws them.
+const SRC_CURSORS = path.join(ROOT, 'assets', 'cursors');
+const OUT_CURSORS = path.join(ROOT, 'public', 'assets', 'cursors');
 
 const MAX_SIZE = 2048;
 // Frame names are kebab-case `entity-state[-n]` (architecture, Game Assets naming).
@@ -131,6 +134,14 @@ async function syncFonts(): Promise<void> {
   console.log(`[assets] fonts: ${fonts.length} copied`);
 }
 
+async function syncCursors(): Promise<void> {
+  await mkdir(OUT_CURSORS, { recursive: true });
+  const cursors = (await readdir(SRC_CURSORS)).filter((f) => f.endsWith('.png')).sort();
+  for (const f of cursors) await copyFile(path.join(SRC_CURSORS, f), path.join(OUT_CURSORS, f));
+  await prune(OUT_CURSORS, new Set(cursors));
+  console.log(`[assets] cursors: ${cursors.length} copied`);
+}
+
 async function main(): Promise<void> {
   // Pack everything before writing anything, so a failure never leaves public/assets/ half-updated.
   const packed: PackedAtlas[] = [];
@@ -146,6 +157,7 @@ async function main(): Promise<void> {
   }
   await prune(OUT_ATLASES, keep);
   await syncFonts();
+  await syncCursors();
   console.log('[assets] audio: none yet (Story 5.6)');
 }
 

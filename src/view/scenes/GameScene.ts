@@ -7,24 +7,28 @@ import { allowSaving, isSavingBlocked, startAutosave, wipeSave, writeSave } from
 import { applyCommand, type Command } from '../../sim/commands';
 import { clearEvents, drainEvents, type SimEvent } from '../../sim/events';
 import {
+  breedBlock,
   fenceBounds,
   isLost,
   selectBreedingPieces,
   selectFoodPieces,
   selectLoseView,
+  selectPregnancies,
   selectPublicSheep,
+  type PublicPregnancy,
   type PublicSheep,
 } from '../../sim/selectors';
 import { createNewGame, type BreedingPiece, type FoodPiece, type GameState } from '../../sim/state';
 import { step } from '../../sim/step';
-import { ATLAS, FRAME } from '../assetKeys';
+import { ATLAS, FRAME, HEART_CURSOR } from '../assetKeys';
 import { bus } from '../bus';
 import { EntityLayer } from '../field/EntityLayer';
 import { Fence } from '../field/Fence';
 import { FoodSprite } from '../field/FoodSprite';
 import { ObjectPool } from '../field/ObjectPool';
 import { PenCamera } from '../field/PenCamera';
-import { SheepHover } from '../field/SheepHover';
+import { PregnancyHeart } from '../field/PregnancyHeart';
+import { SheepHover, sheepIndexAt } from '../field/SheepHover';
 import { SheepSprite } from '../field/SheepSprite';
 import { markGameStarted, reportError, setForceSave, showToast } from '../safetyNet';
 import { STRINGS } from '../strings';
@@ -38,6 +42,8 @@ const SHEEP_POOL_SIZE = 120;
 const FOOD_POOL_SIZE = 60;
 // Breeding pieces (FR8) never spoil either.
 const BREEDING_POOL_SIZE = 30;
+// Pending lambs (FR9): few at once (each pair is on a 60 s cooldown); grows on demand.
+const PREGNANCY_POOL_SIZE = 10;
 // UX-DR78 munch crumbs: a short hay burst where a piece was eaten. Visual only (Math.random inside
 // the emitter is fine); the munch SFX arrives with AudioDirector in Story 5.6.
 const MUNCH_CRUMBS = 6;
@@ -47,6 +53,16 @@ const MUNCH = {
   angle: { min: 200, max: 340 },
   gravityY: 220,
   scale: 2,
+  alpha: { start: 1, end: 0 },
+} as const;
+// UX-DR82 birth poof: a small wool burst where a lamb arrives. Visual only, like the munch.
+const POOF_PUFFS = 8;
+const POOF = {
+  lifespan: 400,
+  speed: { min: 20, max: 60 },
+  angle: { min: 0, max: 360 },
+  gravityY: -20,
+  scale: { start: 2, end: 3 },
   alpha: { start: 1, end: 0 },
 } as const;
 // Above every sheep (sheep depth = y ≤ 720). Sheep hover stays in this scene; HudScene draws above
@@ -84,7 +100,10 @@ export class GameScene extends Phaser.Scene {
   private penCamera!: PenCamera;
   private foodLayer!: EntityLayer<FoodPiece, FoodSprite>;
   private breedingLayer!: EntityLayer<BreedingPiece, FoodSprite>;
+  private pregnancyLayer!: EntityLayer<PublicPregnancy, PregnancyHeart>;
+  private readonly publicPregnancies: PublicPregnancy[] = [];
   private munch!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private poof!: Phaser.GameObjects.Particles.ParticleEmitter;
   // Bound once so the per-tick drain allocates no closure.
   private readonly forwardEvent = (e: SimEvent): void => {
     bus.emit('sim', e);
@@ -92,12 +111,16 @@ export class GameScene extends Phaser.Scene {
   // Field juice for sim events. Runs inside the tick's drain: a view error must not count as a sim
   // error or drop the frame's remaining ticks.
   private readonly onSim = (e: SimEvent): void => {
-    if (e.type !== 'FoodEaten' && e.type !== 'BreedingFoodEaten') return;
     try {
-      this.munch.explode(MUNCH_CRUMBS, e.x, e.y);
+      if (e.type === 'FoodEaten' || e.type === 'BreedingFoodEaten') this.munch.explode(MUNCH_CRUMBS, e.x, e.y);
+      else if (e.type === 'LambBorn') this.poof.explode(POOF_PUFFS, e.x, e.y);
     } catch (err) {
       reportError('ui', err);
     }
+  };
+  // UX-DR31: the heart cursor while in breed mode. HUD buttons keep their hand (Phaser sets it on over).
+  private readonly onBreedMode = (e: { active: boolean }): void => {
+    this.input.manager.setDefaultCursor(e.active ? HEART_CURSOR : '');
   };
 
   constructor() {
@@ -116,6 +139,7 @@ export class GameScene extends Phaser.Scene {
     this.clock = new FixedStepClock();
     this.pendingCommands = [];
     this.publicSheep.length = 0;
+    this.publicPregnancies.length = 0;
 
     // Placeholder ground until the era backgrounds arrive in Epic 3 (`pasture` is an art tone).
     this.cameras.main.setBackgroundColor(COLORS.pasture);
@@ -128,26 +152,46 @@ export class GameScene extends Phaser.Scene {
       new ObjectPool(() => new FoodSprite(this, FRAME.breedingPiece), BREEDING_POOL_SIZE),
     );
     this.sheepLayer = new EntityLayer(new ObjectPool(() => new SheepSprite(this), SHEEP_POOL_SIZE));
+    this.pregnancyLayer = new EntityLayer(new ObjectPool(() => new PregnancyHeart(this), PREGNANCY_POOL_SIZE));
     // One emitter for every munch; above the sheep, below the tooltip.
     this.munch = this.add
       .particles(0, 0, ATLAS.sheepWorld, { frame: FRAME.munchCrumb, emitting: false, ...MUNCH })
+      .setDepth(TOOLTIP_DEPTH - 1);
+    this.poof = this.add
+      .particles(0, 0, ATLAS.sheepWorld, { frame: FRAME.poof, emitting: false, ...POOF })
       .setDepth(TOOLTIP_DEPTH - 1);
     this.sheepHover = new SheepHover(this.input, this.cameras.main, this.sheepLayer, new Tooltip(this, TOOLTIP_DEPTH));
     // The Esc chain (UX-DR73). OverlayScene is launched after this and replaced on every restart,
     // so it is looked up on each press, never cached.
     const overlay = (): OverlayScene => this.scene.get('OverlayScene') as OverlayScene;
-    const input = new InputController(this.input, {
+    const camera = this.cameras.main;
+    const input: InputController = new InputController(this.input, {
       modalOpen: () => this.modalOpen,
       esc: [
         () => overlay().closeConfirm(),
         () => overlay().closeSubPanel(),
-        // Story 2.7 cancel drag, 2.3 exit breed mode and 3.2 close shop slot in here, in that order.
+        // Story 2.7's cancel drag slots in here, and 3.2's close shop after breed mode.
+        (): boolean => input.exitBreedMode(),
         () => overlay().togglePause(),
       ],
       panBy: (dx, dy) => this.penCamera.panBy(dx, dy, fenceBounds(this.state)),
+      // World point as SheepHover takes it: the pointer plus this frame's scroll (zoom 1).
+      sheepAt: (sx, sy) => {
+        const i = sheepIndexAt(this.publicSheep, this.sheepLayer, sx + camera.scrollX, sy + camera.scrollY);
+        return i < 0 ? 0 : this.publicSheep[i].id;
+      },
+      canBreed: (id) => {
+        const list = this.publicSheep;
+        for (let i = 0; i < list.length; i++) if (list[i].id === id) return list[i].canBreed;
+        return false;
+      },
+      shake: (id) => this.sheepLayer.spriteFor(id)?.shake(),
+      dispatch: (cmd) => this.dispatch(cmd),
+      pointerOnHud: () => this.pointerOnHudControl(),
     });
     this.inputController = input;
     bus.on('sim', this.onSim, this);
+    bus.on('breedMode:changed', this.onBreedMode, this);
     // Saving (FR40): every 10 s and on hide (saveStore), and before the error toast (safety net).
     // A new or loaded game lifts any block left by a sim error in the previous one.
     allowSaving();
@@ -167,6 +211,9 @@ export class GameScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       input.destroy();
       bus.off('sim', this.onSim, this);
+      bus.off('breedMode:changed', this.onBreedMode, this);
+      // The heart cursor must not outlive the game (title screen, restart).
+      this.input.manager.setDefaultCursor('');
       this.stopAutosave();
       setForceSave(null);
       this.game.events.off(Phaser.Core.Events.HIDDEN, this.onHidden, this);
@@ -279,6 +326,8 @@ export class GameScene extends Phaser.Scene {
     // View-only work (the pan and the sheep tooltip) has its own guard: a bug here is a UI error, and
     // must not count as a sim error, which would stop saving.
     try {
+      // FR11 / UX-DR31: a greyed Breed tool, or any modal, ends breed mode (a no-op when it is off).
+      if (this.modalOpen || breedBlock(this.state) !== null) this.inputController.exitBreedMode();
       this.inputController.update();
       // SheepHover reads the raw pointer, not hit objects, so it would show under any modal's scrim
       // or through a HUD control the pen is panned under.
@@ -338,12 +387,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onBlur(): void {
-    this.inputController.cancelPan();
+    this.inputController.cancelPress();
   }
 
   private onHidden(): void {
     this.hidden = true;
-    this.inputController.cancelPan();
+    this.inputController.cancelPress();
   }
 
   // Never touches `paused`: a menu open before the tab hid is still open after.
@@ -371,6 +420,22 @@ export class GameScene extends Phaser.Scene {
     this.breedingLayer.sync(selectBreedingPieces(this.state), this.clock.alpha, this.state.time);
     selectPublicSheep(this.state, this.publicSheep);
     this.sheepLayer.sync(this.publicSheep, this.clock.alpha, this.state.time);
+    this.pregnancyLayer.sync(selectPregnancies(this.state, this.publicPregnancies), this.clock.alpha, this.state.time);
+    this.syncBreedMarkers();
+  }
+
+  /** UX-DR56/UX-DR69: in breed mode A shows its pinned heart and every other pickable adult a pulse. */
+  private syncBreedMarkers(): void {
+    const input = this.inputController;
+    const breeding = input.breeding;
+    const a = input.pickedA;
+    const list = this.publicSheep;
+    for (let i = 0; i < list.length; i++) {
+      const p = list[i];
+      const spr = this.sheepLayer.spriteFor(p.id);
+      if (spr === undefined) continue;
+      spr.setBreedMarker(!breeding ? 'none' : p.id === a ? 'pinned' : p.canBreed ? 'candidate' : 'none');
+    }
   }
 }
 

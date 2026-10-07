@@ -25,8 +25,21 @@ describe('encodeSave / decodeSave', () => {
     const v2 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
     delete v2.breedingProgress;
     delete v2.breedingPieces;
-    for (const s of v2.sheep as Record<string, unknown>[]) delete s.breedReady;
+    delete v2.pregnancies;
+    for (const s of v2.sheep as Record<string, unknown>[]) {
+      delete s.breedReady;
+      delete s.cooldownUntil;
+    }
     const raw = JSON.stringify({ schemaVersion: 2, savedAt: NOW.toISOString(), state: v2 });
+    expect(decodeSave(raw)).toStrictEqual(state);
+  });
+
+  it('decodes a version-3 save (before breeding) with no pregnancies and nobody on cooldown', () => {
+    const state = newGame(7);
+    const v3 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+    delete v3.pregnancies;
+    for (const s of v3.sheep as Record<string, unknown>[]) delete s.cooldownUntil;
+    const raw = JSON.stringify({ schemaVersion: 3, savedAt: NOW.toISOString(), state: v3 });
     expect(decodeSave(raw)).toStrictEqual(state);
   });
 

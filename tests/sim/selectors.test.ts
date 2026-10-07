@@ -2,21 +2,28 @@ import { describe, expect, it } from 'vitest';
 import { TUNING } from '../../src/config/tuning';
 import { applyCommand } from '../../src/sim/commands';
 import {
+  breedBlock,
+  canBreed,
+  capacity,
   hungerOf,
   isLost,
+  onCooldown,
   publicSheep,
   selectBreedingPieces,
   selectFoodPieces,
   selectHudView,
   selectLoseView,
+  selectPregnancies,
   selectPublicSheep,
+  slotsUsed,
   stageOf,
   type HudView,
   type LoseView,
+  type PublicPregnancy,
   type PublicSheep,
 } from '../../src/sim/selectors';
 import { killSheep } from '../../src/sim/systems/carcass';
-import { newGame, runFor } from './helpers';
+import { fillFlock, newGame, runFor } from './helpers';
 
 describe('hungerOf', () => {
   it('is fed only above fedAbove', () => {
@@ -59,7 +66,7 @@ describe('publicSheep / selectPublicSheep', () => {
     const state = newGame();
     const s = state.sheep[0];
     s.fullness = TUNING.starvingBelow - 1;
-    expect(publicSheep(s, state)).toEqual({ id: s.id, x: s.x, y: s.y, stage: 'adult', hunger: 'starving', ready: false });
+    expect(publicSheep(s, state)).toEqual({ id: s.id, x: s.x, y: s.y, stage: 'adult', hunger: 'starving', ready: false, onCooldown: false, canBreed: false });
   });
 
   it('exposes breedReady as ready', () => {
@@ -93,19 +100,20 @@ describe('publicSheep / selectPublicSheep', () => {
 describe('selectHudView', () => {
   it('fills the Farm bar from state and TUNING into the given object', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: -1, farmPipsPerFood: -1, breedingProgress: -1, breedingPipsPerFood: -1 };
+    const out: HudView = { farmProgress: -1, farmPipsPerFood: -1, breedingProgress: -1, breedingPipsPerFood: -1, breedBlock: 'capacity' };
     expect(selectHudView(state, out)).toBe(out);
     expect(out).toEqual({
       farmProgress: 0,
       farmPipsPerFood: TUNING.farmPipsPerFood,
       breedingProgress: 0,
       breedingPipsPerFood: TUNING.breedingPipsPerFood,
+      breedBlock: 'notReady',
     });
   });
 
   it('reflects a Farm on the next read', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0 };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null };
     selectHudView(state, out);
     applyCommand(state, { type: 'Farm' });
     selectHudView(state, out);
@@ -114,11 +122,116 @@ describe('selectHudView', () => {
 
   it('reflects a FarmBreeding on the next read', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0 };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null };
     selectHudView(state, out);
     applyCommand(state, { type: 'FarmBreeding' });
     selectHudView(state, out);
     expect(out.breedingProgress).toBe(TUNING.breedingPipsPerClick);
+  });
+});
+
+describe('breeding selectors (FR10, FR11, AR21)', () => {
+  it('capacity is the base capacity, and slotsUsed counts pending lambs', () => {
+    const state = newGame();
+    expect(capacity(state)).toBe(TUNING.baseCapacity);
+    expect(slotsUsed(state)).toBe(state.sheep.length);
+    state.pregnancies.push({ id: state.nextId++, parentA: 1, parentB: 2, dueAt: 1, x: 0, y: 0 });
+    expect(slotsUsed(state)).toBe(state.sheep.length + 1);
+  });
+
+  it('onCooldown holds until the tick time reaches cooldownUntil', () => {
+    const state = newGame();
+    const s = state.sheep[0];
+    expect(onCooldown(s, state)).toBe(false);
+    s.cooldownUntil = state.time + 1;
+    expect(onCooldown(s, state)).toBe(true);
+    s.cooldownUntil = state.time;
+    expect(onCooldown(s, state)).toBe(false);
+  });
+
+  it('canBreed needs a ready adult off cooldown', () => {
+    const state = newGame();
+    const [a, , lamb] = state.sheep;
+    expect(canBreed(a, state)).toBe(false);
+    a.breedReady = true;
+    expect(canBreed(a, state)).toBe(true);
+    a.cooldownUntil = state.time + 1;
+    expect(canBreed(a, state)).toBe(false);
+    a.cooldownUntil = 0;
+    a.bornAt = state.time - TUNING.elderFromMs;
+    expect(canBreed(a, state)).toBe(false);
+    lamb.breedReady = true;
+    expect(canBreed(lamb, state)).toBe(false);
+  });
+
+  it('breedBlock: notReady below 2 eligible adults, null at 2, capacity first when both apply', () => {
+    const state = newGame();
+    expect(breedBlock(state)).toBe('notReady');
+    state.sheep[0].breedReady = true;
+    expect(breedBlock(state)).toBe('notReady');
+    state.sheep[1].breedReady = true;
+    expect(breedBlock(state)).toBe(null);
+    fillFlock(state, TUNING.baseCapacity);
+    expect(breedBlock(state)).toBe('capacity');
+    state.sheep[1].breedReady = false;
+    expect(breedBlock(state)).toBe('capacity');
+  });
+
+  it('breedBlock counts pending lambs toward capacity', () => {
+    const state = newGame();
+    state.sheep[0].breedReady = state.sheep[1].breedReady = true;
+    fillFlock(state, TUNING.baseCapacity - 1);
+    expect(breedBlock(state)).toBe(null);
+    state.pregnancies.push({ id: state.nextId++, parentA: 1, parentB: 2, dueAt: 1, x: 0, y: 0 });
+    expect(breedBlock(state)).toBe('capacity');
+  });
+
+  it('PublicSheep carries onCooldown and canBreed', () => {
+    const state = newGame();
+    const [a, b] = state.sheep;
+    a.breedReady = true;
+    b.cooldownUntil = state.time + 1;
+    const out: PublicSheep[] = [];
+    selectPublicSheep(state, out);
+    expect(out.map((p) => [p.canBreed, p.onCooldown])).toEqual([
+      [true, false],
+      [false, true],
+      [false, false],
+    ]);
+    expect(out[0]).toEqual(publicSheep(a, state));
+  });
+
+  it('selectHudView fills breedBlock', () => {
+    const state = newGame();
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null };
+    expect(selectHudView(state, out).breedBlock).toBe('notReady');
+    state.sheep[0].breedReady = state.sheep[1].breedReady = true;
+    expect(selectHudView(state, out).breedBlock).toBe(null);
+  });
+});
+
+describe('selectPregnancies', () => {
+  it('places the heart between the living parents, at the one left, or at the stored spot; reuses out', () => {
+    const state = newGame();
+    const [a, b] = state.sheep;
+    state.pregnancies.push({ id: 77, parentA: a.id, parentB: b.id, dueAt: 1, x: 1, y: 2 });
+    const out: PublicPregnancy[] = [];
+    expect(selectPregnancies(state, out)).toBe(out);
+    expect(out).toEqual([{ id: 77, x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }]);
+    const first = out[0];
+
+    killSheep(state, b.id, 'starved');
+    selectPregnancies(state, out);
+    expect(out[0]).toBe(first);
+    expect(out[0]).toEqual({ id: 77, x: a.x, y: a.y });
+
+    killSheep(state, a.id, 'starved');
+    selectPregnancies(state, out);
+    expect(out[0]).toEqual({ id: 77, x: 1, y: 2 });
+
+    state.pregnancies.length = 0;
+    selectPregnancies(state, out);
+    expect(out).toEqual([]);
   });
 });
 

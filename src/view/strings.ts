@@ -28,6 +28,11 @@ export const STRINGS = Object.freeze({
   farmBreedingLabel: 'Farm Breeding\nFood',
   farmBreedingKey: 'G',
   farmBreedingTooltip: 'Farm Breeding Food: fill the bar for 1 breeding food (G)',
+  // Breed tool (UX-DR31, UX-DR75, UX-DR96): the label, its tooltip, and the greyed reasons in its place.
+  breedLabel: 'Breed',
+  breedTooltip: 'Breed: pick two adults',
+  breedNoRoom: 'No room. Buy land.',
+  breedNotReady: 'Needs 2 ready sheep.',
   // Float popup (UX-DR44), e.g. "+1" when a full Farm or breeding bar drops a piece.
   farmPopup: (n: number): string => `+${n}`,
   // Meter value (UX-DR29), e.g. "3/8" for the Farm bar.

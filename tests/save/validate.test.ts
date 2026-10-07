@@ -11,6 +11,7 @@ type Raw = Record<string, unknown> & {
   sheep: Record<string, unknown>[];
   foodPieces: Record<string, unknown>[];
   breedingPieces: Record<string, unknown>[];
+  pregnancies: Record<string, unknown>[];
   carcasses: Record<string, unknown>[];
   stats: Record<string, unknown>;
 };
@@ -69,6 +70,13 @@ describe('validateState', () => {
     expect(validateState(r).ok).toBe(true);
   });
 
+  it('accepts a pregnancy whose parents have died', () => {
+    const r = raw();
+    r.pregnancies[0].parentA = 9_000;
+    r.pregnancies[0].parentB = 9_001;
+    expect(validateState(r).ok).toBe(true);
+  });
+
   it('does not mutate its input', () => {
     const r = raw();
     r.sheep[0].fullness = Number.NaN;
@@ -115,6 +123,26 @@ describe('validateState', () => {
     ['a missing breeding piece id', (r) => delete r.breedingPieces[0].id, 'breedingPieces[0].id'],
     ['a missing breedReady', (r) => delete r.sheep[0].breedReady, 'sheep[0].breedReady'],
     ['a string breedReady', (r) => (r.sheep[0].breedReady = 'yes'), 'sheep[0].breedReady'],
+    ['a NaN cooldownUntil', (r) => (r.sheep[0].cooldownUntil = Number.NaN), 'sheep[0].cooldownUntil'],
+    ['a missing cooldownUntil', (r) => delete r.sheep[0].cooldownUntil, 'sheep[0].cooldownUntil'],
+    ['a negative cooldownUntil', (r) => (r.sheep[0].cooldownUntil = -1), 'sheep[0].cooldownUntil'],
+    [
+      'a cooldownUntil past a fresh cooldown',
+      (r) => (r.sheep[0].cooldownUntil = (r.time as number) + TUNING.breedCooldownMs + 1),
+      'sheep[0].cooldownUntil',
+    ],
+    ['pregnancies that is not an array', (r) => ((r as Record<string, unknown>).pregnancies = {}), 'pregnancies'],
+    ['two pregnancies with one id', (r) => r.pregnancies.push({ ...r.pregnancies[0] }), 'pregnancies[1].id'],
+    ['a pregnancy sharing a sheep id', (r) => (r.pregnancies[0].id = r.sheep[0].id), 'pregnancies[0].id'],
+    ['a pregnancy parentA of 0', (r) => (r.pregnancies[0].parentA = 0), 'pregnancies[0].parentA'],
+    ['a fractional pregnancy parentB', (r) => (r.pregnancies[0].parentB = 1.5), 'pregnancies[0].parentB'],
+    ['a NaN pregnancy dueAt', (r) => (r.pregnancies[0].dueAt = Number.NaN), 'pregnancies[0].dueAt'],
+    [
+      'a pregnancy dueAt past a fresh gestation',
+      (r) => (r.pregnancies[0].dueAt = (r.time as number) + TUNING.gestationMs + 1),
+      'pregnancies[0].dueAt',
+    ],
+    ['a pregnancy outside the inner fence', (r) => (r.pregnancies[0].x = inner.right + 1), 'pregnancies[0].x'],
     ['an unknown lastEra', (r) => (r.lastEra = 'space-age'), 'lastEra'],
     ['missing stats', (r) => delete (r as Record<string, unknown>).stats, 'stats'],
     ['a negative stats.died', (r) => (r.stats.died = -1), 'stats.died'],

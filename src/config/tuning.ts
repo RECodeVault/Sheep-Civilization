@@ -36,6 +36,13 @@ export const TUNING = Object.freeze({
   // become ready (FR8a). No stock, no cap. Never boosted, and Better Hoe does not apply.
   breedingPipsPerFood: 8,
   breedingPipsPerClick: 1,
+  // FR10 / GDD Breeding: "each adult can breed once every 60 s (tune)", starting at breeding.
+  breedCooldownMs: 60_000,
+  // FR9 / GDD Breeding: "a lamb is born beside them 10 s later".
+  gestationMs: 10_000,
+  // FR11 / GDD Economy: capacity is 10 before any land (Land I–III raise it to 25 → 50 → 100 in Story
+  // 3.3). Capacity counts living sheep plus pending lambs (AR21).
+  baseCapacity: 10,
   // FR5: sheep below 90 Fullness may seek food (feeding.ts pairs each piece with its nearest such
   // sheep); a piece is worth +35, capped at fullnessMax.
   seekBelowFullness: 90,

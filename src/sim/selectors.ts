@@ -1,6 +1,6 @@
 // Read-only views of GameState. The view layer reads state only through these.
 import { TUNING, type Rect } from '../config/tuning';
-import type { BreedingPiece, FoodPiece, GameState, Sheep } from './state';
+import type { BreedingPiece, FoodPiece, GameState, Pregnancy, Sheep } from './state';
 
 /** The fenced area sheep live in. Epic 3 makes it depend on the land tier. */
 export function fenceBounds(_state: GameState): Rect {
@@ -51,6 +51,41 @@ export function stageOf(s: Sheep, state: GameState): Stage {
   return 'elder';
 }
 
+/** FR10: true until the tick time reaches cooldownUntil. Derived, never stored. */
+export function onCooldown(s: Sheep, state: GameState): boolean {
+  return state.time < s.cooldownUntil;
+}
+
+/**
+ * FR9/FR10: the one pairing rule, for the sim's Breed and (through PublicSheep) the Breed tool: a
+ * ready adult that is off cooldown.
+ */
+export function canBreed(s: Sheep, state: GameState): boolean {
+  return s.breedReady && stageOf(s, state) === 'adult' && !onCooldown(s, state);
+}
+
+/** Land capacity (FR11). Story 3.3 adds the land tiers. */
+export function capacity(_state: GameState): number {
+  return TUNING.baseCapacity;
+}
+
+/** AR21: capacity counts living sheep plus pending lambs. */
+export function slotsUsed(state: GameState): number {
+  return state.sheep.length + state.pregnancies.length;
+}
+
+/** Why the Breed tool is greyed (FR11, UX-DR31), or null when breeding is possible. */
+export type BreedBlock = 'capacity' | 'notReady' | null;
+
+/** Capacity wins when both apply. A plain loop: no allocation. */
+export function breedBlock(state: GameState): BreedBlock {
+  if (slotsUsed(state) >= capacity(state)) return 'capacity';
+  let eligible = 0;
+  const sheep = state.sheep;
+  for (let i = 0; i < sheep.length && eligible < 2; i++) if (canBreed(sheep[i], state)) eligible++;
+  return eligible < 2 ? 'notReady' : null;
+}
+
 /** The only sheep shape the view may consume. Later stories add name, infected, gait, activity. */
 export interface PublicSheep {
   id: number;
@@ -60,10 +95,23 @@ export interface PublicSheep {
   hunger: Hunger;
   /** Ready to breed (FR8a). Not secret: the Abomination never grows past a lamb, so it is never ready. */
   ready: boolean;
+  /** On breeding cooldown (FR10): the tooltip's heart-outline icon. */
+  onCooldown: boolean;
+  /** May be picked by the Breed tool (canBreed). Not secret either: the Abomination is never an adult. */
+  canBreed: boolean;
 }
 
 export function publicSheep(s: Sheep, state: GameState): PublicSheep {
-  return { id: s.id, x: s.x, y: s.y, stage: stageOf(s, state), hunger: hungerOf(s.fullness), ready: s.breedReady };
+  return {
+    id: s.id,
+    x: s.x,
+    y: s.y,
+    stage: stageOf(s, state),
+    hunger: hungerOf(s.fullness),
+    ready: s.breedReady,
+    onCooldown: onCooldown(s, state),
+    canBreed: canBreed(s, state),
+  };
 }
 
 /**
@@ -76,7 +124,7 @@ export function selectPublicSheep(state: GameState, out: PublicSheep[]): PublicS
     const s = sheep[i];
     let p = out[i];
     if (p === undefined) {
-      p = { id: 0, x: 0, y: 0, stage: 'adult', hunger: 'fed', ready: false };
+      p = { id: 0, x: 0, y: 0, stage: 'adult', hunger: 'fed', ready: false, onCooldown: false, canBreed: false };
       out[i] = p;
     }
     p.id = s.id;
@@ -85,8 +133,61 @@ export function selectPublicSheep(state: GameState, out: PublicSheep[]): PublicS
     p.stage = stageOf(s, state);
     p.hunger = hungerOf(s.fullness);
     p.ready = s.breedReady;
+    p.onCooldown = onCooldown(s, state);
+    p.canBreed = canBreed(s, state);
   }
   out.length = sheep.length;
+  return out;
+}
+
+/** Index of the sheep with `id` in state.sheep, or -1. A plain loop: no closure per call. */
+export function sheepIndex(state: GameState, id: number): number {
+  const sheep = state.sheep;
+  for (let i = 0; i < sheep.length; i++) if (sheep[i].id === id) return i;
+  return -1;
+}
+
+/** A lamb on the way, as the view draws it: a heart between the parents (UX-DR56). */
+export interface PublicPregnancy {
+  id: number;
+  x: number;
+  y: number;
+}
+
+/**
+ * Where a pending lamb is (UX-DR56) and is born (FR9): the midpoint of the parents still alive, the
+ * one left, or the stored spot. Writes into `out` (no allocation) and returns it.
+ */
+export function pregnancySpot<T extends { x: number; y: number }>(state: GameState, g: Pregnancy, out: T): T {
+  const a = sheepIndex(state, g.parentA);
+  const b = sheepIndex(state, g.parentB);
+  if (a >= 0 && b >= 0) {
+    out.x = (state.sheep[a].x + state.sheep[b].x) / 2;
+    out.y = (state.sheep[a].y + state.sheep[b].y) / 2;
+  } else if (a >= 0 || b >= 0) {
+    const s = state.sheep[a >= 0 ? a : b];
+    out.x = s.x;
+    out.y = s.y;
+  } else {
+    out.x = g.x;
+    out.y = g.y;
+  }
+  return out;
+}
+
+/** Fills `out` with one PublicPregnancy per pending lamb, reusing its objects like selectPublicSheep. */
+export function selectPregnancies(state: GameState, out: PublicPregnancy[]): PublicPregnancy[] {
+  const list = state.pregnancies;
+  for (let i = 0; i < list.length; i++) {
+    let p = out[i];
+    if (p === undefined) {
+      p = { id: 0, x: 0, y: 0 };
+      out[i] = p;
+    }
+    p.id = list[i].id;
+    pregnancySpot(state, list[i], p);
+  }
+  out.length = list.length;
   return out;
 }
 
@@ -122,6 +223,8 @@ export interface HudView {
   /** Pips in the current breeding bar, out of breedingPipsPerFood (FR8). */
   breedingProgress: number;
   breedingPipsPerFood: number;
+  /** Why Breed is greyed, or null (FR11). */
+  breedBlock: BreedBlock;
 }
 
 /** Fills `out` in place (no allocation) and returns it. HudScene calls this once per frame. */
@@ -130,6 +233,7 @@ export function selectHudView(state: GameState, out: HudView): HudView {
   out.farmPipsPerFood = TUNING.farmPipsPerFood;
   out.breedingProgress = state.breedingProgress;
   out.breedingPipsPerFood = TUNING.breedingPipsPerFood;
+  out.breedBlock = breedBlock(state);
   return out;
 }
 

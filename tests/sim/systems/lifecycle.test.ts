@@ -98,6 +98,57 @@ describe('updateLifecycle', () => {
     expect(state.lostAt).toBe(TICK_MS);
   });
 
+  it('a lamb is born on exactly the tick time reaches dueAt, at the parents’ midpoint (FR9)', () => {
+    const state = gameWithAges([TUNING.lambUntilMs, TUNING.lambUntilMs]);
+    const [a, b] = state.sheep;
+    // Grazing, so the parents stay put and the midpoint is known.
+    a.restUntil = b.restUntil = 1e9;
+    const id = state.nextId++;
+    state.pregnancies.push({ id, parentA: a.id, parentB: b.id, dueAt: state.time + 2 * TICK_MS, x: 0, y: 0 });
+    expect(runFed(state, 1)).toEqual([]);
+    expect(state.sheep).toHaveLength(2);
+
+    const events = runFed(state, 1);
+    expect(state.sheep).toHaveLength(3);
+    const lamb = state.sheep[2];
+    expect(lamb.bornAt).toBe(state.time);
+    expect(stageOf(lamb, state)).toBe('lamb');
+    expect(lamb.x).toBe((a.x + b.x) / 2);
+    expect(lamb.y).toBe((a.y + b.y) / 2);
+    expect(state.pregnancies).toEqual([]);
+    expect(events).toEqual([{ type: 'LambBorn', id: lamb.id, pregnancyId: id, x: lamb.x, y: lamb.y }]);
+    expect(state.stats.peakFlock).toBe(3);
+  });
+
+  it('a lamb whose parents are gone is born at the pregnancy’s spot, clamped to the inner fence', () => {
+    const state = gameWithAges([TUNING.lambUntilMs]);
+    const r = innerFence(state);
+    state.pregnancies.push({ id: state.nextId++, parentA: 900, parentB: 901, dueAt: state.time + TICK_MS, x: r.right, y: r.bottom });
+    runFed(state, 1);
+    const lamb = state.sheep[1];
+    expect([lamb.x, lamb.y]).toEqual([r.right, r.bottom]);
+  });
+
+  it('with one parent left, the lamb is born at that parent', () => {
+    const state = gameWithAges([TUNING.lambUntilMs]);
+    const p = state.sheep[0];
+    p.restUntil = 1e9;
+    state.pregnancies.push({ id: state.nextId++, parentA: 900, parentB: p.id, dueAt: state.time + TICK_MS, x: 0, y: 0 });
+    runFed(state, 1);
+    expect([state.sheep[1].x, state.sheep[1].y]).toEqual([p.x, p.y]);
+  });
+
+  it('births run before old age: a lamb due as the last sheep dies keeps the game going', () => {
+    const state = gameWithAges([TUNING.oldAgeMs - TICK_MS]);
+    const r = innerFence(state);
+    const old = state.sheep[0];
+    state.pregnancies.push({ id: state.nextId++, parentA: old.id, parentB: 900, dueAt: state.time + TICK_MS, x: r.left, y: r.top });
+    const events = runFed(state, 1);
+    expect(events.map((e) => e.type)).toEqual(['LambBorn', 'SheepDied']);
+    expect(state.lostAt).toBeUndefined();
+    expect(state.sheep).toHaveLength(1);
+  });
+
   it('a whole flock of elders dying on one tick: every SheepDied, then one Lost', () => {
     const state = gameWithAges([TUNING.oldAgeMs - TICK_MS, TUNING.oldAgeMs - TICK_MS]);
     const [a, b] = state.sheep;

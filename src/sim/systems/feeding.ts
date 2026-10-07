@@ -8,7 +8,7 @@
 // a breeding piece, and a hungry sheep does not start for breeding food while food lies in the pen.
 import { TUNING } from '../../config/tuning';
 import { emit } from '../events';
-import { breedingPieceIndex, innerFence, pieceIndex, stageOf } from '../selectors';
+import { breedingPieceIndex, innerFence, onCooldown, pieceIndex, stageOf } from '../selectors';
 import { nextId, type BreedingPiece, type FoodPiece, type GameState, type Sheep } from '../state';
 
 /** A piece in one of the two piece arrays; both have the same shape. */
@@ -57,7 +57,7 @@ export function updateFeeding(state: GameState): void {
     if (!food && s.activity !== 'seekBreedingFood') continue;
     const k = s.targetId === undefined ? -1 : food ? pieceIndex(state, s.targetId) : breedingPieceIndex(state, s.targetId);
     // A breeding claim is released once the sheep can no longer use the piece (it turned elder on the
-    // way, or is already ready), so the piece stays for an adult that can.
+    // way, or is already ready or on cooldown), so the piece stays for an adult that can.
     if (k < 0 || (!food && !canUseBreedingFood(s, state))) {
       s.activity = 'wander';
       delete s.targetId;
@@ -161,9 +161,9 @@ function mayEatFood(s: Sheep): boolean {
 }
 
 /**
- * FR8a: a free adult that is not ready may claim breeding food, unless it is hungry while food lies
- * in the pen (food first). Story 2.3 adds "and not on breeding cooldown"; Story 4.1: the Abomination
- * is never an adult (it stays a lamb).
+ * FR8a: a free adult that is not ready and not on breeding cooldown may claim breeding food, unless
+ * it is hungry while food lies in the pen (food first). Story 4.1: the Abomination is never an adult
+ * (it stays a lamb).
  */
 function mayEatBreedingFood(s: Sheep, state: GameState): boolean {
   return (
@@ -173,9 +173,9 @@ function mayEatBreedingFood(s: Sheep, state: GameState): boolean {
   );
 }
 
-/** FR8a: only an adult that is not ready yet gets anything from a breeding piece. */
+/** FR8a/FR10: only an adult that is not ready yet and off cooldown gets anything from a breeding piece. */
 function canUseBreedingFood(s: Sheep, state: GameState): boolean {
-  return !s.breedReady && stageOf(s, state) === 'adult';
+  return !s.breedReady && stageOf(s, state) === 'adult' && !onCooldown(s, state);
 }
 
 function dist2(ax: number, ay: number, bx: number, by: number): number {

@@ -15,6 +15,12 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = Object.freeze({
     breedingPieces: [],
     sheep: Array.isArray(s.sheep) ? s.sheep.map((x: unknown) => (isObj(x) ? { ...x, breedReady: false } : x)) : s.sheep,
   }),
+  // Story 2.3: nobody has bred yet, so nobody is on cooldown and no lamb is on the way (FR9, FR10).
+  3: (s) => ({
+    ...s,
+    pregnancies: [],
+    sheep: Array.isArray(s.sheep) ? s.sheep.map((x: unknown) => (isObj(x) ? { ...x, cooldownUntil: 0 } : x)) : s.sheep,
+  }),
 });
 
 export type MigrationResult = { ok: true; state: unknown } | { ok: false; reason: string };
