@@ -10,6 +10,11 @@ import { createBreedingPiece, createFoodPiece, updateFeeding } from '../../../sr
 import { updateMovement } from '../../../src/sim/systems/movement';
 import { innerFence, newGame, runFor } from '../helpers';
 
+// Hungry enough to seek food (FR5), well clear of Starving.
+const HUNGRY = TUNING.seekBelowFullness - 10;
+// Fullness that runs out in 5 ticks.
+const NEARLY_EMPTY = (TUNING.fullnessMax * 5 * TICK_MS) / TUNING.starveMs;
+
 function drained(): SimEvent[] {
   const out: SimEvent[] = [];
   drainEvents((e) => out.push(e));
@@ -143,7 +148,7 @@ describe('a dragged sheep in the systems', () => {
 
   it('claims no food piece while dragged, and does again once dropped', () => {
     const { state, s } = oneSheep();
-    s.fullness = 40;
+    s.fullness = HUNGRY;
     createFoodPiece(state, s.x + 5, s.y);
     pickUp(state, s.id);
     updateFeeding(state);
@@ -154,14 +159,19 @@ describe('a dragged sheep in the systems', () => {
     expect(s.activity).toBe('seekFood');
   });
 
-  it('ignores breeding pieces while dragged', () => {
+  it('ignores breeding pieces while dragged, and goes for them once dropped', () => {
     const { state, s } = oneSheep();
     s.fullness = TUNING.fullnessMax;
-    createBreedingPiece(state, s.x + 5, s.y);
+    const p = createBreedingPiece(state, s.x + 30, s.y);
     pickUp(state, s.id);
     updateFeeding(state);
     expect(s.activity).toBe('dragged');
-    expect(s.breedReady).toBe(false);
+    expect(s.targetId).toBeUndefined();
+    expect(state.breedingPieces).toHaveLength(1);
+    drop(state, s.id, s.x, s.y);
+    updateFeeding(state);
+    expect(s.activity).toBe('seekBreedingFood');
+    expect(s.targetId).toBe(p.id);
   });
 
   it('ignores a carcass while Starving and dragged', () => {
@@ -173,16 +183,21 @@ describe('a dragged sheep in the systems', () => {
     expect(s.activity).toBe('dragged');
     expect(state.carcasses).toHaveLength(1);
     expect(s.infectedAt).toBeUndefined();
+    // Put down beside it, it eats it at once (FR14).
+    drop(state, s.id, s.x, s.y);
+    updateCarcassEating(state);
+    expect(state.carcasses).toHaveLength(0);
+    expect(s.infectedAt).toBe(state.time);
   });
 
   it('frees its piece when picked up mid-seek, and another sheep claims it', () => {
     const { state, s } = oneSheep();
-    s.fullness = 40;
+    s.fullness = HUNGRY;
     const p = createFoodPiece(state, s.x + 30, s.y);
     updateFeeding(state);
     expect(s.targetId).toBe(p.id);
     const o = createSheep(state, { x: s.x - 30, y: s.y, bornAt: s.bornAt });
-    o.fullness = 40;
+    o.fullness = HUNGRY;
     pickUp(state, s.id);
     updateFeeding(state);
     expect(o.activity).toBe('seekFood');
@@ -192,9 +207,9 @@ describe('a dragged sheep in the systems', () => {
   it('still hungers and can starve mid-drag, leaving its carcass at the pickup spot', () => {
     const { state, s } = oneSheep();
     const [x, y] = [s.x, s.y];
-    s.fullness = 1;
+    s.fullness = NEARLY_EMPTY;
     pickUp(state, s.id);
-    const events = runFor(state, 2_000);
+    const events = runFor(state, 10 * TICK_MS);
     expect(events.some((e) => e.type === 'SheepDied' && e.id === s.id && e.cause === 'starved')).toBe(true);
     expect(state.carcasses).toEqual([expect.objectContaining({ x, y })]);
   });

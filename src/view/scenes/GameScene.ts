@@ -3,6 +3,7 @@ import { COLORS, LAYOUT } from '../../config/constants';
 import { FixedStepClock } from '../../core/fixedStep';
 import { log } from '../../core/log';
 import { InputController } from '../../input/InputController';
+import { savable } from '../../save/saveFile';
 import { allowSaving, isSavingBlocked, startAutosave, wipeSave, writeSave } from '../../save/saveStore';
 import { applyCommand, type Command } from '../../sim/commands';
 import { clearEvents, drainEvents, type SimEvent } from '../../sim/events';
@@ -288,8 +289,8 @@ export class GameScene extends Phaser.Scene {
       dispatch: (cmd) => this.dispatch(cmd),
       pointerOnHud: () => this.pointerOnHudControl(),
       beginDrag: (id, sx, sy) => drag.begin(id, sx, sy),
-      moveDrag: (sx, sy) => drag.move(sx, sy),
-      endDrag: (sx, sy) => drag.end(sx, sy, this.state.time),
+      moveDrag: (sx, sy) => drag.move(sx, sy, this.hudControlAt(sx, sy)),
+      endDrag: (sx, sy) => drag.end(sx, sy, this.hudControlAt(sx, sy), this.state.time),
       cancelDrag: () => drag.cancel(this.state.time),
       dragAlive: () => drag.live,
     });
@@ -340,6 +341,11 @@ export class GameScene extends Phaser.Scene {
    */
   get simState(): Readonly<GameState> {
     return this.state;
+  }
+
+  /** True while a sheep is dragged (HudScene turns its hover off meanwhile). */
+  get dragging(): boolean {
+    return this.inputController.dragging;
   }
 
   /** True while any modal is up, the lose screen included: shortcuts, Farm and tooltips are off. */
@@ -393,7 +399,8 @@ export class GameScene extends Phaser.Scene {
         showToast(STRINGS.quitSaveFailed);
         return;
       }
-      data = { unsaved: this.state };
+      // As a save would: a sheep mid-drag (its Drop still queued, now lost) is handed over standing.
+      data = { unsaved: savable(this.state) };
     }
     this.stopAutosave();
     setForceSave(null);
@@ -491,6 +498,16 @@ export class GameScene extends Phaser.Scene {
     return true;
   }
 
+  /**
+   * True when canvas point (sx, sy) is on a HUD control. Geometric, not hover: HudScene turns its hover
+   * off during a drag. The panned hole can slide under the Pause button, and a release there is no
+   * sacrifice (AC 6).
+   */
+  private hudControlAt(sx: number, sy: number): boolean {
+    const hud = this.scene.get('HudScene') as HudScene;
+    return hud.sys.isActive() && hud.controlAt(sx, sy);
+  }
+
   private pointerOnHudControl(): boolean {
     // Launched after this scene and replaced on every restart: look it up, and only trust it live.
     const hud = this.scene.get('HudScene') as HudScene;
@@ -532,7 +549,7 @@ export class GameScene extends Phaser.Scene {
     this.breedingLayer.sync(selectBreedingPieces(this.state), this.clock.alpha, this.state.time);
     selectPublicSheep(this.state, this.publicSheep);
     // Before the layer syncs: a dragged (or just released) sheep is drawn at its held point.
-    this.sheepDrag.sync(this.state);
+    this.sheepDrag.sync(this.publicSheep, this.state.time);
     this.sheepLayer.sync(this.publicSheep, this.clock.alpha, this.state.time);
     this.betterPlace.setHighlight(this.sheepDrag.highlight);
     this.betterPlace.update(this.game.loop.time);

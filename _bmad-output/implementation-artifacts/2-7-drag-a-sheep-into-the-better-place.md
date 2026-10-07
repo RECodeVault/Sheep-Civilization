@@ -4,7 +4,7 @@ baseline_commit: 7cccafd
 
 # Story 2.7: Drag a Sheep into the Better Place
 
-Status: review
+Status: done
 
 <!-- Created 2026-10-07 by create-story. Builds on 2.3 (InputController modes, press hit-testing), 2.4 (removal pipeline N1, toasts, field clicks), 2.5/2.6 (SheepSprite overlay stack, infection, pings), 1.10 (Esc chain, PenCamera) and 1.9 (save encode/validate). -->
 
@@ -243,6 +243,33 @@ so that I can stop an infection and feed a big flock faster.
       - **5.6:** the `[suction]` caption and SFX;
       - **5.7:** reduced motion for the suction, ring spin, suck pulse and lift.
   - [x] 11.2 Update the architecture only if Rylan asks. The camera change (Open Question 1) is worth a one-line note in `game-architecture.md` Input Handling if he confirms it.
+
+### Review Findings
+
+- [x] [Review][Patch] A drop on the Pause button panned over the hole sacrifices, but AC 6 says a release on a HUD control drops on the field. The hole also highlights under the button. [src/view/field/SheepDrag.ts:end]
+- [x] [Review][Patch] Grabbing a sheep again while its drop is pending reads the lifted `spr.y`, so the origin, held point and grab offset gain 4 px on each re-grab. [src/view/field/SheepDrag.ts:begin]
+- [x] [Review][Patch] The first frame of a drag is drawn at the old spot, not the pointer: `moveDrag` is not called on the frame the drag begins (AC 4). [src/input/InputController.ts:updateClick]
+- [x] [Review][Patch] A drag cancelled by a modal (pause) leaves the sheep lifted, dangling and at the drag depth for the whole pause. A pending sheep should be drawn put down. [src/view/field/SheepSprite.ts:hold, SheepDrag.ts:sync]
+- [x] [Review][Patch] Quitting to the title from memory (a failed save) hands over a state with a sheep still `dragged`, while its queued Drop is lost, so on Continue the sheep stands frozen. Hand over the savable copy. [src/view/scenes/GameScene.ts:quitToTitle]
+- [x] [Review][Patch] The drag target is fixed at the press with no time limit. Hold still while the sheep wanders off, then move 6 px: the far-away sheep is picked up with a huge offset. Require the sheep to still be under the press point when the threshold is crossed. [src/input/InputController.ts:updateClick]
+- [x] [Review][Patch] A release and re-press within one frame is missed: the poll still reads the button as down, so the drop is lost and the new press is swallowed. Also compare `pointer.downTime`. [src/input/InputController.ts:updateDrag]
+- [x] [Review][Patch] A second release before the first sheep's drop applies lets the first sheep go early, so it slides back. Keep a hold for each pending release. [src/view/field/SheepDrag.ts:settle]
+- [x] [Review][Patch] Re-grabbing a sheep whose Sacrifice is still pending starts a drag on a sheep that is about to vanish. Refuse it. [src/view/field/SheepDrag.ts:begin]
+- [x] [Review][Patch] A left press, then a right press before the 6 px threshold, runs a pan and a drag together, and the sheep lags the camera. Ignore a right press while the left button is down. [src/input/InputController.ts:onPointerDown]
+- [x] [Review][Patch] A right or middle release outside the canvas cancels a drag whose left button is still held. Cancel only when the left button is up. [src/input/InputController.ts:onUpOutside]
+- [x] [Review][Patch] After the dragged sheep dies, Esc is consumed with no effect for a frame. `cancelDrag` should return false when the drag is no longer alive. [src/input/InputController.ts:cancelDrag]
+- [x] [Review][Patch] HUD button hover fills and tooltips still show while a sheep is dragged across the bar. [src/view/scenes/HudScene.ts]
+- [x] [Review][Patch] `BetterPlace.update` builds the ring frame name string on each step, against the no-allocation rule; precompute the names. [src/view/field/BetterPlace.ts:update]
+- [x] [Review][Patch] `BETTER_PLACE_BOUNDS` (top 76) does not contain the hit ellipse (top 73). [src/view/field/BetterPlace.ts:BETTER_PLACE_BOUNDS]
+- [x] [Review][Patch] `SheepDrag.sync` reads raw `GameState` (`sheepIndex`) instead of the frame's `PublicSheep` list (AC 11 layering). [src/view/field/SheepDrag.ts:sync]
+- [x] [Review][Patch] Tests:
+  - literal hunger values (`fullness = 40/1/2`, `runFor(2_000/5_000)`) instead of `TUNING`;
+  - the breeding and carcass "while dragged" tests have no post-drop check;
+  - the contagion scenario has no control run showing that the unsacrificed sheep leaves a carcass.
+
+  [tests/sim/systems/drag.test.ts, tests/sim/scenarios/sacrifice.test.ts]
+- [x] [Review][Patch] Task 10 is marked [x] without evidence for several checks: carcass click and 8 px drag start, ready heart following, gulp and sparkle with no double image, drop over Pause, alt-tab/hide cancel, Restart after loss, Breed A/B, and hide → reload → Continue. Run and record them. [this story, Dev Agent Record]
+- [x] [Review][Defer] `GameScene.playArea` is computed once per game, so a growing fence (Story 3.3) would keep the old camera clamp. [src/view/scenes/GameScene.ts:create] — deferred: `fenceBounds` is constant until 3.3; already noted for 3.3 in deferred-work.md
 
 ## Dev Notes
 
@@ -501,6 +528,36 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
   - **Recycling:** after a sacrifice, +100 sheep come back clean.
 - **Performance** (Task 10.13; SwiftShader, 102 sheep, ×1, overlay open): 39 FPS idle (2.6 baseline 37–40) and 35 FPS while dragging continuously (Playwright mouse moves each frame, armed glow and ring). Per frame, `SheepDrag.sync`, `hold`, `setHighlight` and `BetterPlace.update` allocate nothing.
 
+- **Code review fixes (2026-10-07):** all 18 patch findings applied; tests 458 pass, typecheck and lint are clean.
+  - **`SheepDrag`:**
+    - It now reads the frame's PublicSheep list.
+    - Pending releases use 4 reusable slots: each is held until its own command applies, standing (or lifted while falling into the hole).
+    - A re-grab starts from the release point, and a sheep whose Sacrifice is pending cannot be re-grabbed.
+    - `move`/`end` take `onHud` (GameScene's `hudControlAt`, a geometric test against the HUD's control boxes), so the hole never counts under a HUD control.
+  - **`SheepSprite.hold(x, y, lifted)`:** a put-down hold draws the sheep standing at its usual depth.
+  - **`InputController`:**
+    - The drag starts only if the sheep is still under the press point.
+    - The first frame is drawn at the pointer.
+    - A changed `pointer.downTime` ends the drag (a release and re-press within one frame).
+    - A right press is ignored while the left button is down.
+    - `POINTER_UP_OUTSIDE` cancels only with the left button up.
+    - `cancelDrag` returns false for a dead drag.
+  - **`HudScene`:** turns its input off for the drag (no hover fill or tooltip), and `controlAt` was added.
+  - **`quitToTitle`:** hands over `savable(state)`.
+  - **`BetterPlace`:** the ring frame names are precomputed, and `BETTER_PLACE_BOUNDS` covers the hit ellipse.
+  - **Tests:** `TUNING`-based hunger values, post-drop checks for breeding pieces and carcasses, and a control run for the contagion scenario.
+- **Review browser checks (Task 10 evidence), all passing with no console errors:**
+  - **Clicks:** a carcass click clears it; an 8 px move on a sheep starts a drag.
+  - **Dragged sheep:** the ready heart follows it.
+  - **Drop on the Pause button:** with the camera panned to its limit (scroll 426, 60), a sheep released there is put down and clamped to (596, 370). There is no sacrifice, the menu does not open, and the hole stays armed rather than hovered.
+  - **Sacrifice beside the button:** the ghost spirals in alone (no double image), then the sparkles burst.
+  - **Blur:** cancels the drag.
+  - **Hidden tab:** cancels the drag, and the sheep is drawn standing at its pickup spot while the sim is stopped. The save on hide holds it as `wander`.
+  - **Reload → Continue:** resumes the same flock.
+  - **Breed:** A then B makes a pregnancy.
+  - **Last sheep:** sacrificing all of them shows the lose screen, and Restart starts a new flock.
+  - **HUD during a drag:** dragging over the Farm button shows no hover or tooltip; hover returns after the drop.
+
 ### Completion Notes List
 
 - 2026-10-07: Story created. The context engine analysis is complete, and this file is the developer guide.
@@ -553,4 +610,5 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
 
 ### Change Log
 
+- 2026-10-07: Code review: 18 patch findings fixed, 1 deferred (stale play area, Story 3.3) and 12 dismissed. Status → done.
 - 2026-10-07: Implemented Story 2.7. Dragging sheep (`dragged` activity; `PickUp`/`Drop`/`Sacrifice` commands), `removeSheep` and the `Sacrificed` event, the Better Place with drag highlight and suction, the play-area camera, the save mapping for mid-drag saves, placeholder art and 33 new tests. Status → review.

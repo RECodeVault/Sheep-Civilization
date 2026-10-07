@@ -17,15 +17,22 @@ const hud = (): HudView => ({
 
 describe('the Better Place in play', () => {
   it('breaks the contagion chain: an infected sheep sacrificed leaves no carcass and no virus death', () => {
-    const state = newGame(77);
-    const s = state.sheep[0];
-    infectSheep(state, s);
-    applyCommand(state, { type: 'Sacrifice', id: s.id });
-    const events = runFor(state, TUNING.virusDeathMs + TICK_MS);
-    expect(events.filter((e) => e.type === 'SheepDied')).toEqual([]);
-    expect(state.carcasses).toEqual([]);
-    expect(selectHudView(state, hud()).threats.infected).toBe(0);
-    expect(state.stats.sacrificed).toBe(1);
+    const run = (sacrificed: boolean): { died: number; carcasses: number; infected: number } => {
+      const state = newGame(77);
+      for (const o of state.sheep) o.fullness = TUNING.fullnessMax;
+      const s = state.sheep[0];
+      infectSheep(state, s);
+      if (sacrificed) applyCommand(state, { type: 'Sacrifice', id: s.id });
+      const events = runFor(state, TUNING.virusDeathMs + TICK_MS);
+      return {
+        died: events.filter((e) => e.type === 'SheepDied').length,
+        carcasses: state.carcasses.length,
+        infected: selectHudView(state, hud()).threats.infected,
+      };
+    };
+    // Control: left alone, the infected sheep dies of the virus and leaves a carcass for the chain.
+    expect(run(false)).toEqual({ died: 1, carcasses: 1, infected: 0 });
+    expect(run(true)).toEqual({ died: 0, carcasses: 0, infected: 0 });
   });
 
   it('a pregnancy outlives a sacrificed parent: the lamb is still born', () => {
@@ -44,9 +51,10 @@ describe('the Better Place in play', () => {
     const state = newGame(77);
     const s = state.sheep[0];
     const [x, y] = [s.x, s.y];
-    s.fullness = 2;
+    // Runs out in 5 ticks.
+    s.fullness = (TUNING.fullnessMax * 5 * TICK_MS) / TUNING.starveMs;
     applyCommand(state, { type: 'PickUp', id: s.id });
-    runFor(state, 5_000);
+    runFor(state, 10 * TICK_MS);
     expect(state.sheep.find((o) => o.id === s.id)).toBeUndefined();
     expect(state.carcasses).toEqual([expect.objectContaining({ x, y })]);
   });

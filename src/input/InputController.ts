@@ -90,6 +90,9 @@ export class InputController {
   // The sheep under an idle press (hit-tested at the press, like clickTarget): moved past the threshold,
   // the press drags it. 0 = none, and always 0 in breed mode (no drags there).
   private dragTarget = 0;
+  // The live drag's press (pointer.downTime): a different one means the button went up and down again
+  // between two frames, so the drag ended.
+  private dragDownTime = 0;
   // Phaser's KeyboardManager replays its whole per-step queue on every new key event, and its
   // duplicate check compares only with the event before, so with three or more key events in one
   // step an earlier keydown is dispatched again (KeyboardPlugin.update). Each handler ignores an
@@ -184,6 +187,8 @@ export class InputController {
   cancelDrag(): boolean {
     if (this.mode !== 'dragging') return false;
     this.mode = 'idle';
+    // The sheep died since the last frame: nothing to cancel, so Esc goes on down the chain.
+    if (!this.hooks.dragAlive()) return false;
     this.hooks.cancelDrag();
     return true;
   }
@@ -222,11 +227,21 @@ export class InputController {
     const dy = (down ? p.y : p.upY) - this.clickDownY;
     if (dx * dx + dy * dy > DRAG_THRESHOLD2) {
       this.clickArmed = false;
-      if (this.mode === 'idle' && this.dragTarget !== 0 && this.hooks.beginDrag(this.dragTarget, this.clickDownX, this.clickDownY)) {
+      // The sheep must still be under the press point: one that wandered off while the pointer was held
+      // still is not snatched from afar.
+      const target = this.dragTarget;
+      if (
+        this.mode === 'idle' &&
+        target !== 0 &&
+        this.hooks.sheepAt(this.clickDownX, this.clickDownY) === target &&
+        this.hooks.beginDrag(target, this.clickDownX, this.clickDownY)
+      ) {
         this.mode = 'dragging';
+        this.dragDownTime = p.downTime;
         // Released in the same frame: put it down at once (updateDrag would see the release next frame,
-        // but the pointer may be pressed again by then).
+        // but the pointer may be pressed again by then). Otherwise it is drawn at the pointer this frame.
         if (!down) this.finishDrag(p.upX, p.upY);
+        else this.hooks.moveDrag(p.x, p.y);
       }
       return;
     }
@@ -258,7 +273,8 @@ export class InputController {
    */
   private onUpOutside(): void {
     this.cancelClick();
-    this.cancelDrag();
+    // Only the left button holds the sheep: a right or middle release out there changes nothing.
+    if (!this.input.activePointer.leftButtonDown()) this.cancelDrag();
   }
 
   /**
@@ -276,7 +292,9 @@ export class InputController {
       return;
     }
     const p = this.input.activePointer;
-    if (p.leftButtonDown()) this.hooks.moveDrag(p.x, p.y);
+    // A new downTime means a release and a new press both happened since the last frame: the release
+    // ends the drag where it happened (the new press, swallowed while dragging, does nothing).
+    if (p.leftButtonDown() && p.downTime === this.dragDownTime) this.hooks.moveDrag(p.x, p.y);
     else this.finishDrag(p.upX, p.upY);
   }
 
@@ -378,6 +396,8 @@ export class InputController {
       if (this.hooks.modalOpen() || this.mode === 'dragging') return;
       const onField = pointer.y < FIELD_BOTTOM;
       if (pointer.rightButtonDown()) {
+        // A left press is under way (it may become a drag): no pan on top of it.
+        if (pointer.leftButtonDown()) return;
         this.panArmed = true;
         this.panFromField = onField;
         this.panning = false;

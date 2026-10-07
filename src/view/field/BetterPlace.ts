@@ -24,8 +24,8 @@ const LABEL_TOP = 152;
 const LABEL_PAD_X = 10;
 const LABEL_PAD_Y = 4;
 
-/** The hole, its dirt ring and its label, for the camera's play area (PenCamera). */
-export const BETTER_PLACE_BOUNDS: Rect = Object.freeze({ x: 442, y: 76, width: 156, height: 110 });
+/** The hole's hit ellipse (top y 73), dirt ring and label, for the camera's play area (PenCamera). */
+export const BETTER_PLACE_BOUNDS: Rect = Object.freeze({ x: 442, y: 72, width: 156, height: 114 });
 
 /** True when world point (x, y) is in the hole: inside the outer ring's ellipse. Allocates nothing. */
 export function inBetterPlace(x: number, y: number): boolean {
@@ -50,7 +50,8 @@ const BP_MOTION = {
   gulpScale: 0.8,
   gulpMs: 120,
 } as const;
-const RING_FRAMES = 3;
+// Built once, so the per-step frame change allocates no string.
+const RING_FRAMES: readonly string[] = Object.freeze([1, 2, 3].map((n) => `${FRAME.betterPlaceRingPrefix}${n}`));
 
 /**
  * The Better Place (UX-DR47, UX-DR48, UX-DR52): a round void with a cold gold rim, the Market's
@@ -66,7 +67,7 @@ export class BetterPlace {
   private readonly labelBox: Phaser.GameObjects.Image;
   private readonly label: Phaser.GameObjects.Text;
   private level: BetterPlaceHighlight = 'off';
-  private ringFrame = 1;
+  private ringFrame = 0;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -75,7 +76,7 @@ export class BetterPlace {
     this.glow = scene.add.image(x, y, ATLAS.sheepWorld, FRAME.betterPlaceGlow).setScale(SCALE).setDepth(d);
     this.hole = scene.add.image(x, ART_Y, ATLAS.sheepWorld, FRAME.betterPlace).setScale(SCALE).setDepth(d + 1);
     this.ring = scene.add
-      .image(x, y, ATLAS.sheepWorld, `${FRAME.betterPlaceRingPrefix}1`)
+      .image(x, y, ATLAS.sheepWorld, RING_FRAMES[0])
       .setScale(SCALE)
       .setDepth(d + 2);
     this.label = scene.add
@@ -100,14 +101,14 @@ export class BetterPlace {
     this.apply();
   }
 
-  /** Spins the ring while armed: picks the frame from real time, setting it only on a change. */
+  /** Spins the ring while armed: picks the frame from real time, setting it only on a change. No allocation. */
   update(now: number): void {
     if (this.level === 'off') return;
     const step = this.level === 'hovered' ? BP_MOTION.ringStepHoveredMs : BP_MOTION.ringStepMs;
-    const frame = (Math.floor(now / step) % RING_FRAMES) + 1;
+    const frame = Math.floor(now / step) % RING_FRAMES.length;
     if (frame === this.ringFrame) return;
     this.ringFrame = frame;
-    this.ring.setFrame(`${FRAME.betterPlaceRingPrefix}${frame}`, false, false);
+    this.ring.setFrame(RING_FRAMES[frame], false, false);
   }
 
   /** UX-DR80: the hole gulps as a sheep goes in. Visual only. */

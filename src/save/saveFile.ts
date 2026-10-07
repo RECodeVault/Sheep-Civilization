@@ -22,7 +22,7 @@ export function encodeSave(state: GameState, now: Date = new Date()): string {
  * hang in the air for ever: it is written as `wander` at its sim position (where it was picked up). A
  * copy, only when needed; the live state is never mutated. Validation therefore never sees `dragged`.
  */
-function savable(state: GameState): GameState {
+export function savable(state: GameState): GameState {
   if (!state.sheep.some((s) => s.activity === 'dragged')) return state;
   return { ...state, sheep: state.sheep.map((s) => (s.activity === 'dragged' ? { ...s, activity: 'wander' } : s)) };
 }

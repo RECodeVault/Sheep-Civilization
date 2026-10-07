@@ -70,11 +70,15 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
   /** The stage and hunger whose frame is showing; null forces the next sync to set it. */
   private shownStage: Stage | null = null;
   private shownHunger: Hunger | null = null;
-  /** Held by a drag (Story 2.7): drawn at (heldX, heldY), lifted. shownHeld is the frame's held state. */
+  /**
+   * Held by a drag (Story 2.7): drawn at (heldX, heldY), lifted and dangling while `heldLifted` (in the
+   * hand), or standing (put down, waiting for its Drop to apply). shownLifted caches the frame choice.
+   */
   private held = false;
+  private heldLifted = false;
   private heldX = 0;
   private heldY = 0;
-  private shownHeld = false;
+  private shownLifted = false;
   /** Set by release: the next sync snaps to the sim position (no slide from the pickup spot). */
   private snapNext = false;
   /** The ready heart, owned by this sprite and pooled with it; shown while the sheep is ready (FR8a). */
@@ -139,11 +143,12 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
 
   sync(pub: PublicSheep, alpha: number, simTime: number): void {
     // Either may change alone: a sheep ages while its hunger holds steady, and the reverse.
-    if (pub.stage !== this.shownStage || pub.hunger !== this.shownHunger || this.held !== this.shownHeld) {
+    const lifted = this.held && this.heldLifted;
+    if (pub.stage !== this.shownStage || pub.hunger !== this.shownHunger || lifted !== this.shownLifted) {
       this.shownStage = pub.stage;
       this.shownHunger = pub.hunger;
-      this.shownHeld = this.held;
-      this.setFrame(this.held ? DRAGGED_FRAME[pub.stage] : SHEEP_FRAME[pub.stage][pub.hunger]);
+      this.shownLifted = lifted;
+      this.setFrame(lifted ? DRAGGED_FRAME[pub.stage] : SHEEP_FRAME[pub.stage][pub.hunger]);
     }
     if (this.fresh) {
       // A newly bound (possibly reused) sprite starts at rest, never sliding in from an old spot.
@@ -185,11 +190,12 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
       this.prevY = this.currY = pub.y;
       this.lastTick = simTime;
     }
-    // Held: at the pointer, every frame, lifted (UX-DR60). The sim keeps it at the pickup spot.
+    // Held: at the held point every frame, lifted while in the hand (UX-DR60). The sim keeps it at the
+    // pickup spot until its Drop applies.
     const x = this.held ? this.heldX : this.prevX + (this.currX - this.prevX) * alpha;
-    const y = this.held ? this.heldY - LIFT_PX : this.prevY + (this.currY - this.prevY) * alpha;
-    // Lower sheep draw in front; a held sheep draws above them all.
-    const depth = this.held ? FIELD_DEPTH.dragged : y;
+    const y = this.held ? this.heldY - (lifted ? LIFT_PX : 0) : this.prevY + (this.currY - this.prevY) * alpha;
+    // Lower sheep draw in front; a sheep in the hand draws above them all.
+    const depth = lifted ? FIELD_DEPTH.dragged : y;
     const moved = this.x !== x || this.y !== y;
     if (moved) this.setPosition(x, y);
     if (depth !== this.depth) this.setDepth(depth);
@@ -228,12 +234,14 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
   }
 
   /**
-   * Holds the sheep at world (x, y) for this frame's sync (a drag, Story 2.7): drawn there lifted, in
-   * its dangling frame, at the drag depth, with its overlays. Call before the layer syncs, every frame
-   * it stays held. Allocates nothing.
+   * Holds the sheep at world (x, y) (a drag, Story 2.7), with its overlays, from the next sync until
+   * `release`. `lifted`: in the hand (lifted 4 px, dangling frame, drag depth); otherwise put down,
+   * standing at (x, y) at its usual depth. Call before the layer syncs, every frame it stays held, so
+   * the point follows the pointer. Allocates nothing.
    */
-  hold(x: number, y: number): void {
+  hold(x: number, y: number, lifted: boolean): void {
     this.held = true;
+    this.heldLifted = lifted;
     this.heldX = x;
     this.heldY = y;
   }
@@ -404,7 +412,8 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
     this.shownHunger = null;
     // A reused sprite must never come back held, lifted or dangling.
     this.held = false;
-    this.shownHeld = false;
+    this.heldLifted = false;
+    this.shownLifted = false;
     this.snapNext = false;
     this.shownReady = false;
     this.lastReady = false;

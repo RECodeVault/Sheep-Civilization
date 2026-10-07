@@ -41,6 +41,7 @@ export class HudScene extends Phaser.Scene {
   private tooltipText: string | undefined = undefined;
   // Whether a modal was up last frame, to clear stale button hover once when one opens.
   private wasModal = false;
+  private wasDragging = false;
   private readonly view: HudView = {
     farmProgress: 0,
     farmPipsPerFood: 0,
@@ -66,6 +67,7 @@ export class HudScene extends Phaser.Scene {
     this.tooltipFor = null;
     this.tooltipText = undefined;
     this.wasModal = false;
+    this.wasDragging = false;
     for (const k in this.deaths) this.deaths[k as DeathCause] = 0;
     this.bar = new BottomBar(this, this.farm, this.farmBreeding, this.breedTool);
     this.pauseButton = new Button(this, PAUSE, {
@@ -121,7 +123,15 @@ export class HudScene extends Phaser.Scene {
       const modal = this.gameScene.modalOpen;
       if (modal && !this.wasModal) for (const b of this.tooltipSources) b.clearHover();
       this.wasModal = modal;
-      this.updateTooltip(this.game.loop.time, modal);
+      // A sheep dragged across the bar lights no button and pops no tooltip: the HUD's input is off for
+      // the drag (presses cannot happen then anyway). Hover returns once the pointer next enters.
+      const dragging = this.gameScene.dragging;
+      if (dragging !== this.wasDragging) {
+        this.wasDragging = dragging;
+        this.input.enabled = !dragging;
+        if (dragging) for (const b of this.tooltipSources) b.clearHover();
+      }
+      this.updateTooltip(this.game.loop.time, modal || dragging);
     } catch (err) {
       reportError('ui', err);
     }
@@ -211,6 +221,16 @@ export class HudScene extends Phaser.Scene {
   get pointerOverControl(): boolean {
     const sources = this.tooltipSources;
     for (let i = 0; i < sources.length; i++) if (sources[i].isHovered) return true;
+    return false;
+  }
+
+  /** True when canvas point (x, y) is on a HUD control's box (a button or a threat count). No allocation. */
+  controlAt(x: number, y: number): boolean {
+    const sources = this.tooltipSources;
+    for (let i = 0; i < sources.length; i++) {
+      const s = sources[i];
+      if (x >= s.x && x < s.x + s.width && y >= s.y && y < s.y + s.height) return true;
+    }
     return false;
   }
 

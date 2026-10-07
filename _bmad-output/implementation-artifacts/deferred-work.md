@@ -180,3 +180,8 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **The reveal (Story 4.4):** `Sacrificed.wasAbomination` is always false today; the HUD toast and `GameScene.suck` must branch on it only there.
 - **Audio (Story 5.6):** the `[suction]` caption and SFX on `Sacrificed`.
 - **Reduced motion (Story 5.7):** the suction spiral (`SUCTION`), the ring spin and hole suck (`BP_MOTION` in `BetterPlace.ts`) and the 4 px lift are juice; the lit rim, glow and label are information and stay.
+
+## Deferred from: code review of 2-7-drag-a-sheep-into-the-better-place (2026-10-07)
+
+- **Stale camera play area (Story 3.3):** `GameScene.playArea` (pen ∪ Better Place) is built once in `create`, so when the fence grows in place the pan clamp and centring still use the old pen. Rebuild it (and re-clamp `PenCamera`) when the land tier changes. `fenceBounds` is constant until then.
+
