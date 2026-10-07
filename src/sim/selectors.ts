@@ -11,6 +11,17 @@ export function isLand(item: ShopItemId): boolean {
   return item === 'land1' || item === 'land2' || item === 'land3';
 }
 
+/** A cosmetic shop item (FR23): owned, drawn, no effect. */
+export type Decoration = 'flowerPatch' | 'scarecrow';
+
+/** The decorations, in shop order. The view draws each one owned (Story 3.4). */
+export const DECORATIONS: readonly Decoration[] = Object.freeze(['flowerPatch', 'scarecrow']);
+
+/** True for the shop's decorations (FR23), as opposed to the Land tiers. */
+export function isDecoration(item: ShopItemId): item is Decoration {
+  return item === 'flowerPatch' || item === 'scarecrow';
+}
+
 /**
  * The highest Land tier owned (Story 3.3). Derived from `owned`, never stored. Save validation and the
  * shop's lock guarantee every lower tier is owned too. Movement calls this every tick (via fenceBounds),

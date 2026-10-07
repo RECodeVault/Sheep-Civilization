@@ -10,6 +10,8 @@ import {
   farmPipsPerClick,
   fenceBounds,
   FULLNESS_EPSILON,
+  DECORATIONS,
+  isDecoration,
   isLand,
   landTier,
   isBoosted,
@@ -539,6 +541,15 @@ describe('land selectors (FR11, FR22, Story 3.3)', () => {
 
   it('isLand picks out the Land tiers', () => {
     expect(SHOP_ITEMS.filter(isLand)).toEqual(['land1', 'land2', 'land3']);
+  });
+
+  it('isDecoration picks out the decorations, in shop order (FR23, Story 3.4)', () => {
+    expect(SHOP_ITEMS.filter(isDecoration)).toEqual(['flowerPatch', 'scarecrow']);
+    expect(DECORATIONS).toEqual(SHOP_ITEMS.filter(isDecoration));
+  });
+
+  it('every shop item is Land or a decoration, never both (a new item must be classified on purpose)', () => {
+    for (const item of SHOP_ITEMS) expect(Number(isLand(item)) + Number(isDecoration(item))).toBe(1);
   });
 
   it('selectHudView fills the flock (living sheep only) and the capacity (UX-DR35)', () => {

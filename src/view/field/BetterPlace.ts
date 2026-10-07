@@ -1,6 +1,7 @@
 import type Phaser from 'phaser';
 import { COMPONENTS, RADIUS } from '../../config/constants';
 import type { Rect } from '../../config/tuning';
+import { invariant } from '../../core/invariant';
 import { ATLAS, FRAME } from '../assetKeys';
 import { STRINGS } from '../strings';
 import { boxTexture, textStyle } from '../widgets/box';
@@ -26,6 +27,20 @@ const LABEL_PAD_Y = 4;
 
 /** The hole's hit ellipse (top y 73), dirt ring and label, for the camera's play area (PenCamera). */
 export const BETTER_PLACE_BOUNDS: Rect = Object.freeze({ x: 442, y: 72, width: 156, height: 114 });
+
+// The haze glow's drawn size (assets/art/world/better-place-glow.png), shown at SCALE around the hole.
+const GLOW_FRAME = Object.freeze({ width: 140, height: 78 } as const);
+
+/**
+ * Where the armed glow draws (x 380–660, y 30–186): wider than the hole, so fixed world objects placed
+ * near it (the decorations, Story 3.4) keep clear of this, not just of BETTER_PLACE_BOUNDS.
+ */
+export const BETTER_PLACE_GLOW_BOUNDS: Rect = Object.freeze({
+  x: BETTER_PLACE.x - (GLOW_FRAME.width * SCALE) / 2,
+  y: BETTER_PLACE.y - (GLOW_FRAME.height * SCALE) / 2,
+  width: GLOW_FRAME.width * SCALE,
+  height: GLOW_FRAME.height * SCALE,
+});
 
 /** True when world point (x, y) is in the hole: inside the outer ring's ellipse. Allocates nothing. */
 export function inBetterPlace(x: number, y: number): boolean {
@@ -74,6 +89,12 @@ export class BetterPlace {
     const { x, y } = BETTER_PLACE;
     const d = FIELD_DEPTH.ground;
     this.glow = scene.add.image(x, y, ATLAS.sheepWorld, FRAME.betterPlaceGlow).setScale(SCALE).setDepth(d);
+    if (import.meta.env.DEV) {
+      invariant(
+        this.glow.frame.realWidth === GLOW_FRAME.width && this.glow.frame.realHeight === GLOW_FRAME.height,
+        'BetterPlace: the glow frame is not the size BETTER_PLACE_GLOW_BOUNDS assumes',
+      );
+    }
     this.hole = scene.add.image(x, ART_Y, ATLAS.sheepWorld, FRAME.betterPlace).setScale(SCALE).setDepth(d + 1);
     this.ring = scene.add
       .image(x, y, ATLAS.sheepWorld, RING_FRAMES[0])

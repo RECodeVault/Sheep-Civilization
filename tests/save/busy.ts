@@ -10,14 +10,14 @@ import { fillFlock, innerFence, newGame, runFor } from '../sim/helpers';
  * A mid-game state with every saved field in use: a 12-sheep flock, pieces on the ground with
  * seekers walking to them, a half-filled Farm bar, breeding pieces with seekers and a part-filled
  * breeding bar, a ready sheep, a pregnancy with its parents on cooldown, a carcass, an infected
- * sheep, an active sacrifice boost, money from sales, two shop purchases and an advanced rng. Callers assert it is busy.
+ * sheep, an active sacrifice boost, money from sales, three shop purchases (Land I and both decorations) and an advanced rng. Callers assert it is busy.
  */
 export function busyGame(seed = 31337): GameState {
   const state = newGame(seed);
   // Shop purchases (Stories 3.2, 3.3), made before the flock is placed, so fillFlock spreads it over the
   // Land I pen and the round-trip covers positions outside the start fence. Set directly: a Buy needs
   // money, which is set below.
-  state.owned = ['land1', 'flowerPatch'];
+  state.owned = ['land1', 'flowerPatch', 'scarecrow'];
   fillFlock(state, 12);
   for (let i = 0; i < TUNING.farmPipsPerFood * 3 + 3; i++) applyCommand(state, { type: 'Farm' });
   for (let i = 0; i < TUNING.breedingPipsPerFood * 2 + 3; i++) applyCommand(state, { type: 'FarmBreeding' });

@@ -11,6 +11,7 @@ import { clearEvents, drainEvents, type SimEvent } from '../../sim/events';
 import {
   breedBlock,
   fenceBounds,
+  isDecoration,
   isLand,
   isLost,
   selectBreedingPieces,
@@ -20,6 +21,8 @@ import {
   selectPregnancies,
   selectPublicSheep,
   selectShopView,
+  DECORATIONS,
+  type Decoration,
   type PublicPregnancy,
   type PublicSheep,
   type ShopRowView,
@@ -29,11 +32,12 @@ import { step } from '../../sim/step';
 import { ATLAS, FRAME, HEART_CURSOR } from '../assetKeys';
 import { bus } from '../bus';
 import { TUNING, type Rect } from '../../config/tuning';
-import { BETTER_PLACE, BETTER_PLACE_BOUNDS, BetterPlace } from '../field/BetterPlace';
+import { BETTER_PLACE, BETTER_PLACE_BOUNDS, BETTER_PLACE_GLOW_BOUNDS, BetterPlace } from '../field/BetterPlace';
 import { CarcassSprite } from '../field/CarcassSprite';
+import { DECORATION_BOUNDS, DECORATION_SPOTS, Decorations } from '../field/Decorations';
 import { FIELD_DEPTH } from '../field/depths';
 import { EntityLayer } from '../field/EntityLayer';
-import { Fence } from '../field/Fence';
+import { Fence, fenceDrawnBounds } from '../field/Fence';
 import { FoodSprite } from '../field/FoodSprite';
 import { Market, MARKET, MARKET_BOUNDS } from '../field/Market';
 import { ObjectPool } from '../field/ObjectPool';
@@ -86,6 +90,8 @@ const POOF = {
 // feedback). Visual only, like the munch.
 const DUST_SPAWN_PUFFS = 8;
 const DUST_CLEAR_PUFFS = 4;
+// A small puff at a decoration's foot when it is bought (Story 3.4).
+const DECORATION_PUFFS = 6;
 // Fast and wide enough to clear the carcass's own (light) body, so the puff reads against the grass.
 const DUST = {
   lifespan: 450,
@@ -153,6 +159,8 @@ export class GameScene extends Phaser.Scene {
   private sparkle!: Phaser.GameObjects.Particles.ParticleEmitter;
   private betterPlace!: BetterPlace;
   private market!: Market;
+  /** The Flower Patch and the Scarecrow (Story 3.4), drawn from `owned`. */
+  private decorations!: Decorations;
   /** The pasture fence, rebuilt in place when land is bought (Story 3.3). */
   private fence!: Fence;
   /** A land purchase was applied this frame: the fence grows once, after the ticks (growLand). */
@@ -207,6 +215,7 @@ export class GameScene extends Phaser.Scene {
       else if (e.type === 'Sold') this.sold(e.id, e.price);
       // Grown once per frame in update, however many tiers were bought in the frame's ticks.
       else if (e.type === 'Bought' && isLand(e.item)) this.landBought = true;
+      else if (e.type === 'Bought' && isDecoration(e.item)) this.decorationBought(e.item);
     } catch (err) {
       reportError('ui', err);
     }
@@ -249,6 +258,9 @@ export class GameScene extends Phaser.Scene {
     this.fence = new Fence(this, fenceBounds(this.state));
     this.betterPlace = new BetterPlace(this);
     this.market = new Market(this);
+    // A continued or loaded game draws its decorations from the start, with no pop (Story 3.4).
+    this.decorations = new Decorations(this);
+    this.decorations.show(this.state);
     // Every game (new, continued, restarted) opens with the pen and the Better Place centred above the
     // bar (Story 2.7; was the pen alone, 1.10), and the pan keeps the whole play area, the Market too,
     // in view (Story 3.1). The open shop never covers the Better Place (Stories 3.2, 3.3).
@@ -465,6 +477,16 @@ export class GameScene extends Phaser.Scene {
     ]) {
       if (!this.shopPanel.contains(x - cam.scrollX, y - cam.scrollY)) this.dust.explode(DUST_SPAWN_PUFFS, x, y);
     }
+  }
+
+  /**
+   * A decoration was bought (Story 3.4): it pops in at its spot with a dust puff at its foot. It moves no
+   * camera and rebuilds nothing, so unlike land it runs right in the drain. At most twice a game.
+   */
+  private decorationBought(d: Decoration): void {
+    this.decorations.pop(d);
+    const spot = DECORATION_SPOTS[d];
+    this.dust.explode(DECORATION_PUFFS, spot.x, spot.foot);
   }
 
   /**
@@ -855,6 +877,21 @@ export class GameScene extends Phaser.Scene {
   }
 }
 
+/** True when the two rects overlap (touching edges do not). */
+function intersects(a: Rect, b: Rect): boolean {
+  return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+}
+
+/** True when `inner` lies wholly inside `outer`. */
+function contains(outer: Rect, inner: Rect): boolean {
+  return (
+    inner.x >= outer.x &&
+    inner.y >= outer.y &&
+    inner.x + inner.width <= outer.x + outer.width &&
+    inner.y + inner.height <= outer.y + outer.height
+  );
+}
+
 /** The smallest rect holding both. Allocates; called once per game and per land purchase. */
 function union(a: Rect, b: Rect): Rect {
   const x = Math.min(a.x, b.x);
@@ -883,6 +920,26 @@ if (import.meta.env.DEV) {
       f.y >= BETTER_PLACE_BOUNDS.y + BETTER_PLACE_BOUNDS.height - 2,
       "GameScene: a land tier's fence reaches the Better Place",
     );
+  }
+  // Story 3.4: each decoration stays clear of everything every tier's fence draws (posts included) by a
+  // 2 px margin, clear of the Better Place (the hole and its armed glow) and the Market, inside the play
+  // area (so always in view), and right of the Better Place's left edge, which the open shop keeps right
+  // of the panel.
+  for (const d of DECORATIONS) {
+    const r = DECORATION_BOUNDS[d];
+    invariant(!intersects(r, BETTER_PLACE_BOUNDS), 'GameScene: a decoration overlaps the Better Place');
+    invariant(!intersects(r, BETTER_PLACE_GLOW_BOUNDS), "GameScene: a decoration overlaps the Better Place's glow");
+    invariant(!intersects(r, MARKET_BOUNDS), 'GameScene: a decoration overlaps the Market');
+    invariant(r.x >= BETTER_PLACE_BOUNDS.x, 'GameScene: a decoration can slide under the open shop');
+    for (const f of TUNING.landFences) {
+      const drawn = fenceDrawnBounds(f);
+      const fence: Rect = { x: drawn.x - 2, y: drawn.y - 2, width: drawn.width + 4, height: drawn.height + 4 };
+      invariant(!intersects(r, fence), "GameScene: a land tier's fence reaches a decoration");
+      invariant(
+        contains(union(union(f, BETTER_PLACE_BOUNDS), MARKET_BOUNDS), r),
+        "GameScene: a decoration is outside a land tier's play area",
+      );
+    }
   }
 }
 

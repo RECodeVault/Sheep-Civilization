@@ -48,6 +48,9 @@ export const FRAME = Object.freeze({
   marketDisabled: 'market-disabled',
   marketOutline: 'market-outline',
   marketOutlineInvalid: 'market-outline-invalid',
+  // The decorations in the field (FR23, Story 3.4).
+  flowerPatch: 'flower-patch',
+  scarecrow: 'scarecrow',
   pipFood: 'pip-food',
   pipBreeding: 'pip-breeding',
   pipEmpty: 'pip-empty',

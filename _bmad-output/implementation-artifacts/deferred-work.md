@@ -228,6 +228,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Land's effect (Story 3.3):** `state.owned` holds the bought Land tiers, but `capacity` and `fenceBounds` ignore it (a 3.2 test asserts that; 3.3 changes it). Grow the fence on `Bought`, put the flock counter in the 100 px reserve after the money counter (`FLOCK_RESERVE` in `BottomBar.ts`), keep the shop's effect strings ("Capacity 10 → 25" …, `strings.ts`) in step with the land capacities (or build them from `TUNING`), and rebuild `playArea` so `PenCamera`'s shop-open inset still fits the larger pen (see the code review note below: if the play area cannot fit right of the panel, it does not stay right of it).
   - **Resolved in Story 3.3:** `landTier`, `capacity` and `fenceBounds` read `owned` (one `TUNING` land table); the fence grows on `Bought`; `FlockCounter` fills the reserve; the land effect strings are built from `TUNING.landCapacities`.
 - **Decorations (Story 3.4):** the Flower Patch and Scarecrow can be bought (they show "Owned"); 3.4 draws them from `owned`.
+  - **Resolved in Story 3.4:** `Decorations` (`view/field/`) draws each owned decoration at a fixed spot above the fence, from `owned` on load and with a pop-in on `Bought`.
 - **The Medicine slot (Story 4.5):** no room is reserved in the bar (Breed ends at 576, money starts at 588). 4.5 re-spaces the read-outs (8 px gaps, narrower boxes, or moving money and the flock reserve right into the ~30 px spare before the threat summary). Medicine is a repeatable row with its own dose count; never put it in `owned`.
 - **More rows (Stories 4.5, 4.7, 4.8):** each row adds 60 px to the panel (`ShopPanel.ts`); with all 9 rows its top reaches y ≈ 14 and meets the Pause button (16–56). Shrink the row gap and padding, or move Pause. Append the new items to `SHOP_ITEMS`, `ShopItemId`, `shopPrice`, the strings and `SHOP_ICON`, and extend the save validation.
 - **Audio (Story 5.6):** a purchase sound on `Bought`.
@@ -255,3 +256,15 @@ Real issues found in reviews that are not actionable in the story where they wer
 ## Deferred from: code review of 3-3-buy-land-and-grow-the-fence (2026-10-07)
 
 - **Camera fit has no `npm test` coverage (Story 3.6):** the guarantee that every land tier's play area fits one screen (and stays clear of the Market and the Better Place) is a DEV-only invariant at `GameScene` module load, which Vitest never imports. The slack is 4 px wide at Land III and 0 px tall at Land II/III. A 3.6 retune of `TUNING.landFences` must re-run the DEV build, or add a config-level fit test with the view rects as plain numbers.
+
+## Deferred from: story 3-4-decorations (2026-10-07)
+
+- **Era badge vs the Scarecrow (Story 3.5):** the badge sits top-right of the field (screen x ≈ 1100–1264, y 16–56); at the Land II/III scroll (y 56) that is world y 72–112, x ≥ 1112, clear of the Scarecrow (world 980–1020 × 112–176) by the numbers. Check it on screen at every tier when the badge is built, shop open and closed.
+- **Era backgrounds (Story 3.5):** draw the era art below `FIELD_DEPTH.ground`, so the decorations (depth = foot y, about 176) stay above it. Their spots (`DECORATION_SPOTS`, the grass strip above the fence between the Better Place and the Market) stay the same in every era; check that each era's art leaves that strip readable.
+- **Audio (Story 5.6):** the purchase sound on `Bought` covers decorations too; no separate cue is needed.
+- **Reduced motion (Story 5.7):** the decoration pop-in (`POP` in `Decorations.ts`) and its dust puff (`GameScene.decorationBought`) are juice; under reduced motion show the decoration at once.
+- **Real art (Story 3.6 / 5.x):** the flower patch (28×14) and scarecrow (20×32) are placeholders. Free-pack art must keep these sizes, or update `FRAME_SIZE`/`DECORATION_SPOTS` in `Decorations.ts`; the DEV checks (frame size, and the layout invariant in `GameScene`) catch a mismatch. Like the land fit (3.3), the decoration layout invariant is DEV-only and not covered by `npm test`.
+
+## Deferred from: code review of 3-4-decorations (2026-10-07)
+
+- **Decoration layout checks are DEV-only (Story 3.6 / any time):** the decoration spot invariant (`GameScene`) and the frame-size check (`Decorations.build`) run only when a DEV build loads `GameScene`; `npm test` never imports view modules. As with 3.3's camera fit, a retune of `landFences` or new decoration art must re-run the DEV build, or the rects could move to a plain-data module with a config-level test.
