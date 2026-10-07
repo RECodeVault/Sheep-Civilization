@@ -182,6 +182,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **The Market (Story 3.1):** add its bounds to `GameScene.playArea` (union with the pen and the Better Place), its armed and hovered highlight next to `BetterPlace.setHighlight`, and the invalid "Too young" target for lambs. `SheepDrag.end` decides the target from the pointer: add the Market test beside `inBetterPlace`.
   - **Resolved in Story 3.1:** `view/field/Market.ts` (`MARKET_BOUNDS`, `inMarket`, `setHighlight('off' | 'armed' | 'hovered' | 'invalid', price)`), and `SheepDrag` sends `Sell` over the stall (a lamb there gets a `Drop`).
 - **Fence growth vs the hole (Story 3.3):** the hole is fixed at world (520, 108). The Land I fence (mockup 430–1062 × 184–598) stays clear of it, but check the later tiers, and recompute `GameScene.playArea` (and re-clamp the camera) when the fence grows.
+  - **Resolved in Story 3.3:** every tier's fence top stays at y 184, under the hole (`TUNING.landFences`; a DEV invariant in `GameScene` checks it), and `playArea` is rebuilt and the camera re-clamped on a land purchase (`GameScene.growLand`).
 - **A victim picked up mid-approach (Story 4.3):** a dragged sheep keeps its sim position (the pickup spot), so the Abomination would walk to where it was picked up. Decide whether a dragged victim is re-picked like a sacrificed one.
 - **The reveal (Story 4.4):** `Sacrificed.wasAbomination` is always false today; the HUD toast and `GameScene.suck` must branch on it only there.
 - **Audio (Story 5.6):** the `[suction]` caption and SFX on `Sacrificed`.
@@ -190,6 +191,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 ## Deferred from: code review of 2-7-drag-a-sheep-into-the-better-place (2026-10-07)
 
 - **Stale camera play area (Story 3.3):** `GameScene.playArea` (pen ∪ Better Place) is built once in `create`, so when the fence grows in place the pan clamp and centring still use the old pen. Rebuild it (and re-clamp `PenCamera`) when the land tier changes. `fenceBounds` is constant until then.
+  - **Resolved in Story 3.3:** `GameScene.buildPlayArea` rebuilds the focus and `playArea` in `create` and on every land purchase, then `PenCamera.reclamp`.
 
 ## Deferred from: story 2-8-sacrifice-food-boost (2026-10-07)
 
@@ -209,6 +211,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Money counter (Story 3.2):** `state.money` exists (schema 7) but nothing on the HUD shows it; the DEV overlay's sheep line shows the balance and sales until then. 3.2 adds `money` to `HudView` and the `money-counter`, and its DEV "Add money" adds to `money` only (validation does not tie `money` to `stats.moneyEarned`, on purpose).
   - **Resolved in Story 3.2:** `HudView.money` and the `money-counter` (with a roll on change); the DEV overlay's button is "+$100" and adds to `money` only.
 - **Land tiers vs the stall (Story 3.3):** the stall is fixed at world x 1100–1260 (`MARKET`, outline from x 1080). Land I ends at x 1062; check that Land II/III never reach x 1080, and rebuild both camera rects (the focus and `playArea`) when the fence grows.
+  - **Resolved in Story 3.3:** every tier's fence ends at x 1062, left of the stall (DEV invariant in `GameScene`); both camera rects are rebuilt on purchase.
 - **The Abomination stays unsellable (Story 4.1):** `market.ts` relies on `stageOf` reporting the Abomination as a lamb (it never grows past one). Keep it so; the view's "Too young" reads only `PublicSheep.stage`.
 - **Names (Story 5.3):** the sold toast says "A sheep sold. $10."; 5.3 puts the name in place of "A sheep", in `halo`.
 - **Audio (Story 5.6):** the cash-register ding on `Sold` (UX-DR82), and a caption if captions cover it.
@@ -222,6 +225,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 ## Deferred from: story 3-2-money-and-the-shop-panel (2026-10-07)
 
 - **Land's effect (Story 3.3):** `state.owned` holds the bought Land tiers, but `capacity` and `fenceBounds` ignore it (a 3.2 test asserts that; 3.3 changes it). Grow the fence on `Bought`, put the flock counter in the 100 px reserve after the money counter (`FLOCK_RESERVE` in `BottomBar.ts`), keep the shop's effect strings ("Capacity 10 → 25" …, `strings.ts`) in step with the land capacities (or build them from `TUNING`), and rebuild `playArea` so `PenCamera`'s shop-open inset still fits the larger pen (see the code review note below: if the play area cannot fit right of the panel, it does not stay right of it).
+  - **Resolved in Story 3.3:** `landTier`, `capacity` and `fenceBounds` read `owned` (one `TUNING` land table); the fence grows on `Bought`; `FlockCounter` fills the reserve; the land effect strings are built from `TUNING.landCapacities`.
 - **Decorations (Story 3.4):** the Flower Patch and Scarecrow can be bought (they show "Owned"); 3.4 draws them from `owned`.
 - **The Medicine slot (Story 4.5):** no room is reserved in the bar (Breed ends at 576, money starts at 588). 4.5 re-spaces the read-outs (8 px gaps, narrower boxes, or moving money and the flock reserve right into the ~30 px spare before the threat summary). Medicine is a repeatable row with its own dose count; never put it in `owned`.
 - **More rows (Stories 4.5, 4.7, 4.8):** each row adds 60 px to the panel (`ShopPanel.ts`); with all 9 rows its top reaches y ≈ 14 and meets the Pause button (16–56). Shrink the row gap and padding, or move Pause. Append the new items to `SHOP_ITEMS`, `ShopItemId`, `shopPrice`, the strings and `SHOP_ICON`, and extend the save validation.
@@ -229,9 +233,20 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Reduced motion (Story 5.7):** the money counter's roll (`MONEY_MOTION` in `MoneyCounter.ts`) is juice; show the new balance at once.
 - **The panel appears at once (Story 5.8):** DESIGN's "rises from the bottom bar" is its position; a slide-up on open is optional juice.
 - **Hunger test timeout under load (any time):** `tests/sim/systems/hunger.test.ts` "every half-point start value …" steps about 120 000 ticks. It takes 1.1–1.6 s alone, but under heavy machine load (load average 7–8 from repeated full runs and browser probes) the whole suite pushes it past Vitest's 5 s default timeout; it passes on a quiet machine. Give it an explicit timeout or fewer start values if it fails in CI.
+  - **Resolved in Story 3.3:** it failed 1 run in 3 under load during 3.3, so it now has its own 30 s timeout (`tests/sim/systems/hunger.test.ts`).
 
 ## Deferred from: code review of 3-2-money-and-the-shop-panel (2026-10-07)
 
 - **The open shop vs a wide play area (Story 3.3):** with the shop open, `PenCamera` keeps the play area right of screen x 392, which leaves 872 px. Today's play area is 834 px (pen ∪ Better Place ∪ Market). If 3.3's land makes it wider, `clamp` takes its too-big branch and centres it: the left edge lands at about screen x 828 − w/2 (for w = 1000, x 328), so the Better Place sits under the panel, drops there count as HUD drops (no sacrifice), and horizontal panning stops. 3.3 must choose: narrow or close the shop when the pen is too wide, let the panel cover the hole, or shrink what the play area must keep in view.
+  - **Resolved in Story 3.3:** the play area fits one screen at every tier, and with the shop open `PenCamera` keeps only the Better Place right of the panel (the pen may slide under it). The opening view uses that limit too, so opening the shop never moves the camera.
 - **Performance re-check (Story 3.6 / 5.11):** 3.2's FPS check ran on a loaded machine (the pre-story commit itself read 30–41 FPS at 103 sheep). Shop open vs closed was about 1 FPS apart in alternating runs; re-measure the 40 FPS baseline against shop open on a quiet machine.
 - **Docs for the numbers font and the money counter (docs pass, any time):** Rylan chose before 3.2's review to drop the money counter's coin (just "$n") and to set all numbers in Nunito (`numeric` 800, `popup` 900; shop prices and the Market tag use `numeric`) because Pixelify Sans digits were hard to read. DESIGN.md (`money-counter` `iconColor: hay`; `numeric`/`popup` in Pixelify Sans), epics.md UX-DR3/UX-DR34 and Story 3.2's AC 1 / Tasks 3.1, 6.2, 9.1 still describe the old design. Decision (Rylan, 2026-10-07): update them in a later docs pass, not in 3.2.
+
+## Deferred from: story 3-3-buy-land-and-grow-the-fence (2026-10-07)
+
+- **Crowded flock counter (Story 4.6):** UX-DR35's crowded style (numbers in `alert` and a crowd icon at ≥ 90 % of capacity) is not built; `FlockCounter.set` gets `alive` and `capacity`, so 4.6 adds the style there with the overcrowding rule.
+- **"No room. Buy land." at Land III (Voice decision, any time):** when the flock fills Land III's 100 slots there is no land left to buy, but the Breed tooltip still says "Buy land." The Voice table has no other string; a later copy pass may add one (for example "No room.") for that case (`breedBlock` would need to tell the two apart, e.g. via `landTier(state) === 3`).
+- **The Land III pen is dense (Story 3.6):** to fit one screen, Land II/III grow only left and down, so Land III gives about 3.7 k px² per sheep against Land I's 7.4 k. 100 sheep fit the sim (24 px spacing) but overlap visually. If 3.6 finds it too crowded, the alternatives are a bigger world with panning (the Market would move with the fence, and dragging would need edge-pan) or a per-tier camera zoom (Story 3.3 Open Question 1).
+- **Pieces under the open shop (Story 3.6 / 5.x):** at Land II/III the open panel covers the left of the pen, and food or breeding pieces can drop there (pings still draw above the panel). Harmless, since sheep reach them and the panel is transient; revisit if playtests show players missing them.
+- **Audio (Story 5.6):** a cue when land is bought (the fence grows; `Bought` with a land item).
+- **Reduced motion (Story 5.7):** the dust burst along the new fence (`GameScene.growLand`) is juice; the grown fence is information and stays.

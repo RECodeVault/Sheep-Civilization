@@ -1,5 +1,6 @@
 // All player-facing copy (EXPERIENCE.md Voice and Tone). Components read text from here, never
 // inline literals. Rules: no "!" except "Last sheep!"; never "corpse", "blood" or "kill".
+import { TUNING } from '../config/tuning';
 import { formatMoney } from '../core/format';
 import type { DeathCause } from '../sim/events';
 import type { Hunger, Stage } from '../sim/selectors';
@@ -24,9 +25,13 @@ const DEATH_TOAST: Readonly<Record<DeathCause, string>> = Object.freeze({
   abomination: 'just… fell over.',
 });
 
-// Shop rows (UX-DR24; mockups/hud.html, GDD Upgrade Trees): the name, and the one-line effect. The
-// capacities mirror Story 3.3's land tiers (10 → 25 → 50 → 100); keep them in step if 3.3 or 3.6 retunes
-// them (or build them from TUNING then).
+// Shop rows (UX-DR24; mockups/hud.html, GDD Upgrade Trees): the name, and the one-line effect. Each Land
+// tier's effect is built from TUNING's land table, so a retune (3.6) changes the row too.
+/** "Capacity 10 → 25": what Land tier `tier` (1–3) does to capacity. */
+function landEffect(tier: 1 | 2 | 3): string {
+  const c = TUNING.landCapacities;
+  return `Capacity ${c[tier - 1]} → ${c[tier]}`;
+}
 const SHOP_NAME: Readonly<Record<ShopItemId, string>> = Object.freeze({
   land1: 'Land I',
   land2: 'Land II',
@@ -35,9 +40,9 @@ const SHOP_NAME: Readonly<Record<ShopItemId, string>> = Object.freeze({
   scarecrow: 'Scarecrow',
 });
 const SHOP_EFFECT: Readonly<Record<ShopItemId, string>> = Object.freeze({
-  land1: 'Capacity 10 → 25',
-  land2: 'Capacity 25 → 50',
-  land3: 'Capacity 50 → 100',
+  land1: landEffect(1),
+  land2: landEffect(2),
+  land3: landEffect(3),
   flowerPatch: 'Cosmetic',
   scarecrow: 'Cosmetic',
 });
@@ -133,5 +138,7 @@ export const STRINGS = Object.freeze({
   shopOwned: 'Owned',
   shopNeeds: (name: string): string => `Needs ${name}`,
   shopName: SHOP_NAME,
+  // The flock counter (UX-DR35): living sheep over land capacity, e.g. "12/25".
+  flockCount: (alive: number, capacity: number): string => `${alive}/${capacity}`,
   shopEffect: SHOP_EFFECT,
 } as const);

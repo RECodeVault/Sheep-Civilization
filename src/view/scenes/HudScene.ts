@@ -50,6 +50,8 @@ export class HudScene extends Phaser.Scene {
     breedBlock: 'notReady',
     boostRemainingMs: 0,
     money: 0,
+    flock: 0,
+    capacity: 0,
     threats: { starving: 0, infected: 0, carcasses: 0 },
   };
   // Deaths since the last frame, by cause: one toast per cause per frame (UX-DR41/UX-DR92), so a wipe
@@ -131,6 +133,7 @@ export class HudScene extends Phaser.Scene {
       this.bar.boostTimer.set(v.boostRemainingMs);
       // UX-DR34: rolls to a new balance; no work while it shows the current one.
       this.bar.money.set(v.money, this.game.loop.time);
+      this.bar.flock.set(v.flock, v.capacity);
       const modal = this.gameScene.modalOpen;
       // The boost's time stops under a modal, so its glow stops pulsing too.
       this.bar.farmBoost.setFrozen(modal);

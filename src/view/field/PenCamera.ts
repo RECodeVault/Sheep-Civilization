@@ -3,10 +3,15 @@ import { LAYOUT } from '../../config/constants';
 import type { Rect } from '../../config/tuning';
 
 // The field the camera shows: the canvas above the bottom bar.
-const VIEW_W = LAYOUT.canvasWidth;
-const VIEW_H = LAYOUT.canvasHeight - LAYOUT.hudBarHeight;
+export const VIEW_W = LAYOUT.canvasWidth;
+export const VIEW_H = LAYOUT.canvasHeight - LAYOUT.hudBarHeight;
 // The play area always stays this far inside the visible field.
-const EDGE = LAYOUT.safeMargin;
+export const EDGE = LAYOUT.safeMargin;
+
+/** True when `area` fits the visible field inside the safe edge, so it can be held wholly in view. */
+export function fitsView(area: Rect): boolean {
+  return area.width <= VIEW_W - 2 * EDGE && area.height <= VIEW_H - 2 * EDGE;
+}
 
 /**
  * The field camera (Rylan, 2026-10-06): a game starts with the pen and the Better Place centred in the
@@ -21,35 +26,47 @@ const EDGE = LAYOUT.safeMargin;
  */
 export class PenCamera {
   private readonly camera: Phaser.Cameras.Scene2D.Camera;
+  /**
+   * What the open shop must never cover (Story 3.3): the Better Place. The pen itself may slide under the
+   * panel at the larger land tiers, which are too wide to fit right of it.
+   */
+  private readonly protect: Rect;
   private x = 0;
   private y = 0;
 
-  constructor(camera: Phaser.Cameras.Scene2D.Camera) {
+  constructor(camera: Phaser.Cameras.Scene2D.Camera, protect: Rect) {
     this.camera = camera;
+    this.protect = protect;
   }
 
   /**
    * Centres `focus` in the field above the bar, kept within the limits that hold the whole play `area`
-   * in view (Story 3.1: the focus is the pen and the Better Place, the area adds the Market).
+   * in view (Story 3.1: the focus is the pen and the Better Place, the area adds the Market). The
+   * Better Place also stays at or right of `leftInset` (GameScene passes the open shop's edge), so
+   * opening the shop never has to move the view (3.1 Open Question 1; Story 3.3's larger pens).
    */
-  centreOn(focus: Rect, area: Rect): void {
-    this.x = clamp(focus.x + focus.width / 2 - VIEW_W / 2, minX(area), maxX(area));
+  centreOn(focus: Rect, area: Rect, leftInset: number = EDGE): void {
+    this.x = clamp(focus.x + focus.width / 2 - VIEW_W / 2, minX(area), maxX(area, this.protect, leftInset));
     this.y = clamp(focus.y + focus.height / 2 - VIEW_H / 2, minY(area), maxY(area));
     this.apply();
   }
 
   /**
-   * Moves the view by a screen-space drag of (dx, dy): the field follows the pointer. `leftInset` is the
-   * screen x the area's left edge must stay at or right of: the safe edge, or the open shop panel's right
-   * edge plus the margin (Story 3.2), so the panel never covers the Better Place.
+   * Moves the view by a screen-space drag of (dx, dy): the field follows the pointer. The area's left edge
+   * stays at or right of the safe edge, and the protected Better Place at or right of `leftInset`: the
+   * safe edge, or the open shop panel's right edge plus the margin (Stories 3.2, 3.3), so the panel never
+   * covers it.
    */
   panBy(dx: number, dy: number, area: Rect, leftInset: number = EDGE): void {
-    this.x = clamp(this.x - dx, minX(area), maxX(area, leftInset));
+    this.x = clamp(this.x - dx, minX(area), maxX(area, this.protect, leftInset));
     this.y = clamp(this.y - dy, minY(area), maxY(area));
     this.apply();
   }
 
-  /** Keeps the current view inside the limits (the shop opened: a new `leftInset`). No move if inside. */
+  /**
+   * Keeps the current view inside the limits (the shop opened: a new `leftInset`; land grew: a new
+   * `area`). Moves only as far as the limits require; no move if inside.
+   */
   reclamp(area: Rect, leftInset: number = EDGE): void {
     this.panBy(0, 0, area, leftInset);
   }
@@ -61,14 +78,16 @@ export class PenCamera {
   }
 }
 
-// Area left edge at or right of `leftInset` (EDGE unless the shop is open) on screen, right edge at or
-// left of VIEW_W - EDGE; same for y with EDGE.
+// Area left edge at or right of EDGE on screen, and the protected rect's at or right of `leftInset` (EDGE
+// unless the shop is open); right edge at or left of VIEW_W - EDGE; same for y with EDGE. The protected
+// rect is inside the area, so with the shop closed the area's own edge is the limit.
 const minX = (p: Rect): number => p.x + p.width - VIEW_W + EDGE;
-const maxX = (p: Rect, leftInset: number = EDGE): number => p.x - leftInset;
+const maxX = (p: Rect, protect: Rect, leftInset: number = EDGE): number => Math.min(p.x - EDGE, protect.x - leftInset);
 const minY = (p: Rect): number => p.y + p.height - VIEW_H + EDGE;
 const maxY = (p: Rect): number => p.y - EDGE;
 
-// An area too big to fit (later land tiers) has min > max: centre it on that axis.
+// An area too big to fit has min > max: centre it on that axis. Every land tier fits (GameScene checks
+// in DEV), so this is a guard only.
 function clamp(v: number, min: number, max: number): number {
   if (min > max) return (min + max) / 2;
   return v < min ? min : v > max ? max : v;

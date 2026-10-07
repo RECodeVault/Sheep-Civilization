@@ -12,8 +12,8 @@ const SCALE = 2;
 
 /**
  * Where the hole is, in world px (UX-DR47) [ASSUMPTION, mockups/hud.html; tune in the browser]. World
- * coordinates equal the mockup's canvas ones (TUNING.startFence sits inside its Land I fence), so the
- * hole stays clear of the fence when Story 3.3 grows it in place. `hit` is the outer ring: a drop counts
+ * coordinates equal the mockup's canvas ones, and every land tier's fence (TUNING.landFences) has its top
+ * at y 184, under the hole, so the hole stays clear of the fence as it grows (Story 3.3). `hit` is the outer ring: a drop counts
  * when the pointer is inside it (152×70 px, well above hit-min).
  */
 export const BETTER_PLACE = Object.freeze({ x: 520, y: 108, hitRx: 76, hitRy: 35 } as const);

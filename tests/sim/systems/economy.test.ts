@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { TUNING } from '../../../src/config/tuning';
 import { applyCommand } from '../../../src/sim/commands';
 import { drainEvents, type SimEvent } from '../../../src/sim/events';
 import { capacity, shopPrice } from '../../../src/sim/selectors';
@@ -82,11 +83,11 @@ describe('buy (Buy command, UX-DR24)', () => {
     expect(state.money).toBe(shopPrice('land1'));
   });
 
-  it('has no effect yet: Land I does not change capacity until Story 3.3', () => {
+  it('Land I raises capacity to the next tier (Story 3.3)', () => {
     const state = newGame(5);
-    const cap = capacity(state);
+    expect(capacity(state)).toBe(TUNING.landCapacities[0]);
     state.money = shopPrice('land1');
     buy(state, 'land1');
-    expect(capacity(state)).toBe(cap);
+    expect(capacity(state)).toBe(TUNING.landCapacities[1]);
   });
 });

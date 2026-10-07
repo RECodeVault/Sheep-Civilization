@@ -72,7 +72,7 @@
         "y": 0.5
       }
     },
-    "icon-starving": {
+    "icon-sheep": {
       "frame": {
         "x": 51,
         "y": 3,
@@ -96,12 +96,12 @@
         "y": 0.5
       }
     },
-    "icon-flower-patch": {
+    "icon-starving": {
       "frame": {
         "x": 71,
         "y": 3,
         "w": 14,
-        "h": 14
+        "h": 12
       },
       "rotated": false,
       "trimmed": false,
@@ -109,18 +109,18 @@
         "x": 0,
         "y": 0,
         "w": 14,
-        "h": 14
+        "h": 12
       },
       "sourceSize": {
         "w": 14,
-        "h": 14
+        "h": 12
       },
       "pivot": {
         "x": 0.5,
         "y": 0.5
       }
     },
-    "icon-land": {
+    "icon-flower-patch": {
       "frame": {
         "x": 91,
         "y": 3,
@@ -144,7 +144,7 @@
         "y": 0.5
       }
     },
-    "icon-scarecrow": {
+    "icon-land": {
       "frame": {
         "x": 111,
         "y": 3,
@@ -168,9 +168,33 @@
         "y": 0.5
       }
     },
-    "pip-breeding": {
+    "icon-scarecrow": {
       "frame": {
         "x": 131,
+        "y": 3,
+        "w": 14,
+        "h": 14
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 14,
+        "h": 14
+      },
+      "sourceSize": {
+        "w": 14,
+        "h": 14
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "pip-breeding": {
+      "frame": {
+        "x": 151,
         "y": 3,
         "w": 7,
         "h": 14
@@ -194,7 +218,7 @@
     },
     "pip-empty": {
       "frame": {
-        "x": 144,
+        "x": 164,
         "y": 3,
         "w": 7,
         "h": 14
@@ -218,7 +242,7 @@
     },
     "pip-food": {
       "frame": {
-        "x": 157,
+        "x": 177,
         "y": 3,
         "w": 7,
         "h": 14
@@ -247,7 +271,7 @@
     "image": "ui.png",
     "format": "RGBA8888",
     "size": {
-      "w": 167,
+      "w": 187,
       "h": 20
     },
     "scale": 1

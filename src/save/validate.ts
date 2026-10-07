@@ -84,8 +84,8 @@ function check(x: unknown): void {
   // DEV "+$100" button (3.2) adds money that was never earned.
   int(s, 'money', 'state', 0);
   // FR22 / FR23: known one-time items in purchase order, each bought once, every Land tier after the one
-  // before it. Not
-  // checked against money or earnings (the DEV "+$100" button breaks any such link).
+  // before it. Not checked against money or earnings (the DEV "+$100" button breaks any such link).
+  // Checked before any position: the fence below is derived from the owned land tier (Story 3.3).
   const owned = s.owned;
   if (!Array.isArray(owned)) fail('state.owned is not an array');
   for (let i = 0; i < owned.length; i++) {
@@ -120,7 +120,8 @@ function check(x: unknown): void {
     fail('sheep is empty but the game is not lost');
   }
 
-  // The fence is derived from state (land tier in Epic 3); the state is plain data, so this is safe.
+  // The fence is derived from the owned land tier (selectors.ts landTier), validated above; the state is
+  // plain data, so this is safe.
   const f = fenceBounds(s as unknown as GameState);
   const inner = innerFence(s as unknown as GameState);
   const ids = new Set<number>();

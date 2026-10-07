@@ -99,7 +99,9 @@ describe('updateHunger', () => {
     expect(hungerOf(s.fullness)).toBe('starving');
   });
 
-  it('every half-point start value lands in the band its exact Fullness says, every tick', () => {
+  // About 120 000 ticks: ~1 s alone, but past Vitest's 5 s default under a loaded parallel run
+  // (deferred-work, Story 3.2), so it gets its own timeout.
+  it('every half-point start value lands in the band its exact Fullness says, every tick', { timeout: 30_000 }, () => {
     const exactBand = (f: number) => (f > TUNING.fedAbove ? 'fed' : f < TUNING.starvingBelow ? 'starving' : 'hungry');
     for (let start = 0.5; start <= TUNING.fullnessMax; start += 0.5) {
       const state = gameWith([start]);

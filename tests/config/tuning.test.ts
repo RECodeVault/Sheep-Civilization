@@ -1,0 +1,46 @@
+import { describe, expect, it } from 'vitest';
+import { TUNING, type Rect } from '../../src/config/tuning';
+
+// A placeholder sheep is 64×52 (SheepSprite); a fence must hold one inside its inset.
+const SHEEP_W = 64;
+const SHEEP_H = 52;
+
+function contains(outer: Rect, inner: Rect): boolean {
+  return (
+    outer.x <= inner.x &&
+    outer.y <= inner.y &&
+    outer.x + outer.width >= inner.x + inner.width &&
+    outer.y + outer.height >= inner.y + inner.height
+  );
+}
+
+describe('land table (FR22, Story 3.3)', () => {
+  it('has a capacity for no land and each of Land I–III, strictly rising (10 → 25 → 50 → 100)', () => {
+    const c = TUNING.landCapacities;
+    expect(c).toHaveLength(TUNING.landPrices.length + 1);
+    expect(c).toEqual([10, 25, 50, 100]);
+    for (let i = 1; i < c.length; i++) expect(c[i]).toBeGreaterThan(c[i - 1]);
+  });
+
+  it('has one fence per tier, each containing the one before (fences only grow)', () => {
+    const f = TUNING.landFences;
+    expect(f).toHaveLength(TUNING.landCapacities.length);
+    for (let i = 1; i < f.length; i++) {
+      expect(contains(f[i], f[i - 1])).toBe(true);
+      expect(f[i]).not.toEqual(f[i - 1]);
+    }
+  });
+
+  it('every fence holds a sheep inside its inset', () => {
+    for (const f of TUNING.landFences) {
+      expect(f.width).toBeGreaterThan(2 * TUNING.fenceInset + SHEEP_W);
+      expect(f.height).toBeGreaterThan(2 * TUNING.fenceInset + SHEEP_H);
+    }
+  });
+
+  it('is frozen', () => {
+    expect(Object.isFrozen(TUNING.landCapacities)).toBe(true);
+    expect(Object.isFrozen(TUNING.landFences)).toBe(true);
+    for (const f of TUNING.landFences) expect(Object.isFrozen(f)).toBe(true);
+  });
+});

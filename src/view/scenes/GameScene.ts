@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { COLORS, LAYOUT } from '../../config/constants';
 import { FixedStepClock } from '../../core/fixedStep';
+import { invariant } from '../../core/invariant';
 import { log } from '../../core/log';
 import { InputController } from '../../input/InputController';
 import { savable } from '../../save/saveFile';
@@ -10,6 +11,7 @@ import { clearEvents, drainEvents, type SimEvent } from '../../sim/events';
 import {
   breedBlock,
   fenceBounds,
+  isLand,
   isLost,
   selectBreedingPieces,
   selectCarcasses,
@@ -26,7 +28,7 @@ import { createNewGame, type BreedingPiece, type Carcass, type FoodPiece, type G
 import { step } from '../../sim/step';
 import { ATLAS, FRAME, HEART_CURSOR } from '../assetKeys';
 import { bus } from '../bus';
-import type { Rect } from '../../config/tuning';
+import { TUNING, type Rect } from '../../config/tuning';
 import { BETTER_PLACE, BETTER_PLACE_BOUNDS, BetterPlace } from '../field/BetterPlace';
 import { CarcassSprite } from '../field/CarcassSprite';
 import { FIELD_DEPTH } from '../field/depths';
@@ -35,7 +37,7 @@ import { Fence } from '../field/Fence';
 import { FoodSprite } from '../field/FoodSprite';
 import { Market, MARKET, MARKET_BOUNDS } from '../field/Market';
 import { ObjectPool } from '../field/ObjectPool';
-import { PenCamera } from '../field/PenCamera';
+import { fitsView, PenCamera } from '../field/PenCamera';
 import { PregnancyHeart } from '../field/PregnancyHeart';
 import { spriteIndexAt } from '../field/hitTest';
 import { SheepDrag } from '../field/SheepDrag';
@@ -151,6 +153,8 @@ export class GameScene extends Phaser.Scene {
   private sparkle!: Phaser.GameObjects.Particles.ParticleEmitter;
   private betterPlace!: BetterPlace;
   private market!: Market;
+  /** The pasture fence, rebuilt in place when land is bought (Story 3.3). */
+  private fence!: Fence;
   /**
    * The shop panel (Story 3.2), drawn here so the world overlays draw above it (ShopPanel). Open or
    * closed is view state, never saved: every game starts with it closed.
@@ -164,10 +168,12 @@ export class GameScene extends Phaser.Scene {
   private worldPopups!: FloatPopups;
   private sheepDrag!: SheepDrag;
   /**
-   * The pen plus both drop targets: what the camera keeps in view (Stories 2.7, 3.1). It opens centred
-   * on the pen and the Better Place only (PenCamera.centreOn).
+   * The pen plus both drop targets: what the camera keeps in view (Stories 2.7, 3.1). Rebuilt with the
+   * fence when land is bought (Story 3.3; buildPlayArea).
    */
   private playArea!: Rect;
+  /** The pen and the Better Place: what a game opens centred on (PenCamera.centreOn). */
+  private focus!: Rect;
   /** UX-DR80 suction and UX-DR82 sale ghosts, reused round-robin (never created during play). */
   private readonly ghosts: Phaser.GameObjects.Image[] = [];
   private nextGhost = 0;
@@ -197,6 +203,7 @@ export class GameScene extends Phaser.Scene {
       else if (e.type === 'CarcassCleared') this.dust.explode(DUST_CLEAR_PUFFS, e.x, e.y);
       else if (e.type === 'Sacrificed') this.suck(e.id);
       else if (e.type === 'Sold') this.sold(e.id, e.price);
+      else if (e.type === 'Bought' && isLand(e.item)) this.growLand();
     } catch (err) {
       reportError('ui', err);
     }
@@ -235,16 +242,16 @@ export class GameScene extends Phaser.Scene {
 
     // Placeholder ground until the era backgrounds arrive in Epic 3 (`pasture` is an art tone).
     this.cameras.main.setBackgroundColor(COLORS.pasture);
-    new Fence(this, fenceBounds(this.state));
+    // A loaded game with land draws its grown fence from the start (Story 3.3).
+    this.fence = new Fence(this, fenceBounds(this.state));
     this.betterPlace = new BetterPlace(this);
     this.market = new Market(this);
     // Every game (new, continued, restarted) opens with the pen and the Better Place centred above the
     // bar (Story 2.7; was the pen alone, 1.10), and the pan keeps the whole play area, the Market too,
-    // in view (Story 3.1).
-    const focus = union(fenceBounds(this.state), BETTER_PLACE_BOUNDS);
-    this.playArea = union(focus, MARKET_BOUNDS);
-    this.penCamera = new PenCamera(this.cameras.main);
-    this.penCamera.centreOn(focus, this.playArea);
+    // in view (Story 3.1). The open shop never covers the Better Place (Stories 3.2, 3.3).
+    this.buildPlayArea();
+    this.penCamera = new PenCamera(this.cameras.main, BETTER_PLACE_BOUNDS);
+    this.penCamera.centreOn(this.focus, this.playArea, SHOP_PANEL_RIGHT + LAYOUT.safeMargin);
     this.carcassLayer = new EntityLayer(new ObjectPool(() => new CarcassSprite(this), CARCASS_POOL_SIZE));
     this.foodLayer = new EntityLayer(new ObjectPool(() => new FoodSprite(this), FOOD_POOL_SIZE));
     this.breedingLayer = new EntityLayer(
@@ -416,6 +423,40 @@ export class GameScene extends Phaser.Scene {
       this.penCamera.reclamp(this.playArea, this.panLeftInset());
     }
     bus.emit('shop:toggled', { open });
+  }
+
+  /** The pen ∪ Better Place focus and the play area (∪ Market) for the current fence. Allocates; rare. */
+  private buildPlayArea(): void {
+    this.focus = union(fenceBounds(this.state), BETTER_PLACE_BOUNDS);
+    this.playArea = union(this.focus, MARKET_BOUNDS);
+  }
+
+  /**
+   * Land was bought (Story 3.3, UX-DR49): the fence grows in place, with a dust burst along its new rails,
+   * and the camera keeps the larger play area in view, moving only as far as its new limits require (no
+   * re-centre). Runs inside the tick's drain, guarded by onSim. A rare event: allocation is fine.
+   */
+  private growLand(): void {
+    const f = fenceBounds(this.state);
+    this.fence.setBounds(f);
+    const right = f.x + f.width;
+    const bottom = f.y + f.height;
+    const midX = f.x + f.width / 2;
+    const midY = f.y + f.height / 2;
+    for (const [x, y] of [
+      [f.x, f.y],
+      [midX, f.y],
+      [right, f.y],
+      [right, midY],
+      [right, bottom],
+      [midX, bottom],
+      [f.x, bottom],
+      [f.x, midY],
+    ]) {
+      this.dust.explode(DUST_SPAWN_PUFFS, x, y);
+    }
+    this.buildPlayArea();
+    this.penCamera.reclamp(this.playArea, this.panLeftInset());
   }
 
   /** The screen x the play area's left edge must keep right of: the safe edge, or past the open shop. */
@@ -771,7 +812,7 @@ export class GameScene extends Phaser.Scene {
   }
 }
 
-/** The smallest rect holding both. Allocates; called once per game. */
+/** The smallest rect holding both. Allocates; called once per game and per land purchase. */
 function union(a: Rect, b: Rect): Rect {
   const x = Math.min(a.x, b.x);
   const y = Math.min(a.y, b.y);
@@ -781,6 +822,21 @@ function union(a: Rect, b: Rect): Rect {
     width: Math.max(a.x + a.width, b.x + b.width) - x,
     height: Math.max(a.y + a.height, b.y + b.height) - y,
   };
+}
+
+// Story 3.3: at every land tier the whole play area fits one screen (GDD Camera), so the Market and the
+// Better Place are always in view; the fence stays clear of the stall and under the hole (the 2 px
+// overlap with its label is the mockup's).
+if (import.meta.env.DEV) {
+  for (const f of TUNING.landFences) {
+    const area = union(union(f, BETTER_PLACE_BOUNDS), MARKET_BOUNDS);
+    invariant(fitsView(area), "GameScene: a land tier's play area does not fit the field");
+    invariant(f.x + f.width < MARKET_BOUNDS.x, "GameScene: a land tier's fence reaches the Market");
+    invariant(
+      f.y >= BETTER_PLACE_BOUNDS.y + BETTER_PLACE_BOUNDS.height - 2,
+      "GameScene: a land tier's fence reaches the Better Place",
+    );
+  }
 }
 
 /**

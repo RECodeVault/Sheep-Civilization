@@ -9,7 +9,9 @@ const POST_HALF_WIDTH = 3; // fence-post frame is 6 px wide
 const POST_RISE = 4; // posts stand a little taller than the rails
 
 /**
- * The pasture fence, built once from atlas frames and rebuilt only when the bounds change.
+ * The pasture fence, built once from atlas frames and rebuilt only when the bounds change: when land is
+ * bought (Story 3.3), at most three times a game. A rebuild destroys and re-adds its rail and post
+ * images; that is fine for so rare an event (pooling is for per-entity sprites).
  * The back (top) rails and side rails sit at depth 0; the front (bottom) rails and posts use their
  * y as depth, the same rule as sheep, so they draw in front of anything standing behind them.
  */

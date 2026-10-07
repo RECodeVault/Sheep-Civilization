@@ -1,17 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import type { GameState } from '../../../src/sim/state';
+import type { GameState, ShopItemId } from '../../../src/sim/state';
 import { step } from '../../../src/sim/step';
 import { fillFlock, innerFence, newGame, runFor } from '../helpers';
 
-function flockOf100(seed: number): GameState {
+function flockOf100(seed: number, land: readonly ShopItemId[] = []): GameState {
   const state = newGame(seed);
+  // Owned before the flock is placed, so fillFlock spreads it over that tier's pen.
+  state.owned.push(...land);
   fillFlock(state, 100);
   return state;
 }
 
+const LAND_III: readonly ShopItemId[] = ['land1', 'land2', 'land3'];
+
 describe('scenario: 100 sheep wander for 600 ticks', () => {
-  it('keeps every sheep inside the fence on every tick, with finite coordinates', () => {
-    const state = flockOf100(2026);
+  it.each([
+    ['the start pen', [] as readonly ShopItemId[]],
+    ['the Land III pen (Story 3.3)', LAND_III],
+  ])('keeps every sheep inside %s on every tick, with finite coordinates', (_name, land) => {
+    const state = flockOf100(2026, land);
     const r = innerFence(state);
     for (let t = 0; t < 600; t++) {
       step(state);

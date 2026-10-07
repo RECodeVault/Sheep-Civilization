@@ -1,4 +1,4 @@
-import { TUNING } from '../../src/config/tuning';
+import { TUNING, type Rect } from '../../src/config/tuning';
 import { applyCommand } from '../../src/sim/commands';
 import { drainEvents } from '../../src/sim/events';
 import type { GameState } from '../../src/sim/state';
@@ -14,6 +14,10 @@ import { fillFlock, innerFence, newGame, runFor } from '../sim/helpers';
  */
 export function busyGame(seed = 31337): GameState {
   const state = newGame(seed);
+  // Shop purchases (Stories 3.2, 3.3), made before the flock is placed, so fillFlock spreads it over the
+  // Land I pen and the round-trip covers positions outside the start fence. Set directly: a Buy needs
+  // money, which is set below.
+  state.owned = ['land1', 'flowerPatch'];
   fillFlock(state, 12);
   for (let i = 0; i < TUNING.farmPipsPerFood * 3 + 3; i++) applyCommand(state, { type: 'Farm' });
   for (let i = 0; i < TUNING.breedingPipsPerFood * 2 + 3; i++) applyCommand(state, { type: 'FarmBreeding' });
@@ -23,7 +27,7 @@ export function busyGame(seed = 31337): GameState {
   state.sheep[1].fullness = TUNING.fullnessMax;
   state.sheep[2].fullness = TUNING.fullnessMax;
   // A pregnancy (Story 2.3): two more adults bred, so they are on cooldown and their lamb is on the way.
-  // Set directly: 12 sheep are over the base capacity, so a Breed command would be refused.
+  // Set directly: a Breed command needs two ready sheep, and readiness is set above for other reasons.
   const [a, b] = [state.sheep[3], state.sheep[4]];
   const r = innerFence(state);
   a.cooldownUntil = b.cooldownUntil = state.time + TUNING.breedCooldownMs;
@@ -47,16 +51,19 @@ export function busyGame(seed = 31337): GameState {
   state.money = earned;
   state.stats.moneyEarned += earned;
   state.stats.sold += 3;
-  // Shop purchases (Story 3.2). Set directly: a Buy would change the money set just above.
-  state.owned = ['land1', 'flowerPatch'];
   drainEvents(() => {});
   runFor(state, 1_000);
   return state;
 }
 
+function insideFence(f: Rect, x: number, y: number): boolean {
+  return x >= f.x && x <= f.x + f.width && y >= f.y && y <= f.y + f.height;
+}
+
 /**
  * True when the state exercises both kinds of seeker, targets, pieces, both part-filled bars, a ready
- * sheep, a sheep on cooldown, a pregnancy, a carcass, an infected sheep, an active boost, money and shop purchases.
+ * sheep, a sheep on cooldown, a pregnancy, a carcass, an infected sheep, an active boost, money, shop purchases and a sheep
+ * outside the start fence (the grown Land I pen, Story 3.3).
  */
 export function isBusy(state: GameState): boolean {
   return (
@@ -73,6 +80,7 @@ export function isBusy(state: GameState): boolean {
     state.sheep.some((s) => s.infectedAt !== undefined) &&
     state.time < state.boostUntil &&
     state.money > 0 &&
-    state.owned.length > 0
+    state.owned.length > 0 &&
+    state.sheep.some((s) => !insideFence(TUNING.landFences[0], s.x, s.y))
   );
 }

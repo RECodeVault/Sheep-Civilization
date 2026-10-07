@@ -56,9 +56,9 @@ export const TUNING = Object.freeze({
   breedCooldownMs: 60_000,
   // FR9 / GDD Breeding: "a lamb is born beside them 10 s later".
   gestationMs: 10_000,
-  // FR11 / GDD Economy: capacity is 10 before any land (Land I–III raise it to 25 → 50 → 100 in Story
-  // 3.3). Capacity counts living sheep plus pending lambs (AR21).
-  baseCapacity: 10,
+  // FR11 / FR22 / GDD Upgrade Trees: land capacity by land tier (0 = no land, then Land I, II, III).
+  // Capacity counts living sheep plus pending lambs (AR21); selectors.ts capacity reads it by tier.
+  landCapacities: Object.freeze([10, 25, 50, 100] as const),
   // FR5: sheep below 90 Fullness may seek food (feeding.ts pairs each piece with its nearest such
   // sheep); a piece is worth +35, capped at fullnessMax.
   seekBelowFullness: 90,
@@ -78,9 +78,20 @@ export const TUNING = Object.freeze({
   // FR6 / GDD Starting flock: 2 adults aged 60 s and 1 newborn lamb.
   startFlockAdults: 2,
   startFlockLambs: 1,
-  // [ASSUMPTION, tune in 3.6] Starting fence, inside the Land I fence of mockups/hud.html so it can
-  // grow in place; clear of the Better Place (upper-left), the Market (right) and the 112 px bar.
-  startFence: Object.freeze({ x: 556, y: 330, width: 380, height: 250 }) satisfies Rect,
+  // FR22 / UX-DR49: the fence by land tier, as landCapacities. Each contains the one before, so the fence
+  // only ever grows in place (Story 3.3). World px equal the mockup's canvas px.
+  // - Start [ASSUMPTION, tune in 3.6]: inside the Land I fence; clear of the Better Place (upper-left),
+  //   the Market (right) and the 112 px bar.
+  // - Land I: mockups/hud.html (430–1062 × 184–598).
+  // - Land II, III [ASSUMPTION, tune in 3.6]: grow left and down only, so the whole play area (fence,
+  //   Better Place, Market) still fits one screen (GDD Camera): the right edge stays clear of the Market
+  //   (x 1080), the top stays under the Better Place (y 186), and y 72–648 is the field's 576 px.
+  landFences: Object.freeze([
+    Object.freeze({ x: 556, y: 330, width: 380, height: 250 }) satisfies Rect,
+    Object.freeze({ x: 430, y: 184, width: 632, height: 414 }) satisfies Rect,
+    Object.freeze({ x: 236, y: 184, width: 826, height: 464 }) satisfies Rect,
+    Object.freeze({ x: 32, y: 184, width: 1030, height: 464 }) satisfies Rect,
+  ] as const),
   // Closest a sheep's centre may come to the fence, for spawning and movement alike. Clears a 64×52
   // sheep (half-width 32) plus the fence's 4 px side rail and its 12 px pair of top/bottom rails.
   fenceInset: 40,

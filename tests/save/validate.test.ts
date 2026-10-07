@@ -109,12 +109,41 @@ describe('validateState', () => {
   });
 
   it('accepts owning nothing, everything, and a valid set in purchase order (Story 3.2)', () => {
-    const sets: unknown[][] = [[], ['land1', 'land2', 'land3', 'flowerPatch', 'scarecrow'], ['scarecrow', 'land1', 'flowerPatch', 'land2', 'land3']];
+    // The busy game's flock spreads over Land I, so it keeps Land I; a new game (start pen) owns nothing.
+    const fresh = JSON.parse(JSON.stringify(newGame(3))) as Raw;
+    expect(fresh.owned).toEqual([]);
+    expect(validateState(fresh).ok).toBe(true);
+    const sets: unknown[][] = [
+      ['land1'],
+      ['land1', 'land2', 'land3', 'flowerPatch', 'scarecrow'],
+      ['scarecrow', 'land1', 'flowerPatch', 'land2', 'land3'],
+    ];
     for (const owned of sets) {
       const r = raw();
       r.owned = owned;
       expect(validateState(r).ok).toBe(true);
     }
+  });
+
+  it("checks positions against the owned land tier's fence (Story 3.3)", () => {
+    // A sheep outside the start fence but inside the Land II inner fence.
+    const land2 = TUNING.landFences[2];
+    const x = land2.x + TUNING.fenceInset;
+    const y = land2.y + land2.height - TUNING.fenceInset;
+    const withLand = (owned: unknown[]): Raw => {
+      const r = raw();
+      r.owned = owned;
+      r.sheep[0].x = x;
+      r.sheep[0].y = y;
+      return r;
+    };
+    expect(validateState(withLand(['land1', 'land2'])).ok).toBe(true);
+    const none = validateState(withLand([]));
+    expect(none.ok).toBe(false);
+    if (!none.ok) expect(none.reason).toContain('sheep');
+    const land1 = validateState(withLand(['land1']));
+    expect(land1.ok).toBe(false);
+    if (!land1.ok) expect(land1.reason).toContain('sheep[0]');
   });
 
   it('does not mutate its input', () => {
@@ -129,8 +158,9 @@ describe('validateState', () => {
     expect(good).toStrictEqual(goodBefore);
   });
 
-  const f = fenceBounds(newGame(1));
-  const inner = innerFence(newGame(1));
+  // The busy game's tier (Land I): positions are checked against the owned land's fence.
+  const f = fenceBounds(busyGame());
+  const inner = innerFence(busyGame());
 
   const cases: [string, (r: Raw) => void, string][] = [
     ['state that is null', (r) => Object.assign(r, { __replace: null }), 'state is not an object'],

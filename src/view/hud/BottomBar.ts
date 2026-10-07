@@ -9,6 +9,7 @@ import { FRAME } from '../assetKeys';
 import { BOOST_TIMER_W, BoostTimer } from './BoostTimer';
 import { FarmBoost } from './FarmBoost';
 import { FARM_PROGRESS_W, FarmProgress } from './FarmProgress';
+import { FLOCK_COUNTER_W, FlockCounter } from './FlockCounter';
 import { MONEY_COUNTER_W, MoneyCounter } from './MoneyCounter';
 import { THREAT_SUMMARY_W, ThreatSummary } from './ThreatSummary';
 
@@ -42,15 +43,14 @@ const SHOP_Y = BAR_TOP + (LAYOUT.hudBarHeight - COMPONENTS.shopToggle.height) / 
 const BOOST_X = SHOP_X - GROUP_GAP - BOOST_TIMER_W;
 const THREAT_X = BOOST_X - GROUP_GAP - THREAT_SUMMARY_W;
 // The read-outs between Breed and the threat summary: money (UX-DR34, Story 3.2; "$n" with no coin)
-// right after Breed, then
-// room for 3.3's flock counter (mockup `.readout`: a 32 px sheep, 6 px gap, 62 px count). The Medicine
-// slot (4.5) has no room reserved yet; it only shows while doses are owned, and 4.5 re-spaces the
-// read-outs (deferred-work).
+// right after Breed, then the flock counter (UX-DR35, Story 3.3; mockup `.readout`). The Medicine slot
+// (4.5) has no room reserved yet; it only shows while doses are owned, and 4.5 re-spaces the read-outs
+// (deferred-work).
 const MONEY_X = BREED_X + BREED_W + GROUP_GAP;
-const FLOCK_RESERVE = 100;
+const FLOCK_X = MONEY_X + MONEY_COUNTER_W + GROUP_GAP;
 invariant(
-  MONEY_X + MONEY_COUNTER_W + GROUP_GAP + FLOCK_RESERVE <= THREAT_X - GROUP_GAP,
-  'BottomBar: the money counter and the flock reserve overrun the threat summary',
+  FLOCK_X + FLOCK_COUNTER_W <= THREAT_X - GROUP_GAP,
+  'BottomBar: the money and flock counters overrun the threat summary',
 );
 // The toggle's look from DESIGN.md `shop-toggle`: its open look is the Button's toggled one.
 const SHOP_SPEC: ButtonSpec = {
@@ -68,8 +68,8 @@ const SHOP_SPEC: ButtonSpec = {
  * The HUD bottom bar: a full-width wool surface with actions on the left (UX-DR25). Story 1.6 builds
  * the Farm button with the Farm progress bar and its count beneath it (1.7), 2.2 the Farm Breeding
  * Food button with the breeding bar, 2.3 the Breed tool, 2.6 the threat summary on the right, 2.8 the
- * Farm button's boosted glow and badge and the boost timer, 3.2 the money counter and the Shop toggle;
- * later stories add their widgets between them (3.3 the flock counter, 4.5 the Medicine slot).
+ * Farm button's boosted glow and badge and the boost timer, 3.2 the money counter and the Shop toggle,
+ * 3.3 the flock counter; 4.5 adds the Medicine slot between them.
  */
 export class BottomBar {
   readonly farmButton: Button;
@@ -81,6 +81,7 @@ export class BottomBar {
   readonly farmBoost: FarmBoost;
   readonly boostTimer: BoostTimer;
   readonly money: MoneyCounter;
+  readonly flock: FlockCounter;
   readonly shopButton: Button;
 
   constructor(
@@ -137,6 +138,7 @@ export class BottomBar {
     });
     const midY = BAR_TOP + LAYOUT.hudBarHeight / 2;
     this.money = new MoneyCounter(scene, MONEY_X, midY);
+    this.flock = new FlockCounter(scene, FLOCK_X, midY);
     this.threats = new ThreatSummary(scene, THREAT_X, midY);
     this.boostTimer = new BoostTimer(scene, BOOST_X, midY);
     // No key hint (UX-DR72 has no shop key) and no tooltip: its label says it all (Story 3.2 Open

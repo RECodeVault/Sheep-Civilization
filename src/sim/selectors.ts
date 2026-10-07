@@ -3,9 +3,37 @@ import { TUNING, type Rect } from '../config/tuning';
 import { assertNever } from '../core/types';
 import type { BreedingPiece, Carcass, FoodPiece, GameState, Pregnancy, Sheep, ShopItemId } from './state';
 
-/** The fenced area sheep live in. Epic 3 makes it depend on the land tier. */
-export function fenceBounds(_state: GameState): Rect {
-  return TUNING.startFence;
+/** A land tier: 0 before any land, then 1–3 for Land I–III (FR22). Indexes TUNING's land table. */
+export type LandTier = 0 | 1 | 2 | 3;
+
+/** True for the shop's Land tiers (FR22), as opposed to the decorations. */
+export function isLand(item: ShopItemId): boolean {
+  return item === 'land1' || item === 'land2' || item === 'land3';
+}
+
+/**
+ * The highest Land tier owned (Story 3.3). Derived from `owned`, never stored. Save validation and the
+ * shop's lock guarantee every lower tier is owned too. Movement calls this every tick (via fenceBounds),
+ * so it is a plain loop: no allocation.
+ */
+export function landTier(state: GameState): LandTier {
+  const owned = state.owned;
+  let tier: LandTier = 0;
+  for (let i = 0; i < owned.length; i++) {
+    const item = owned[i];
+    if (item === 'land3') return 3;
+    if (item === 'land2') tier = 2;
+    else if (item === 'land1' && tier < 1) tier = 1;
+  }
+  return tier;
+}
+
+/**
+ * The fenced area sheep live in, for the owned land tier (FR22, UX-DR49). Each tier's fence contains
+ * the one before, so it only grows. A frozen TUNING rect: no allocation.
+ */
+export function fenceBounds(state: GameState): Rect {
+  return TUNING.landFences[landTier(state)];
 }
 
 /** Edges of the area a sheep centre (and so a food piece) may occupy: the fence inset by fenceInset. */
@@ -149,9 +177,9 @@ export function canBreed(s: Sheep, state: GameState): boolean {
   return s.breedReady && stageOf(s, state) === 'adult' && !onCooldown(s, state);
 }
 
-/** Land capacity (FR11). Story 3.3 adds the land tiers. */
-export function capacity(_state: GameState): number {
-  return TUNING.baseCapacity;
+/** Land capacity (FR11, FR22): 10 before any land, then 25 / 50 / 100 for Land I–III (Story 3.3). */
+export function capacity(state: GameState): number {
+  return TUNING.landCapacities[landTier(state)];
 }
 
 /** AR21: capacity counts living sheep plus pending lambs. */
@@ -356,7 +384,7 @@ export function farmPipsPerClick(state: GameState): number {
   return TUNING.farmPipsPerClick * (isBoosted(state) ? TUNING.boostPipMultiplier : 1);
 }
 
-/** What the HUD shows. Later stories add money, flock and capacity. */
+/** What the HUD shows. A later story adds the era (3.5). */
 export interface HudView {
   /** Pips in the current Farm bar, out of farmPipsPerFood (FR3). */
   farmProgress: number;
@@ -370,6 +398,10 @@ export interface HudView {
   boostRemainingMs: number;
   /** Whole dollars to spend (FR21): the money counter (UX-DR34). */
   money: number;
+  /** Living sheep (the flock counter, UX-DR35). Pending lambs hold a capacity slot but are not counted. */
+  flock: number;
+  /** Land capacity (FR11): the flock counter's "/{capacity}". */
+  capacity: number;
   /** The threat summary (UX-DR39), filled in place. */
   threats: ThreatCounts;
 }
@@ -383,6 +415,8 @@ export function selectHudView(state: GameState, out: HudView): HudView {
   out.breedBlock = breedBlock(state);
   out.boostRemainingMs = boostRemainingMs(state);
   out.money = state.money;
+  out.flock = state.sheep.length;
+  out.capacity = capacity(state);
   const t = out.threats;
   let starving = 0;
   let infected = 0;

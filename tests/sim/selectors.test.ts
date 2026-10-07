@@ -8,7 +8,10 @@ import {
   capacity,
   carcassIndex,
   farmPipsPerClick,
+  fenceBounds,
   FULLNESS_EPSILON,
+  isLand,
+  landTier,
   isBoosted,
   hungerOf,
   isLost,
@@ -133,7 +136,7 @@ describe('publicSheep / selectPublicSheep', () => {
 describe('selectHudView', () => {
   it('fills the Farm bar from state and TUNING into the given object', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: -1, farmPipsPerFood: -1, breedingProgress: -1, breedingPipsPerFood: -1, breedBlock: 'capacity', boostRemainingMs: -1, money: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: -1, farmPipsPerFood: -1, breedingProgress: -1, breedingPipsPerFood: -1, breedBlock: 'capacity', boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
     expect(selectHudView(state, out)).toBe(out);
     expect(out).toEqual({
       farmProgress: 0,
@@ -143,13 +146,15 @@ describe('selectHudView', () => {
       breedBlock: 'notReady',
       boostRemainingMs: 0,
       money: 0,
+      flock: state.sheep.length,
+      capacity: TUNING.landCapacities[0],
       threats: { starving: 0, infected: 0, carcasses: 0 },
     });
   });
 
   it('reflects a Farm on the next read', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
     selectHudView(state, out);
     applyCommand(state, { type: 'Farm' });
     selectHudView(state, out);
@@ -159,13 +164,13 @@ describe('selectHudView', () => {
   it('fills the balance (UX-DR34)', () => {
     const state = newGame();
     state.money = 145;
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
     expect(selectHudView(state, out).money).toBe(145);
   });
 
   it('reflects a FarmBreeding on the next read', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
     selectHudView(state, out);
     applyCommand(state, { type: 'FarmBreeding' });
     selectHudView(state, out);
@@ -182,6 +187,8 @@ describe('selectHudView threats (UX-DR39)', () => {
     breedBlock: null,
     boostRemainingMs: -1,
     money: -1,
+    flock: -1,
+    capacity: -1,
     threats: { starving: -1, infected: -1, carcasses: -1 },
   });
 
@@ -248,7 +255,7 @@ describe('selectHudView threats (UX-DR39)', () => {
 describe('breeding selectors (FR10, FR11, AR21)', () => {
   it('capacity is the base capacity, and slotsUsed counts pending lambs', () => {
     const state = newGame();
-    expect(capacity(state)).toBe(TUNING.baseCapacity);
+    expect(capacity(state)).toBe(TUNING.landCapacities[0]);
     expect(slotsUsed(state)).toBe(state.sheep.length);
     state.pregnancies.push({ id: state.nextId++, parentA: 1, parentB: 2, dueAt: 1, x: 0, y: 0 });
     expect(slotsUsed(state)).toBe(state.sheep.length + 1);
@@ -286,7 +293,7 @@ describe('breeding selectors (FR10, FR11, AR21)', () => {
     expect(breedBlock(state)).toBe('notReady');
     state.sheep[1].breedReady = true;
     expect(breedBlock(state)).toBe(null);
-    fillFlock(state, TUNING.baseCapacity);
+    fillFlock(state, TUNING.landCapacities[0]);
     expect(breedBlock(state)).toBe('capacity');
     state.sheep[1].breedReady = false;
     expect(breedBlock(state)).toBe('capacity');
@@ -295,7 +302,7 @@ describe('breeding selectors (FR10, FR11, AR21)', () => {
   it('breedBlock counts pending lambs toward capacity', () => {
     const state = newGame();
     state.sheep[0].breedReady = state.sheep[1].breedReady = true;
-    fillFlock(state, TUNING.baseCapacity - 1);
+    fillFlock(state, TUNING.landCapacities[0] - 1);
     expect(breedBlock(state)).toBe(null);
     state.pregnancies.push({ id: state.nextId++, parentA: 1, parentB: 2, dueAt: 1, x: 0, y: 0 });
     expect(breedBlock(state)).toBe('capacity');
@@ -318,7 +325,7 @@ describe('breeding selectors (FR10, FR11, AR21)', () => {
 
   it('selectHudView fills breedBlock', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
     expect(selectHudView(state, out).breedBlock).toBe('notReady');
     state.sheep[0].breedReady = state.sheep[1].breedReady = true;
     expect(selectHudView(state, out).breedBlock).toBe(null);
@@ -439,7 +446,7 @@ describe('the boost selectors (FR19)', () => {
   it('selectHudView reports the time left', () => {
     const state = newGame();
     state.boostUntil = state.time + TUNING.boostMs;
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
     expect(selectHudView(state, out).boostRemainingMs).toBe(TUNING.boostMs);
   });
 });
@@ -503,5 +510,54 @@ describe('shop selectors (FR22, FR23, UX-DR24)', () => {
       ['flowerPatch', shopPrice('flowerPatch'), null],
       ['scarecrow', shopPrice('scarecrow'), 'poor'],
     ]);
+  });
+});
+
+describe('land selectors (FR11, FR22, Story 3.3)', () => {
+  it('landTier is the highest Land tier owned; decorations do not count', () => {
+    const state = newGame();
+    expect(landTier(state)).toBe(0);
+    state.owned.push('flowerPatch');
+    expect(landTier(state)).toBe(0);
+    state.owned.push('land1');
+    expect(landTier(state)).toBe(1);
+    state.owned.push('scarecrow', 'land2');
+    expect(landTier(state)).toBe(2);
+    state.owned.push('land3');
+    expect(landTier(state)).toBe(3);
+  });
+
+  it('capacity and fenceBounds follow the tier, from TUNING', () => {
+    const state = newGame();
+    const items = ['land1', 'land2', 'land3'] as const;
+    for (let tier = 0; tier <= items.length; tier++) {
+      if (tier > 0) state.owned.push(items[tier - 1]);
+      expect(capacity(state)).toBe(TUNING.landCapacities[tier]);
+      expect(fenceBounds(state)).toBe(TUNING.landFences[tier]);
+    }
+  });
+
+  it('isLand picks out the Land tiers', () => {
+    expect(SHOP_ITEMS.filter(isLand)).toEqual(['land1', 'land2', 'land3']);
+  });
+
+  it('selectHudView fills the flock (living sheep only) and the capacity (UX-DR35)', () => {
+    const state = newGame();
+    state.pregnancies.push({ id: state.nextId++, parentA: 1, parentB: 2, dueAt: 1, x: 0, y: 0 });
+    state.owned.push('land1');
+    const out = selectHudView(state, {
+      farmProgress: 0,
+      farmPipsPerFood: 0,
+      breedingProgress: 0,
+      breedingPipsPerFood: 0,
+      breedBlock: null,
+      boostRemainingMs: 0,
+      money: 0,
+      flock: -1,
+      capacity: -1,
+      threats: { starving: 0, infected: 0, carcasses: 0 },
+    });
+    expect(out.flock).toBe(state.sheep.length);
+    expect(out.capacity).toBe(TUNING.landCapacities[1]);
   });
 });
