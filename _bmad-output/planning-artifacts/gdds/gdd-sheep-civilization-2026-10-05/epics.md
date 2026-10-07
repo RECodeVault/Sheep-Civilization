@@ -49,7 +49,7 @@ The schedule is a 7-day solo build. Each epic must end in something playable bef
 **Goal:** the full dark loop: death leads to a carcass, then infection, then more death.
 
 **In scope:**
-- Life stages: lamb 0–60 s, adult 60–300 s, elder 300–420 s, then death from old age
+- Life stages: lamb 0–60 s, adult 60–420 s, elder 420–540 s, then death from old age (adulthood lengthened 2026-10-07)
 - The Farm Breeding Food button fills a bar that drops breeding pieces; adults that eat one become ready (changed 2026-10-06). Breed tool: ready adult A, then ready adult B, lamb born after 10 s. Each adult has a 60 s breeding cooldown.
 - Carcasses from every non-sacrifice death. They never disappear on their own and are cleared with 1 click.
 - A Starving sheep eats a carcass only when no food piece is on the field

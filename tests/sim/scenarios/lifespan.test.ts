@@ -19,7 +19,7 @@ function runFedUntil(state: GameState, untilMs: number, log: { t: number; e: Sim
 }
 
 describe('lifespan scenario (FR6, FR7)', () => {
-  it('the founders turn elder at ~4 min and die of old age at ~6 min; the lamb lives on to 7 min', () => {
+  it('the founders turn elder at ~6 min and die of old age at ~8 min; the lamb lives on to 9 min', () => {
     const state = newGame(2101);
     const founders = state.sheep.slice(0, TUNING.startFlockAdults);
     const lamb = state.sheep[TUNING.startFlockAdults];

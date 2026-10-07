@@ -63,7 +63,7 @@ Microcopy is cozy with dark laughs: short, deadpan and storybook-polite about te
 |---|---|
 | Flock drops to 1 | **"Last sheep!"** |
 | Starvation | "{name} starved." |
-| Old age | "{name} died of old age. A long, full seven minutes." [ASSUMPTION] |
+| Old age | "{name} died of old age. A long, full nine minutes." [ASSUMPTION] |
 | Virus | "{name} caught the carcass sickness." [ASSUMPTION] |
 | Abomination victim | "{name} just… fell over." [ASSUMPTION; it must not state a cause, because that would be a tell] |
 | Sold | "{name} sold. $10." / "$5." |

@@ -134,7 +134,7 @@ export function installDebugOverlay(game: Phaser.Game): void {
     refreshSim();
   });
   // Sheep starve 72 s into a new game; Feed all keeps them fed. It cannot stop old age: every sheep
-  // dies by 420 s and added sheep 360 s after the click, so a long run needs births (Ready adults,
+  // dies by 540 s and added sheep 480 s after the click, so a long run needs births (Ready adults,
   // then the Breed tool) to go on.
   const feedButton = button(row2, 'Feed all', () => {
     activeScene()?.debugMutate((s) => {

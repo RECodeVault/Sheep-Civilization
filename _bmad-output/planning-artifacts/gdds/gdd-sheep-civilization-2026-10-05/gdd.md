@@ -122,7 +122,7 @@ Each sheep has a **Fullness** stat: 100 means full, and the sheep dies at 0. Pla
 | **Hungry** (50–25, starts 60 s after the last meal) | droops, bleats twice as often |
 | **Starving** (below 25, starts at about 90 s) | visibly thin, frantic bleats; may eat carcasses |
 | Food piece | **+35** Fullness, capped at 100 |
-| Starting flock | 2 adults aged **60 s** and 1 newborn lamb, all at **Fullness 60**, so the first sheep goes thin at about 42 s. The founding adults become elders at about 4 min and die of old age at about 6 min. That gives a short visit its first carcass and a "sell the elders?" decision without any scripted event. |
+| Starting flock | 2 adults aged **60 s** and 1 newborn lamb, all at **Fullness 60**, so the first sheep goes thin at about 42 s. The founding adults become elders at about 6 min and die of old age at about 8 min (since 2026-10-07). That gives a short visit its first carcass and a "sell the elders?" decision without any scripted event. |
 
 #### Farming and Feeding
 
@@ -139,8 +139,8 @@ Each sheep has a **Fullness** stat: 100 means full, and the sheep dies at 0. Pla
 | Stage | Age | Can breed | Can sell | Notes |
 |---|---|---|---|---|
 | Lamb | 0–60 s | No | No | Smaller sprite |
-| Adult | 60–300 s | Yes | Yes, **$10** | |
-| Elder | 300–420 s | No | Yes, **$5** | Greyer sprite. Dies of old age at 420 s and leaves a carcass. |
+| Adult | 60–420 s (lengthened from 60–300 s on 2026-10-07, Rylan: more time to breed) | Yes | Yes, **$10** | |
+| Elder | 420–540 s | No | Yes, **$5** | Greyer sprite. Dies of old age at 540 s and leaves a carcass. |
 
 #### Breeding
 
@@ -295,7 +295,7 @@ There is one flat shop with no branches.
 
   Attention pressure grows with the flock, and that is the game's soft cap.
 - **Time gates:** life stages (60 s to adulthood), the 10 s gestation, and the **60 s per-adult breeding cooldown**. Without the cooldown, Village arrived in about 90 s. One breeding needs 2 breeding pieces (16 clicks at 8 pips) [ASSUMPTION, tune in the post-Epic 3 playtest].
-- **Pacing target:** in the Must-tier economy, **Village (10 sheep) in about 3–5 min** and **Town (25) in about 10–15 min** (tune). Hand-simulation with the cooldown, no losses and no sales gives Village at about 3 min. Sales for Land I ($50 = 5 adults) and founder deaths at about 6 min push Town later.
+- **Pacing target:** in the Must-tier economy, **Village (10 sheep) in about 3–5 min** and **Town (25) in about 10–15 min** (tune). Hand-simulation with the cooldown, no losses and no sales gives Village at about 3 min. Sales for Land I ($50 = 5 adults) and founder deaths at about 8 min (since 2026-10-07) push Town later.
 - **Walls:** the land costs. Getting past them means selling sheep, which is a direct trade-off against the era threshold, since eras count live sheep.
 
 ### Meta-Progression

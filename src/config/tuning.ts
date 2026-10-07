@@ -19,11 +19,13 @@ export const TUNING = Object.freeze({
   starvingBelow: 25,
   // Architecture N1 Epic 1 staging: killSheep spawns no carcass until Story 2.4 turns this on.
   carcassesEnabled: false,
-  // FR7 stage thresholds by age: Lamb 0–60 s, Adult 60–300 s, Elder from 300 s.
+  // FR7 stage thresholds by age: Lamb 0–60 s, Adult 60–420 s, Elder from 420 s. Adulthood was 60–300 s
+  // in the GDD; Rylan lengthened it to 6 minutes on 2026-10-07 to give the player time to breed.
   lambUntilMs: 60_000,
-  elderFromMs: 300_000,
-  // FR7 / GDD Life Stages: "Elder 300–420 s. Dies of old age at 420 s" (lifecycle.ts).
-  oldAgeMs: 420_000,
+  elderFromMs: 420_000,
+  // FR7 / GDD Life Stages: the elder stage lasts 2 minutes (shifted with adulthood, 2026-10-07): dies of
+  // old age at 540 s (lifecycle.ts).
+  oldAgeMs: 540_000,
   // GDD Starting flock: every founding sheep starts at Fullness 60.
   startFullness: 60,
   // FR3 (changed 2026-10-06): a Farm click fills farmPipsPerClick pips of an 8-pip bar; every full

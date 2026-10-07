@@ -28,7 +28,7 @@ FR5: The nearest sheep with Fullness below 90 walks (60 px/s) to the nearest foo
 FR6: A new game starts with 2 adults aged 60 s and 1 newborn lamb, all at Fullness 60, with an empty Farm bar, an empty breeding bar and no sheep ready to breed.
 
 **Life stages & breeding**
-FR7: Sheep age through Lamb (0–60 s), Adult (60–300 s) and Elder (300–420 s); elders die of old age at 420 s.
+FR7: Sheep age through Lamb (0–60 s), Adult (60–420 s) and Elder (420–540 s); elders die of old age at 540 s. (Changed 2026-10-07, Rylan: adulthood lengthened from 4 to 6 minutes to give time to breed.)
 FR8: (Changed 2026-10-06) Each Farm Breeding Food click fills 1 pip of an 8-pip breeding bar, shown with its count "{n}/8"; every full bar drops 1 breeding-food piece at a random reachable spot in the pen and the bar resets, with leftover pips carrying over. There is no breeding food stock and no cap; pieces stay until eaten and never spoil. The bar is never boosted and Better Hoe does not apply.
 FR8a: An adult that is not ready and not on breeding cooldown walks to the nearest breeding-food piece and eats it, becoming ready to breed (no Fullness). A sheep that would seek food (Fullness < 90 and a food piece exists) seeks food first. Lambs and elders ignore breeding pieces, and a ready adult that turns elder loses its readiness.
 FR9: With the Breed tool, clicking ready adult A then ready adult B shows a heart, uses up both sheep's readiness, and a lamb is born beside them 10 s later. Breeding costs no breeding food.
@@ -251,7 +251,7 @@ Items tagged **(Should)** follow GDD Should tier; everything else is Must.
 
 #### Copy
 
-- UX-DR92: Death toasts: "{name} starved." / "{name} died of old age. A long, full seven minutes." / "{name} caught the carcass sickness." / Abomination victim "{name} just… fell over." (must not state a cause). (EXPERIENCE: Voice and Tone)
+- UX-DR92: Death toasts: "{name} starved." / "{name} died of old age. A long, full nine minutes." / "{name} caught the carcass sickness." / Abomination victim "{name} just… fell over." (must not state a cause). (EXPERIENCE: Voice and Tone)
 - UX-DR93: Action toasts: sold "{name} sold. $10." / "{name} sold. $5."; sacrifice "{name} went to a Better Place."; reveal innocent "…that was just {name}." ("…that was just a sheep." before names); reveal Abomination: screech then "Good riddance.". (EXPERIENCE: Voice and Tone)
 - UX-DR94: Banners: era up "Village" / "Town" / "Wool Empire"; era regress "Back to {era}."; "Last sheep!" (Should). (EXPERIENCE: Voice and Tone)
 - UX-DR95: Screen strings: "Paused"; "Shop"; start-over "Start over? Your flock will be lost." · "Cancel" · "Start over"; lose "The flock is gone." · "Survived {mm:ss} · Peak flock {n}" · "Restart"; menu labels "Continue", "New Game", "Credits", "Resume", "Volume", "Stats", "Restart", "Back", "Main Menu"; shop "Owned", "Needs Land {n}". (EXPERIENCE: Voice and Tone, IA, Component Patterns; DESIGN: Components)
@@ -657,9 +657,9 @@ So that every sheep has a lifespan I must plan around.
 
 **Given** a sheep record with `bornAt`
 **When** the view or sim needs its stage
-**Then** stage is derived from age: Lamb 0–60 s, Adult 60–300 s, Elder 300–420 s (thresholds in `TUNING`) and never stored (FR7)
+**Then** stage is derived from age: Lamb 0–60 s, Adult 60–420 s, Elder 420–540 s (thresholds in `TUNING`) and never stored (FR7)
 
-**Given** an elder reaching 420 s of age
+**Given** an elder reaching 540 s of age
 **When** the sim steps
 **Then** it dies through `killSheep(state, id, 'oldAge')` (FR7)
 
@@ -765,7 +765,7 @@ So that I notice deaths and can keep the pasture clean.
 
 **Given** a `SheepDied` event
 **When** the HUD receives it
-**Then** an announcement toast (`announcement-toast`: dusk card, wool body text) shows at top-centre — "A sheep starved." / "A sheep died of old age. A long, full seven minutes." — up to 3 stacked, newest on top, ~4 s each, never blocking clicks (UX-DR41, UX-DR92; names arrive in Epic 5)
+**Then** an announcement toast (`announcement-toast`: dusk card, wool body text) shows at top-centre — "A sheep starved." / "A sheep died of old age. A long, full nine minutes." — up to 3 stacked, newest on top, ~4 s each, never blocking clicks (UX-DR41, UX-DR92; names arrive in Epic 5)
 
 **Given** the hover tooltip
 **When** I hover a carcass
@@ -1268,7 +1268,7 @@ So that each loss lands harder.
 
 **Given** death, sale, sacrifice and reveal events
 **When** toasts and captions appear
-**Then** they use the sheep's name, shown in `halo`: "{name} starved." / "{name} died of old age. A long, full seven minutes." / "{name} caught the carcass sickness." / "{name} just… fell over." / "{name} sold. $10." / "{name} went to a Better Place." / "…that was just {name}." (UX-DR41, UX-DR92, UX-DR93, UX-DR97)
+**Then** they use the sheep's name, shown in `halo`: "{name} starved." / "{name} died of old age. A long, full nine minutes." / "{name} caught the carcass sickness." / "{name} just… fell over." / "{name} sold. $10." / "{name} went to a Better Place." / "…that was just {name}." (UX-DR41, UX-DR92, UX-DR93, UX-DR97)
 
 ### Story 5.4: Stats Panel
 
