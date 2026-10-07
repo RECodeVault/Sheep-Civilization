@@ -100,6 +100,14 @@ describe('validateState', () => {
     }
   });
 
+  it('accepts no money and a large balance (Story 3.1)', () => {
+    for (const m of [0, 2 ** 48]) {
+      const r = raw();
+      r.money = m;
+      expect(validateState(r).ok).toBe(true);
+    }
+  });
+
   it('does not mutate its input', () => {
     const r = raw();
     r.sheep[0].fullness = Number.NaN;
@@ -134,6 +142,13 @@ describe('validateState', () => {
     ['a negative farmProgress', (r) => (r.farmProgress = -1), 'farmProgress'],
     ['a full farmProgress', (r) => (r.farmProgress = TUNING.farmPipsPerFood), 'farmProgress'],
     ['a missing breedingProgress', (r) => delete r.breedingProgress, 'breedingProgress'],
+    ['a missing money', (r) => delete r.money, 'state.money'],
+    ['a NaN money', (r) => (r.money = Number.NaN), 'state.money'],
+    ['an infinite money', (r) => (r.money = Number.POSITIVE_INFINITY), 'state.money'],
+    ['a negative money', (r) => (r.money = -1), 'state.money'],
+    ['a fractional money', (r) => (r.money = 2.5), 'state.money'],
+    ['a string money', (r) => (r.money = '10'), 'state.money'],
+    ['a money above the counter ceiling', (r) => (r.money = 2 ** 48 + 1), 'state.money'],
     ['a missing boostUntil', (r) => delete r.boostUntil, 'state.boostUntil'],
     ['a fractional boostUntil', (r) => (r.boostUntil = 1.5), 'state.boostUntil'],
     ['a negative boostUntil', (r) => (r.boostUntil = -1), 'state.boostUntil'],

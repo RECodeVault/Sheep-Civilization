@@ -11,7 +11,7 @@ import Phaser from 'phaser';
 import { COLORS, RADIUS, SPACING } from '../config/constants';
 import { TUNING } from '../config/tuning';
 import type { FixedStepClock } from '../core/fixedStep';
-import { formatGameTime } from '../core/format';
+import { formatGameTime, formatMoney } from '../core/format';
 import { log } from '../core/log';
 import { decodeSave, encodeSave } from '../save/saveFile';
 import { rngRange } from '../sim/rng';
@@ -293,7 +293,8 @@ export function installDebugOverlay(game: Phaser.Game): void {
     const s = scene.simState;
     const speed = scene.simClock.speed;
     timeLine.textContent = `time   ${formatGameTime(s.time)} (${s.time} ms) · ${speed === 0 ? 'paused' : `×${speed}`}`;
-    sheepLine.textContent = `sheep  ${s.sheep.length} · carcasses ${s.carcasses.length} · infected ${countInfected(s)}`;
+    // Story 3.1: the balance and sales, before 3.2's money counter shows them on the HUD.
+    sheepLine.textContent = `sheep  ${s.sheep.length} · carcasses ${s.carcasses.length} · infected ${countInfected(s)} · ${formatMoney(s.money)} · sold ${s.stats.sold}`;
     foodLine.textContent = `food   pieces ${s.foodPieces.length} · bar ${s.farmProgress}/${TUNING.farmPipsPerFood} · boost ${formatGameTime(boostRemainingMs(s))}`;
     pauseButton.textContent = speed === 0 ? 'Resume' : 'Pause';
     stepButton.disabled = speed !== 0;

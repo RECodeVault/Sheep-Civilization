@@ -35,7 +35,10 @@ export interface InputHooks {
   beginDrag(id: number, screenX: number, screenY: number): boolean;
   /** The held pointer is at canvas point (sx, sy); called every frame of a drag. */
   moveDrag(screenX: number, screenY: number): void;
-  /** Released at canvas point (sx, sy): a sacrifice over the Better Place, otherwise a drop (UX-DR67). */
+  /**
+   * Released at canvas point (sx, sy): a sacrifice over the Better Place, a sale on the Market (3.1),
+   * otherwise a drop (UX-DR67).
+   */
   endDrag(screenX: number, screenY: number): void;
   /** Puts the dragged sheep back where it was picked up. */
   cancelDrag(): void;
@@ -58,7 +61,7 @@ const FIELD_BOTTOM = LAYOUT.canvasHeight - LAYOUT.hudBarHeight;
  * tool toggles it, a left click picks adult A then adult B, and right-click, Esc, the tool again or a
  * modal cancel it. 2.4 added field clicks in `idle` (a click on a carcass clears it, FR13). 2.7 added
  * `dragging` (FR16): a left press on a sheep in `idle` that moves past 6 px picks it up; the release
- * puts it down or sacrifices it, and Esc, a modal, blur or a release off the canvas cancel it. The
+ * puts it down, sacrifices it or (3.1) sells it, and Esc, a modal, blur or a release off the canvas cancel it. The
  * drag's geometry and commands live in the view (SheepDrag, through the hooks). Turns input into
  * commands or UI events; never touches GameState.
  */

@@ -27,7 +27,8 @@ export const AUTOSAVE_MS = 10_000;
 // migrates unchanged; the bump is so an older build refuses a version-5 save instead of loading it and
 // silently dropping an infection (it would keep `infectedAt` as an unknown key and never act on it).
 // 6 since Story 2.8: `boostUntil`, the sacrifice food boost's deadline (a version-5 save gets 0).
-export const SAVE_SCHEMA_VERSION = 6;
+// 7 since Story 3.1: `money`, the spendable balance (a version-6 save gets 0).
+export const SAVE_SCHEMA_VERSION = 7;
 
 /*
  * Colour-usage rules (DESIGN.md Colors, Do's and Don'ts — UX-DR2):

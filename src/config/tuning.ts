@@ -43,6 +43,10 @@ export const TUNING = Object.freeze({
   // become ready (FR8a). No stock, no cap. Never boosted, and Better Hoe does not apply.
   breedingPipsPerFood: 8,
   breedingPipsPerClick: 1,
+  // FR17 / GDD Life Stages ("Can sell: Yes, $10" / "$5"): what the Market pays for an adult and an
+  // elder. Lambs cannot be sold (selectors.ts salePrice gives them 0).
+  sellPriceAdult: 10,
+  sellPriceElder: 5,
   // FR10 / GDD Breeding: "each adult can breed once every 60 s (tune)", starting at breeding.
   breedCooldownMs: 60_000,
   // FR9 / GDD Breeding: "a lamb is born beside them 10 s later".

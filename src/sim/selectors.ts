@@ -51,6 +51,16 @@ export function stageOf(s: Sheep, state: GameState): Stage {
   return 'elder';
 }
 
+/**
+ * FR17: what the Market pays for a sheep of `stage`, from TUNING; 0 for a lamb, which cannot be sold.
+ * The one price rule, for the sim's Sell (market.ts) and the Market's price tag alike.
+ */
+export function salePrice(stage: Stage): number {
+  if (stage === 'adult') return TUNING.sellPriceAdult;
+  if (stage === 'elder') return TUNING.sellPriceElder;
+  return 0;
+}
+
 /** FR10: true until the tick time reaches cooldownUntil. Derived, never stored. */
 export function onCooldown(s: Sheep, state: GameState): boolean {
   return state.time < s.cooldownUntil;

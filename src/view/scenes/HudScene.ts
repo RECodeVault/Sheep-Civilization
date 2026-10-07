@@ -271,6 +271,9 @@ export class HudScene extends Phaser.Scene {
         // UX-DR93: one at a time (a sheep is dragged in by hand). Never branches on wasAbomination: the
         // reveal is Story 4.4's.
         showToast(STRINGS.sacrificeToast, { announcement: true });
+      } else if (e.type === 'Sold') {
+        // UX-DR93: one per sale (a sheep is dragged on by hand), "A sheep sold. $10." or "$5.".
+        showToast(STRINGS.soldToast(e.price), { announcement: true });
       } else if (e.type === 'BoostStarted') {
         // UX-DR38 / UX-DR44: the timer pops (on a start and a reset alike) and "×2" rises over Farm. The
         // glow and the timer's text follow in this frame's refresh.

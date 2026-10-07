@@ -80,6 +80,9 @@ function check(x: unknown): void {
   // FR19: a sacrifice sets the boost at most boostMs ahead; 0 = never. A past deadline is just not
   // boosted, but a far-future one would be an hours-long boost from a corrupt save.
   int(s, 'boostUntil', 'state', 0, time + TUNING.boostMs);
+  // FR21: whole dollars, no cap beyond the counter ceiling. Not checked against stats.moneyEarned: the
+  // DEV "Add money" button (3.2) adds money that was never earned.
+  int(s, 'money', 'state', 0);
   if (!ERAS.includes(s.lastEra as Era)) fail('state.lastEra is not a known era');
 
   const sheep = array(s, 'sheep');

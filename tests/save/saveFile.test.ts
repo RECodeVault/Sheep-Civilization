@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SAVE_SCHEMA_VERSION } from '../../src/config/constants';
 import { TUNING } from '../../src/config/tuning';
+import { applyCommand } from '../../src/sim/commands';
 import { decodeSave, decodeSaveResult, encodeSave } from '../../src/save/saveFile';
 import { newGame, runFor } from '../sim/helpers';
 
@@ -27,6 +28,7 @@ describe('encodeSave / decodeSave', () => {
     delete v2.breedingPieces;
     delete v2.pregnancies;
     delete v2.boostUntil;
+    delete v2.money;
     for (const s of v2.sheep as Record<string, unknown>[]) {
       delete s.breedReady;
       delete s.cooldownUntil;
@@ -40,6 +42,7 @@ describe('encodeSave / decodeSave', () => {
     const v3 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
     delete v3.pregnancies;
     delete v3.boostUntil;
+    delete v3.money;
     for (const s of v3.sheep as Record<string, unknown>[]) delete s.cooldownUntil;
     const raw = JSON.stringify({ schemaVersion: 3, savedAt: NOW.toISOString(), state: v3 });
     expect(decodeSave(raw)).toStrictEqual(state);
@@ -49,8 +52,29 @@ describe('encodeSave / decodeSave', () => {
     const state = newGame(7);
     const v5 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
     delete v5.boostUntil;
+    delete v5.money;
     const raw = JSON.stringify({ schemaVersion: 5, savedAt: NOW.toISOString(), state: v5 });
     expect(decodeSave(raw)).toStrictEqual(state);
+  });
+
+  it('decodes a version-6 save (before selling) with no money', () => {
+    const state = newGame(7);
+    const v6 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+    delete v6.money;
+    const raw = JSON.stringify({ schemaVersion: 6, savedAt: NOW.toISOString(), state: v6 });
+    expect(decodeSave(raw)).toStrictEqual(state);
+  });
+
+  it('round-trips a balance and a game lost by selling the last sheep', () => {
+    const state = newGame(4242);
+    runFor(state, 1_000);
+    for (const s of [...state.sheep]) {
+      s.bornAt = Math.min(s.bornAt, state.time - TUNING.lambUntilMs);
+      applyCommand(state, { type: 'Sell', id: s.id });
+    }
+    expect(state.lostAt).toBe(state.time);
+    expect(state.money).toBe(TUNING.sellPriceAdult * state.stats.sold);
+    expect(decodeSave(encodeSave(state, NOW))).toStrictEqual(state);
   });
 
   it('round-trips an active boost: a reload resumes with the same time left', () => {

@@ -1,5 +1,6 @@
 // All player-facing copy (EXPERIENCE.md Voice and Tone). Components read text from here, never
 // inline literals. Rules: no "!" except "Last sheep!"; never "corpse", "blood" or "kill".
+import { formatMoney } from '../core/format';
 import type { DeathCause } from '../sim/events';
 import type { Hunger, Stage } from '../sim/selectors';
 
@@ -61,6 +62,15 @@ export const STRINGS = Object.freeze({
   boostTimer: (time: string): string => `×2 ${time}`,
   // Sacrifice toast (UX-DR93). Story 5.3 puts the name in place of "A sheep", in `halo`.
   sacrificeToast: 'A sheep went to a Better Place.',
+  // The Market's drag tag (UX-DR51, UX-DR96): the sale price, "$10" (adult) or "$5" (elder); "Too
+  // young" over the stall with a lamb (UX-DR53).
+  marketPrice: (price: number): string => formatMoney(price),
+  marketTooYoung: 'Too young',
+  // The coin popup rising from the stall on a sale (UX-DR44, UX-DR82), e.g. "$10".
+  salePopup: (price: number): string => formatMoney(price),
+  // Sale toast (UX-DR93), e.g. "A sheep sold. $10.". Story 5.3 puts the name in place of "A sheep", in
+  // `halo`.
+  soldToast: (price: number): string => `A sheep sold. ${formatMoney(price)}.`,
   // Float popup (UX-DR44), e.g. "+1" when a full Farm or breeding bar drops a piece.
   farmPopup: (n: number): string => `+${n}`,
   // Meter value (UX-DR29), e.g. "3/8" for the Farm bar.

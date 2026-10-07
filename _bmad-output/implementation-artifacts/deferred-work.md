@@ -23,6 +23,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Exit animations (Story 2.4):** `PooledEntitySprite.playExit()` returns nothing and `EntityLayer` releases the sprite immediately. The architecture's N3 contract is `playExit(done)`, releasing to the pool only when the exit animation ends. Change the interface and the sweep when death puffs or sell animations arrive.
   - **Moved to Stories 2.7 / 3.1 (sacrifice suction, sale):** 2.4 put the death's slapstick beat on the carcass's spawn (a flop and a dust puff), so the dying sheep's sprite still hides at once and `playExit()` stays synchronous.
   - **Resolved in Story 2.7 (no interface change):** the suction plays on a pooled ghost image in `GameScene` (`suck`), started from `Sacrificed` while the real sprite is still bound; the sprite leaves through the normal sweep and `playExit()` stays synchronous. 3.1 can reuse the ghost for the sale.
+  - **Done in Story 3.1:** the sale hops a ghost into the stall from `Sold`; both exits share `GameScene.ghostOf`.
 - **Fence growth (Story 3.3):** `Fence.setBounds` destroys and re-creates its images, and `GameScene` keeps no reference to the `Fence`. Growing the fence during play must reuse or pool the parts (project rule: never `destroy()` during play) and keep the instance.
 - **Failed asset load (Story 1.4):** `PreloadScene` logs `FILE_LOAD_ERROR` and still starts `GameScene`, so a missing atlas renders the sheep and fence as Phaser missing-texture boxes with no message. Decision 2026-10-05: keep log-and-continue; the Story 1.4 error safety net should show the player a message when an atlas fails to load.
   - **Resolved in Story 1.4:** after loading, `PreloadScene` checks that both atlas textures exist. If one is missing it logs a warn and shows "Some of the pasture didn't load. Try reloading the page." once; the game still starts.
@@ -150,6 +151,7 @@ Real issues found in reviews that are not actionable in the story where they wer
     - **Resolved in Story 2.7:** the drag picks the sheep at the press (pointer + scroll) and only on a left press.
   - **2.7 / 3.1:** the Better Place and the Market were placed in canvas terms (upper-left x ≈ 450–590; right edge). They are world objects now, so place them relative to the pen, and consider pinning the camera to the pen plus both targets so a drag can always reach them.
     - **2.7 part resolved:** the Better Place is fixed at world (520, 108) (the mockup, clear of the Land I fence). The camera centres on and pins to the play area (pen ∪ `BETTER_PLACE_BOUNDS`); this revises 1.10's "centred on the pen" (2.7 Open Question 1). 3.1 adds the Market to `GameScene.playArea`.
+    - **3.1 part resolved:** `playArea` is pen ∪ Better Place ∪ `MARKET_BOUNDS` (the pan limits), but the game still opens centred on pen ∪ Better Place (`PenCamera.centreOn(focus, area)`): centring on all three would put the hole under 3.2's shop panel (3.1 Open Question 1).
   - **3.3:** when the fence grows, re-clamp (or re-centre) the camera; `PenCamera` centres a pen too big to fit.
 
 ## Deferred from: code review of 2-1-life-stages-and-the-gdd-starting-flock (2026-10-06)
@@ -176,6 +178,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 ## Deferred from: story 2-7-drag-a-sheep-into-the-better-place (2026-10-07)
 
 - **The Market (Story 3.1):** add its bounds to `GameScene.playArea` (union with the pen and the Better Place), its armed and hovered highlight next to `BetterPlace.setHighlight`, and the invalid "Too young" target for lambs. `SheepDrag.end` decides the target from the pointer: add the Market test beside `inBetterPlace`.
+  - **Resolved in Story 3.1:** `view/field/Market.ts` (`MARKET_BOUNDS`, `inMarket`, `setHighlight('off' | 'armed' | 'hovered' | 'invalid', price)`), and `SheepDrag` sends `Sell` over the stall (a lamb there gets a `Drop`).
 - **Fence growth vs the hole (Story 3.3):** the hole is fixed at world (520, 108). The Land I fence (mockup 430–1062 × 184–598) stays clear of it, but check the later tiers, and recompute `GameScene.playArea` (and re-clamp the camera) when the fence grows.
 - **A victim picked up mid-approach (Story 4.3):** a dragged sheep keeps its sim position (the pickup spot), so the Abomination would walk to where it was picked up. Decide whether a dragged victim is re-picked like a sacrificed one.
 - **The reveal (Story 4.4):** `Sacrificed.wasAbomination` is always false today; the HUD toast and `GameScene.suck` must branch on it only there.
@@ -197,3 +200,13 @@ Real issues found in reviews that are not actionable in the story where they wer
 
 - **Validation bounds follow live tuning (Story 3.6):** `validate.ts` caps `boostUntil` at `time + TUNING.boostMs` and `cooldownUntil` at `time + TUNING.breedCooldownMs`. If 3.6 lowers either, saves made mid-boost or mid-cooldown are rejected and the flock is lost. When retuning, clamp these deadlines on load, or validate them against a fixed ceiling, instead of failing.
 - **Shop toggle space (Story 3.2):** the boost timer kept its 104 px width and `SHOP_RESERVE` is 64 px, below the mockup's ~80 px toggle. 3.2 narrows the timer's padding or re-spaces the bar.
+
+## Deferred from: story 3-1-sell-sheep-at-the-market (2026-10-07)
+
+- **Money counter (Story 3.2):** `state.money` exists (schema 7) but nothing on the HUD shows it; the DEV overlay's sheep line shows the balance and sales until then. 3.2 adds `money` to `HudView` and the `money-counter`, and its DEV "Add money" adds to `money` only (validation does not tie `money` to `stats.moneyEarned`, on purpose).
+- **Land tiers vs the stall (Story 3.3):** the stall is fixed at world x 1100–1260 (`MARKET`, outline from x 1080). Land I ends at x 1062; check that Land II/III never reach x 1080, and rebuild both camera rects (the focus and `playArea`) when the fence grows.
+- **The Abomination stays unsellable (Story 4.1):** `market.ts` relies on `stageOf` reporting the Abomination as a lamb (it never grows past one). Keep it so; the view's "Too young" reads only `PublicSheep.stage`.
+- **Names (Story 5.3):** the sold toast says "A sheep sold. $10."; 5.3 puts the name in place of "A sheep", in `halo`.
+- **Audio (Story 5.6):** the cash-register ding on `Sold` (UX-DR82), and a caption if captions cover it.
+- **Reduced motion (Story 5.7):** the outline pulse, awning flap, tag growth and stall nudge (`MARKET_MOTION` in `Market.ts`) and the sale hop (`SALE` in `GameScene.ts`) are juice; the outline, tag and "Too young" are information and stay.
+- **An intermittent first drag in the browser probe (investigate any time):** in the scratchpad Playwright probe, about 1 in 10 runs the first drag after the session's first debug Load never starts (the sheep stays put; no command is sent). It happens on the pre-3.1 commit too (2 of 10 runs), so 3.1 did not cause it, and it never happened on a later drag in the same session (10 of 10 fast sales passed). Unknown whether it is the probe's synthetic pointer timing or a real drag-start edge case in `InputController.updateClick`; worth a look with real mouse input.

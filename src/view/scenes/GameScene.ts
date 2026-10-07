@@ -31,6 +31,7 @@ import { FIELD_DEPTH } from '../field/depths';
 import { EntityLayer } from '../field/EntityLayer';
 import { Fence } from '../field/Fence';
 import { FoodSprite } from '../field/FoodSprite';
+import { Market, MARKET, MARKET_BOUNDS } from '../field/Market';
 import { ObjectPool } from '../field/ObjectPool';
 import { PenCamera } from '../field/PenCamera';
 import { PregnancyHeart } from '../field/PregnancyHeart';
@@ -38,6 +39,7 @@ import { spriteIndexAt } from '../field/hitTest';
 import { SheepDrag } from '../field/SheepDrag';
 import { SheepHover } from '../field/SheepHover';
 import { SheepSprite } from '../field/SheepSprite';
+import { FloatPopups } from '../juice/FloatPopups';
 import { clearAnnouncements, markGameStarted, reportError, setForceSave, showToast } from '../safetyNet';
 import { STRINGS } from '../strings';
 import type { TitleSceneData } from './TitleScene';
@@ -93,6 +95,10 @@ const DUST = {
 // stays synchronous). Visual only; Story 5.7's reduced motion revisits it. [ASSUMPTION, tune in the
 // browser] values.
 const SUCTION = { durationMs: 400, spinDeg: 360, ghosts: 3 } as const;
+// UX-DR82 sale: the sold sheep's body hops into the stall's counter, shrinking and fading, on the same
+// pooled ghosts as the suction. Visual only; Story 5.7's reduced motion revisits it. [ASSUMPTION, tune
+// in the browser] values; `toY` is the counter's middle (world).
+const SALE = { durationMs: 250, toY: 330, scale: 0.5 } as const;
 const SPARKLE_BURST = 10;
 const SPARKLE = {
   lifespan: 500,
@@ -141,10 +147,16 @@ export class GameScene extends Phaser.Scene {
   private dust!: Phaser.GameObjects.Particles.ParticleEmitter;
   private sparkle!: Phaser.GameObjects.Particles.ParticleEmitter;
   private betterPlace!: BetterPlace;
+  private market!: Market;
+  /** The sale's "$10"/"$5" coin popups, in world space over the stall (UX-DR82). */
+  private worldPopups!: FloatPopups;
   private sheepDrag!: SheepDrag;
-  /** The pen plus the drop targets: what the camera centres on and keeps in view (Story 2.7). */
+  /**
+   * The pen plus both drop targets: what the camera keeps in view (Stories 2.7, 3.1). It opens centred
+   * on the pen and the Better Place only (PenCamera.centreOn).
+   */
   private playArea!: Rect;
-  /** UX-DR80 suction ghosts, reused round-robin (never created during play). */
+  /** UX-DR80 suction and UX-DR82 sale ghosts, reused round-robin (never created during play). */
   private readonly ghosts: Phaser.GameObjects.Image[] = [];
   private nextGhost = 0;
   // A carcass already clicked (its ClearCarcass is queued for the next tick) is skipped by carcassAt,
@@ -172,6 +184,7 @@ export class GameScene extends Phaser.Scene {
       else if (e.type === 'CarcassSpawned') this.dust.explode(DUST_SPAWN_PUFFS, e.x, e.y);
       else if (e.type === 'CarcassCleared') this.dust.explode(DUST_CLEAR_PUFFS, e.x, e.y);
       else if (e.type === 'Sacrificed') this.suck(e.id);
+      else if (e.type === 'Sold') this.sold(e.id, e.price);
     } catch (err) {
       reportError('ui', err);
     }
@@ -210,11 +223,14 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(COLORS.pasture);
     new Fence(this, fenceBounds(this.state));
     this.betterPlace = new BetterPlace(this);
-    // Every game (new, continued, restarted) opens with the play area (the pen and the Better Place)
-    // centred above the bar, and the pan keeps all of it in view (Story 2.7; was the pen alone, 1.10).
-    this.playArea = union(fenceBounds(this.state), BETTER_PLACE_BOUNDS);
+    this.market = new Market(this);
+    // Every game (new, continued, restarted) opens with the pen and the Better Place centred above the
+    // bar (Story 2.7; was the pen alone, 1.10), and the pan keeps the whole play area, the Market too,
+    // in view (Story 3.1).
+    const focus = union(fenceBounds(this.state), BETTER_PLACE_BOUNDS);
+    this.playArea = union(focus, MARKET_BOUNDS);
     this.penCamera = new PenCamera(this.cameras.main);
-    this.penCamera.centreOn(this.playArea);
+    this.penCamera.centreOn(focus, this.playArea);
     this.carcassLayer = new EntityLayer(new ObjectPool(() => new CarcassSprite(this), CARCASS_POOL_SIZE));
     this.foodLayer = new EntityLayer(new ObjectPool(() => new FoodSprite(this), FOOD_POOL_SIZE));
     this.breedingLayer = new EntityLayer(
@@ -235,6 +251,8 @@ export class GameScene extends Phaser.Scene {
     this.sparkle = this.add
       .particles(0, 0, ATLAS.sheepWorld, { frame: FRAME.sparkle, emitting: false, ...SPARKLE })
       .setDepth(FIELD_DEPTH.particles);
+    // Above the particles, below the pings: a coin popup over the stall.
+    this.worldPopups = new FloatPopups(this, FIELD_DEPTH.particles);
     this.ghosts.length = 0;
     this.nextGhost = 0;
     for (let i = 0; i < SUCTION.ghosts; i++) {
@@ -553,6 +571,8 @@ export class GameScene extends Phaser.Scene {
     this.sheepLayer.sync(this.publicSheep, this.clock.alpha, this.state.time);
     this.betterPlace.setHighlight(this.sheepDrag.highlight);
     this.betterPlace.update(this.game.loop.time);
+    this.market.setHighlight(this.sheepDrag.marketHighlight, this.sheepDrag.marketPrice);
+    this.market.update(this.game.loop.time);
     this.pregnancyLayer.sync(this.drawnPregnancies(), this.clock.alpha, this.state.time);
     this.syncBreedMarkers();
   }
@@ -585,28 +605,15 @@ export class GameScene extends Phaser.Scene {
    * so its sprite is still bound and drawn where it was dropped: a ghost copies it and spirals in.
    */
   private suck(id: number): void {
-    const spr = this.sheepLayer.spriteFor(id);
-    if (spr === undefined) return;
-    const ghost = this.ghosts[this.nextGhost];
-    this.nextGhost = (this.nextGhost + 1) % this.ghosts.length;
-    const tweens = this.tweens;
-    tweens.killTweensOf(ghost);
-    ghost
-      .setFrame(spr.frame.name)
-      .setFlipX(spr.flipX)
-      .setScale(spr.scaleX)
-      .setAngle(spr.angle)
-      .setPosition(spr.x, spr.y)
-      .setVisible(true);
-    if (spr.isTinted) ghost.setTint(spr.tint).setTintMode(spr.tintMode);
-    else ghost.clearTint();
+    const ghost = this.ghostOf(id);
+    if (ghost === null) return;
     // A closure per sacrifice: a rare event.
-    tweens.add({
+    this.tweens.add({
       targets: ghost,
       x: BETTER_PLACE.x,
       y: BETTER_PLACE.y,
       scale: 0,
-      angle: spr.angle + SUCTION.spinDeg,
+      angle: ghost.angle + SUCTION.spinDeg,
       duration: SUCTION.durationMs,
       ease: 'Cubic.easeIn',
       onComplete: () => {
@@ -615,6 +622,53 @@ export class GameScene extends Phaser.Scene {
         this.betterPlace.gulp();
       },
     });
+  }
+
+  /**
+   * UX-DR82: sheep `id` was sold for `price`. The coin popup rises from the top of the stall, where the
+   * price tag was, and, as for the suction, a ghost of the still-bound sprite hops into the counter.
+   */
+  private sold(id: number, price: number): void {
+    this.worldPopups.spawn(MARKET.x, MARKET.hit.y, STRINGS.salePopup(price));
+    const ghost = this.ghostOf(id);
+    if (ghost === null) return;
+    // A closure per sale: a rare event.
+    this.tweens.add({
+      targets: ghost,
+      x: MARKET.x,
+      y: SALE.toY,
+      scale: ghost.scale * SALE.scale,
+      alpha: 0,
+      duration: SALE.durationMs,
+      ease: 'Quad.easeIn',
+      onComplete: () => {
+        ghost.setVisible(false);
+        this.market.nudge();
+      },
+    });
+  }
+
+  /**
+   * The next pooled ghost, made a copy of sheep `id`'s drawn sprite (frame, flip, scale, angle, tint,
+   * position), or null when the sprite is gone. Stops any tween still playing on that ghost.
+   */
+  private ghostOf(id: number): Phaser.GameObjects.Image | null {
+    const spr = this.sheepLayer.spriteFor(id);
+    if (spr === undefined) return null;
+    const ghost = this.ghosts[this.nextGhost];
+    this.nextGhost = (this.nextGhost + 1) % this.ghosts.length;
+    this.tweens.killTweensOf(ghost);
+    ghost
+      .setFrame(spr.frame.name)
+      .setFlipX(spr.flipX)
+      .setScale(spr.scaleX)
+      .setAngle(spr.angle)
+      .setAlpha(1)
+      .setPosition(spr.x, spr.y)
+      .setVisible(true);
+    if (spr.isTinted) ghost.setTint(spr.tint).setTintMode(spr.tintMode);
+    else ghost.clearTint();
+    return ghost;
   }
 
   /** UX-DR56/UX-DR69: in breed mode A shows its pinned heart and every other pickable adult a pulse. */

@@ -9,10 +9,12 @@ const VIEW_H = LAYOUT.canvasHeight - LAYOUT.hudBarHeight;
 const EDGE = LAYOUT.safeMargin;
 
 /**
- * The field camera (Rylan, 2026-10-06): a game starts with the play area centred in the field above
- * the bottom bar, and a right-drag pans, pinned so the whole play area always stays in view (you cannot
- * drag it away). The play area is the pen plus the drop targets (Story 2.7: the Better Place; 3.1 adds
- * the Market), so a dragged sheep can always reach them. View state only; never saved. The camera shows whole pixels so the pixel art does not
+ * The field camera (Rylan, 2026-10-06): a game starts with the pen and the Better Place centred in the
+ * field above the bottom bar, and a right-drag pans, pinned so the whole play area always stays in view
+ * (you cannot drag it away). The play area is the pen plus the drop targets (Story 2.7: the Better
+ * Place; 3.1: the Market), so a dragged sheep can always reach them. The Market is in the pinned area
+ * but not the centred focus: centring on all three would put the hole under 3.2's shop panel (3.1 Open
+ * Question 1). View state only; never saved. The camera shows whole pixels so the pixel art does not
  * shimmer; the exact scroll is kept here, so small scaled pointer steps (a 960 px window moves the
  * pointer in 4/3 px) add up instead of being rounded away. The HUD and Overlay scenes have their
  * own cameras and never move.
@@ -26,10 +28,13 @@ export class PenCamera {
     this.camera = camera;
   }
 
-  /** Centres the play `area` in the field above the bar. */
-  centreOn(area: Rect): void {
-    this.x = clamp(area.x + area.width / 2 - VIEW_W / 2, minX(area), maxX(area));
-    this.y = clamp(area.y + area.height / 2 - VIEW_H / 2, minY(area), maxY(area));
+  /**
+   * Centres `focus` in the field above the bar, kept within the limits that hold the whole play `area`
+   * in view (Story 3.1: the focus is the pen and the Better Place, the area adds the Market).
+   */
+  centreOn(focus: Rect, area: Rect): void {
+    this.x = clamp(focus.x + focus.width / 2 - VIEW_W / 2, minX(area), maxX(area));
+    this.y = clamp(focus.y + focus.height / 2 - VIEW_H / 2, minY(area), maxY(area));
     this.apply();
   }
 

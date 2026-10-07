@@ -10,8 +10,9 @@ import { breed } from './systems/breeding';
 import { clearCarcass } from './systems/carcass';
 import { drop, pickUp } from './systems/drag';
 import { createBreedingPiece, createFoodPiece } from './systems/feeding';
+import { sell } from './systems/market';
 
-// Later stories append Sell, Buy, …
+// Later stories append Buy (3.2), …
 export type Command =
   | { type: 'Farm' }
   | { type: 'FarmBreeding' }
@@ -25,7 +26,10 @@ export type Command =
   // cancelled drag drops it back where it was picked up.
   | { type: 'Drop'; id: number; x: number; y: number }
   // FR18: sheep `id` was dropped into the Better Place (betterPlace.ts). An id that is gone is ignored.
-  | { type: 'Sacrifice'; id: number };
+  | { type: 'Sacrifice'; id: number }
+  // FR17: sheep `id` was dropped on the Market stall (market.ts). A lamb or an id that is gone sells
+  // nothing.
+  | { type: 'Sell'; id: number };
 
 export function applyCommand(state: GameState, cmd: Command): void {
   // FR38: a lost game takes no more commands. The sim is the authority; view guards are for feel.
@@ -51,6 +55,9 @@ export function applyCommand(state: GameState, cmd: Command): void {
       return;
     case 'Sacrifice':
       sacrifice(state, cmd.id);
+      return;
+    case 'Sell':
+      sell(state, cmd.id);
       return;
     default:
       assertNever(cmd);

@@ -1,7 +1,7 @@
 // Sim → view events. The sim appends to a per-tick queue that lives outside GameState (events are
 // never saved); after each tick GameScene drains it onto the EventBus. Variants: SheepDied,
 // CarcassSpawned, CarcassCleared, CarcassEaten, Infected, Farmed, FoodDropped, FoodEaten,
-// BreedingFoodDropped, BreedingFoodEaten, Bred, LambBorn, Sacrificed, BoostStarted, Lost.
+// BreedingFoodDropped, BreedingFoodEaten, Bred, LambBorn, Sacrificed, BoostStarted, Sold, Lost.
 
 export type DeathCause = 'starved' | 'oldAge' | 'virus' | 'abomination';
 
@@ -43,6 +43,9 @@ export type SimEvent =
   // There is no BoostEnded: the end is derived (time >= boostUntil) and the HUD reads it each frame.
   // Story 5.6 can add a system that emits one if it wants an end cue.
   | { type: 'BoostStarted'; until: number; renewed: boolean }
+  // Sheep `id` was sold for `price` dollars (FR17; market.ts), before any Lost it caused. Story 5.3 adds
+  // `name`.
+  | { type: 'Sold'; id: number; price: number }
   // The flock reached 0 (checkLastSheepAndLoss). Emitted once per game, after the last SheepDied.
   // survivedMs is state.lostAt; peakFlock is stats.peakFlock.
   | { type: 'Lost'; survivedMs: number; peakFlock: number };

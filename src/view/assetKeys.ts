@@ -41,6 +41,13 @@ export const FRAME = Object.freeze({
   betterPlaceGlow: 'better-place-glow',
   betterPlaceRingPrefix: 'better-place-ring-',
   sparkle: 'sparkle',
+  // The Market stall (UX-DR46, UX-DR51, UX-DR53): the stall, its awning-flap frame, the greyed "Too
+  // young" look, and the drag outline in awning and in disabled.
+  market: 'market',
+  marketFlap: 'market-flap',
+  marketDisabled: 'market-disabled',
+  marketOutline: 'market-outline',
+  marketOutlineInvalid: 'market-outline-invalid',
   pipFood: 'pip-food',
   pipBreeding: 'pip-breeding',
   pipEmpty: 'pip-empty',

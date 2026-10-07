@@ -109,6 +109,11 @@ export interface GameState {
    * `time < boostUntil` (selectors.ts isBoosted).
    */
   boostUntil: number;
+  /**
+   * Whole dollars to spend (FR21): earned only by selling (3.1, market.ts), spent in the shop (3.2).
+   * No cap. `stats.moneyEarned` counts every dollar ever earned.
+   */
+  money: number;
   pregnancies: Pregnancy[];
   carcasses: Carcass[];
   stats: Stats;
@@ -155,6 +160,7 @@ export function createNewGame(seed: number): GameState {
     breedingProgress: 0,
     breedingPieces: [],
     boostUntil: 0,
+    money: 0,
     pregnancies: [],
     carcasses: [],
     stats: { died: 0, sold: 0, sacrificed: 0, moneyEarned: 0, peakFlock: 0 },

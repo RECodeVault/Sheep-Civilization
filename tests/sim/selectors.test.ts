@@ -14,6 +14,7 @@ import {
   isLost,
   onCooldown,
   publicSheep,
+  salePrice,
   selectBreedingPieces,
   selectCarcasses,
   selectFoodPieces,
@@ -425,5 +426,13 @@ describe('the boost selectors (FR19)', () => {
     state.boostUntil = state.time + TUNING.boostMs;
     const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
     expect(selectHudView(state, out).boostRemainingMs).toBe(TUNING.boostMs);
+  });
+});
+
+describe('salePrice (FR17)', () => {
+  it('prices an adult and an elder from TUNING, and a lamb at 0 (cannot be sold)', () => {
+    expect(salePrice('adult')).toBe(TUNING.sellPriceAdult);
+    expect(salePrice('elder')).toBe(TUNING.sellPriceElder);
+    expect(salePrice('lamb')).toBe(0);
   });
 });
