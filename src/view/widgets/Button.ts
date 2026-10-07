@@ -12,6 +12,7 @@ import {
 } from '../../config/constants';
 import { ATLAS } from '../assetKeys';
 import { boxTexture, DROP_PX, textStyle, type BoxStyle } from './box';
+import type { TooltipSource } from './tooltipSource';
 
 /** The fields of a DESIGN.md button component (`COMPONENTS.buttonFarm`, `buttonMenu`, …). */
 export interface ButtonSpec {
@@ -66,7 +67,7 @@ const ICON_SCALE = 2;
  * bar; input uses a separate Zone so the squash never moves the hit area. Redraws on state change
  * only. HUD widgets may use setInteractive (project-context Input rule).
  */
-export class Button {
+export class Button implements TooltipSource {
   readonly x: number;
   readonly y: number;
   readonly width: number;

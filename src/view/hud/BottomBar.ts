@@ -1,11 +1,13 @@
 import type Phaser from 'phaser';
 import { COMPONENTS, LAYOUT, SPACING } from '../../config/constants';
+import { invariant } from '../../core/invariant';
 import { STRINGS } from '../strings';
 import { Button } from '../widgets/Button';
 import { OUTLINE_PX } from '../widgets/box';
 import { Panel } from '../widgets/Panel';
 import { FRAME } from '../assetKeys';
 import { FARM_PROGRESS_W, FarmProgress } from './FarmProgress';
+import { THREAT_SUMMARY_W, ThreatSummary } from './ThreatSummary';
 
 // Bar layout in canvas px (DESIGN.md Layout & Spacing; UX-DR25, UX-DR101). The mockup centres the
 // Farm group in the 112 px bar, which would put the meter inside the 16 px safe margin; the spec wins,
@@ -27,11 +29,19 @@ const BREED_FOOD_W = 200;
 // `.btn-breed`), top-aligned with the Farm buttons at their height (Rylan, 2026-10-07).
 const BREED_X = BREED_FOOD_X + Math.max(BREED_FOOD_W, FARM_PROGRESS_W) + GROUP_GAP;
 const BREED_W = 104;
+// The threat summary (UX-DR39), in the mockup's order: Breed · Medicine (4.5) · money (3.2) · flock
+// (3.3) · **threat summary** · boost timer (2.8) · Shop (3.2). [ASSUMPTION, browser-checked] Its left
+// edge leaves room for the three read-outs before it, and it ends by THREAT_MAX_RIGHT so the boost
+// timer and the Shop toggle fit at the right end.
+const THREAT_X = 858;
+const THREAT_MAX_RIGHT = 1_080;
+invariant(THREAT_X + THREAT_SUMMARY_W <= THREAT_MAX_RIGHT, 'BottomBar: the threat summary overruns its slot');
 
 /**
  * The HUD bottom bar: a full-width wool surface with actions on the left (UX-DR25). Story 1.6 builds
  * the Farm button with the Farm progress bar and its count beneath it (1.7), 2.2 the Farm Breeding
- * Food button with the breeding bar, 2.3 the Breed tool; later stories add their widgets to the right.
+ * Food button with the breeding bar, 2.3 the Breed tool, 2.6 the threat summary on the right; later
+ * stories add their widgets between them and at the right end.
  */
 export class BottomBar {
   readonly farmButton: Button;
@@ -39,6 +49,7 @@ export class BottomBar {
   readonly breedFoodButton: Button;
   readonly breedingProgress: FarmProgress;
   readonly breedButton: Button;
+  readonly threats: ThreatSummary;
 
   constructor(scene: Phaser.Scene, onFarm: () => void, onFarmBreeding: () => void, onBreed: () => void) {
     // The bar is a square Panel whose outline runs off the left, right and bottom canvas edges, so
@@ -83,5 +94,6 @@ export class BottomBar {
       activateOn: 'press',
       onActivate: onBreed,
     });
+    this.threats = new ThreatSummary(scene, THREAT_X, BAR_TOP + LAYOUT.hudBarHeight / 2);
   }
 }

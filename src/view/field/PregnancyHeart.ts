@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import type { PublicPregnancy } from '../../sim/selectors';
 import { ATLAS, FRAME } from '../assetKeys';
 import type { PooledEntitySprite } from './EntityLayer';
-import { READY_DEPTH } from './SheepSprite';
+import { FIELD_DEPTH } from './depths';
 
 // Shown at 2× like the field art, floating this far above the point between the parents' centres
 // (about a sheep's half-height plus the heart).
@@ -23,7 +23,7 @@ export class PregnancyHeart extends Phaser.GameObjects.Image implements PooledEn
 
   constructor(scene: Phaser.Scene) {
     super(scene, 0, 0, ATLAS.sheepWorld, FRAME.breedHeart);
-    this.setOrigin(0.5, 1).setDepth(READY_DEPTH);
+    this.setOrigin(0.5, 1).setDepth(FIELD_DEPTH.overlay);
     scene.add.existing(this);
     this.reset();
   }

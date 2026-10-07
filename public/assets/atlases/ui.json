@@ -24,9 +24,81 @@
         "y": 0.5
       }
     },
-    "pip-breeding": {
+    "icon-carcass": {
       "frame": {
         "x": 18,
+        "y": 3,
+        "w": 10,
+        "h": 10
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 10,
+        "h": 10
+      },
+      "sourceSize": {
+        "w": 10,
+        "h": 10
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "icon-infected": {
+      "frame": {
+        "x": 34,
+        "y": 3,
+        "w": 11,
+        "h": 11
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 11,
+        "h": 11
+      },
+      "sourceSize": {
+        "w": 11,
+        "h": 11
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "icon-starving": {
+      "frame": {
+        "x": 51,
+        "y": 3,
+        "w": 14,
+        "h": 12
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 14,
+        "h": 12
+      },
+      "sourceSize": {
+        "w": 14,
+        "h": 12
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "pip-breeding": {
+      "frame": {
+        "x": 71,
         "y": 3,
         "w": 7,
         "h": 14
@@ -50,7 +122,7 @@
     },
     "pip-empty": {
       "frame": {
-        "x": 31,
+        "x": 84,
         "y": 3,
         "w": 7,
         "h": 14
@@ -74,7 +146,7 @@
     },
     "pip-food": {
       "frame": {
-        "x": 44,
+        "x": 97,
         "y": 3,
         "w": 7,
         "h": 14
@@ -103,7 +175,7 @@
     "image": "ui.png",
     "format": "RGBA8888",
     "size": {
-      "w": 54,
+      "w": 107,
       "h": 20
     },
     "scale": 1

@@ -239,7 +239,18 @@ export function selectFoodPieces(state: GameState): readonly FoodPiece[] {
   return state.foodPieces;
 }
 
-/** What the HUD shows. Later stories add money, flock, capacity, threats and boost. */
+/**
+ * The threat summary's live counts (UX-DR39). A sheep that is both Starving and infected counts in
+ * both. Derived exactly as PublicSheep's `hunger` and `infected`, so the HUD never counts anything the
+ * field does not show (the Abomination counts like any lamb, never on its own account; UX-DR64).
+ */
+export interface ThreatCounts {
+  starving: number;
+  infected: number;
+  carcasses: number;
+}
+
+/** What the HUD shows. Later stories add money, flock, capacity and boost. */
 export interface HudView {
   /** Pips in the current Farm bar, out of farmPipsPerFood (FR3). */
   farmProgress: number;
@@ -249,6 +260,8 @@ export interface HudView {
   breedingPipsPerFood: number;
   /** Why Breed is greyed, or null (FR11). */
   breedBlock: BreedBlock;
+  /** The threat summary (UX-DR39), filled in place. */
+  threats: ThreatCounts;
 }
 
 /** Fills `out` in place (no allocation) and returns it. HudScene calls this once per frame. */
@@ -258,6 +271,18 @@ export function selectHudView(state: GameState, out: HudView): HudView {
   out.breedingProgress = state.breedingProgress;
   out.breedingPipsPerFood = TUNING.breedingPipsPerFood;
   out.breedBlock = breedBlock(state);
+  const t = out.threats;
+  let starving = 0;
+  let infected = 0;
+  const sheep = state.sheep;
+  for (let i = 0; i < sheep.length; i++) {
+    const s = sheep[i];
+    if (hungerOf(s.fullness) === 'starving') starving++;
+    if (s.infectedAt !== undefined) infected++;
+  }
+  t.starving = starving;
+  t.infected = infected;
+  t.carcasses = state.carcasses.length;
   return out;
 }
 

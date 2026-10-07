@@ -28,11 +28,16 @@ export const FRAME = Object.freeze({
   carcass: 'carcass',
   dust: 'dust',
   infectionMarker: 'infection-marker',
+  alertPing: 'alert-ping',
+  alertDot: 'alert-dot',
   munchCrumb: 'munch-crumb',
   pipFood: 'pip-food',
   pipBreeding: 'pip-breeding',
   pipEmpty: 'pip-empty',
   iconHeart: 'icon-heart',
+  iconStarving: 'icon-starving',
+  iconInfected: 'icon-infected',
+  iconCarcass: 'icon-carcass',
 } as const);
 
 /** Relative URLs (no leading slash) so the build works under any subpath. */

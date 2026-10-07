@@ -24,6 +24,7 @@ import { step } from '../../sim/step';
 import { ATLAS, FRAME, HEART_CURSOR } from '../assetKeys';
 import { bus } from '../bus';
 import { CarcassSprite } from '../field/CarcassSprite';
+import { FIELD_DEPTH } from '../field/depths';
 import { EntityLayer } from '../field/EntityLayer';
 import { Fence } from '../field/Fence';
 import { FoodSprite } from '../field/FoodSprite';
@@ -83,11 +84,6 @@ const DUST = {
   scale: { start: 2, end: 3 },
   alpha: { start: 1, end: 0 },
 } as const;
-// Above every sheep (sheep depth = y ≤ 720). Sheep hover stays in this scene; HudScene draws above
-// it. The panned pen can slide under the Pause button, so the sheep hover skips while the pointer is
-// on a HUD control (pointerOnHudControl) and the two tooltips never show together.
-const TOOLTIP_DEPTH = 10_000;
-
 /** Optional scene data: a state to resume instead of a new game (a loaded save, or debug Load save). */
 export interface GameSceneData {
   state?: GameState;
@@ -195,17 +191,21 @@ export class GameScene extends Phaser.Scene {
     );
     this.sheepLayer = new EntityLayer(new ObjectPool(() => new SheepSprite(this), SHEEP_POOL_SIZE));
     this.pregnancyLayer = new EntityLayer(new ObjectPool(() => new PregnancyHeart(this), PREGNANCY_POOL_SIZE));
-    // One emitter for every munch; above the sheep, below the tooltip.
+    // One emitter for every munch; above the sheep and hearts, below the pings and the tooltip.
     this.munch = this.add
       .particles(0, 0, ATLAS.sheepWorld, { frame: FRAME.munchCrumb, emitting: false, ...MUNCH })
-      .setDepth(TOOLTIP_DEPTH - 1);
+      .setDepth(FIELD_DEPTH.particles);
     this.poof = this.add
       .particles(0, 0, ATLAS.sheepWorld, { frame: FRAME.poof, emitting: false, ...POOF })
-      .setDepth(TOOLTIP_DEPTH - 1);
+      .setDepth(FIELD_DEPTH.particles);
     this.dust = this.add
       .particles(0, 0, ATLAS.sheepWorld, { frame: FRAME.dust, emitting: false, ...DUST })
-      .setDepth(TOOLTIP_DEPTH - 1);
-    this.sheepHover = new SheepHover(this.input, this.cameras.main, this.sheepLayer, new Tooltip(this, TOOLTIP_DEPTH));
+      .setDepth(FIELD_DEPTH.particles);
+    // The sheep tooltip is the top of FIELD_DEPTH (above pings). Sheep hover stays in this scene;
+    // HudScene draws above it. The panned pen can slide under the Pause button, so the sheep hover
+    // skips while the pointer is on a HUD control (pointerOnHudControl) and the two tooltips never
+    // show together.
+    this.sheepHover = new SheepHover(this.input, this.cameras.main, this.sheepLayer, new Tooltip(this, FIELD_DEPTH.tooltip));
     // The Esc chain (UX-DR73). OverlayScene is launched after this and replaced on every restart,
     // so it is looked up on each press, never cached.
     const overlay = (): OverlayScene => this.scene.get('OverlayScene') as OverlayScene;
@@ -501,12 +501,12 @@ export class GameScene extends Phaser.Scene {
       const b = this.sheepLayer.spriteFor(g.parentB);
       if (a !== undefined && b !== undefined) {
         g.x = (a.x + b.x) / 2;
-        // Lifted clear of an infected parent's bubbles (UX-DR55), as its own hearts are.
-        g.y = (a.y + b.y) / 2 - Math.max(a.overlayLift, b.overlayLift);
+        // Lifted clear of an infected parent's bubbles (UX-DR55) and of a parent's alert ping (UX-DR54).
+        g.y = (a.y + b.y) / 2 - Math.max(a.pregnancyLift, b.pregnancyLift);
       } else if (a !== undefined || b !== undefined) {
         const s = (a ?? b) as SheepSprite;
         g.x = s.x;
-        g.y = s.y - s.overlayLift;
+        g.y = s.y - s.pregnancyLift;
       }
     }
     return list;

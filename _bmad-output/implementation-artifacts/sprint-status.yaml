@@ -1,5 +1,5 @@
 # generated: 2026-10-05T14:42:07-07:00
-# last_updated: 2026-10-07T10:08:34-07:00
+# last_updated: 2026-10-07T10:44:19-07:00
 # project: sheep-civilization
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: '2026-10-05T14:42:07-07:00'
-last_updated: '2026-10-07T10:08:34-07:00'
+last_updated: '2026-10-07T10:44:19-07:00'
 project: sheep-civilization
 project_key: NOKEY
 tracking_system: file-system
@@ -62,7 +62,7 @@ development_status:
   2-3-breed-two-adults: done
   2-4-carcasses-and-death-announcements: done
   2-5-carcass-eating-and-the-virus: done
-  2-6-alert-pings-and-threat-summary: backlog
+  2-6-alert-pings-and-threat-summary: done
   2-7-drag-a-sheep-into-the-better-place: backlog
   2-8-sacrifice-food-boost: backlog
   epic-2-retrospective: optional

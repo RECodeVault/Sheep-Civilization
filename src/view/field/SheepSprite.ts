@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import { COLOR_INT, TICK_MS } from '../../config/constants';
 import type { Hunger, PublicSheep, Stage } from '../../sim/selectors';
 import { ATLAS, FRAME } from '../assetKeys';
+import { AlertPing } from './AlertPing';
+import { FIELD_DEPTH } from './depths';
 import type { PooledEntitySprite } from './EntityLayer';
 
 // Placeholder art is shown at 2×: an adult or elder is 32×26 (about 64×52 on the 1280×720 canvas, as
@@ -13,10 +15,8 @@ const SHEEP_SCALE = 2;
 // speed), so grazing and small separation nudges in a crowd do not flip it back and forth.
 const FACING_DEADBAND_PX = 1.5;
 
-// UX-DR30a ready marker: a small heart floating just above a ready sheep's head. Drawn above every
-// sheep (sheep depth = y ≤ 720) and below GameScene's munch crumbs and tooltip (10 000 − 1 and up);
-// the world-overlay layer itself arrives with pings in Story 2.6.
-export const READY_DEPTH = 9_998;
+// UX-DR30a ready marker: a small heart floating just above a ready sheep's head, in the world-overlay
+// band (FIELD_DEPTH.overlay) with the infection marker; the alert ping draws above them.
 const READY_GAP_PX = 2;
 // The lamb is drawn at the bottom of its frame (see the top of this file): its head starts 10 art rows
 // down, so overlays over a lamb (the infection marker) drop by that much to sit on its head.
@@ -77,6 +77,11 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
   private readonly wobble = { angle: 0 };
   /** True while shake() owns the angle; the wobble waits for it. */
   private shaking = false;
+  /** UX-DR54 alert ping, owned and pooled like the hearts; shown while Starving or infected. */
+  private readonly ping: AlertPing;
+  /** The threats the ping last saw, so each new one (false → true) pops it again. */
+  private pingStarving = false;
+  private pingInfected = false;
 
   constructor(scene: Phaser.Scene) {
     // The placeholder adult frame faces right; flipX makes it face left.
@@ -87,20 +92,21 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
       .image(0, 0, ATLAS.sheepWorld, FRAME.readyHeart)
       .setScale(SHEEP_SCALE)
       .setOrigin(0.5, 1)
-      .setDepth(READY_DEPTH)
+      .setDepth(FIELD_DEPTH.overlay)
       .setVisible(false);
     this.pinnedHeart = scene.add
       .image(0, 0, ATLAS.sheepWorld, FRAME.breedHeart)
       .setScale(SHEEP_SCALE)
       .setOrigin(0.5, 1)
-      .setDepth(READY_DEPTH)
+      .setDepth(FIELD_DEPTH.overlay)
       .setVisible(false);
     this.infectionMarker = scene.add
       .image(0, 0, ATLAS.sheepWorld, FRAME.infectionMarker)
       .setScale(SHEEP_SCALE)
       .setOrigin(0.5, 1)
-      .setDepth(READY_DEPTH)
+      .setDepth(FIELD_DEPTH.overlay)
       .setVisible(false);
+    this.ping = new AlertPing(scene);
     this.reset();
   }
 
@@ -180,6 +186,16 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
       this.infectionMarker.setPosition(x, headY + this.markerBob.y);
       if (!this.shaking) this.setAngle(this.wobble.angle);
     }
+    // UX-DR54: a ping pops when the sheep enters Starving or becomes infected (each entry is news, so
+    // a second threat pops it again) and stays, settling to a dot, until neither is true. Read from
+    // PublicSheep only (UX-DR64). A fresh sprite saw neither, so a threatened sheep pops on load.
+    const starving = pub.hunger === 'starving';
+    const infected = pub.infected;
+    if ((starving && !this.pingStarving) || (infected && !this.pingInfected)) this.ping.pop(simTime);
+    else if (!starving && !infected) this.ping.hide();
+    this.pingStarving = starving;
+    this.pingInfected = infected;
+    if (this.ping.shown) this.ping.place(x, this.stackTopY(y), simTime);
   }
 
   /**
@@ -190,9 +206,31 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
     return this.shownInfected ? this.infectionMarker.displayHeight + READY_GAP_PX + MARKER_BOB.px : 0;
   }
 
+  /**
+   * How far the pregnancy heart over this parent is lifted (UX-DR56): clear of the infection bubbles
+   * and of the alert ping, which sits over the head stack. 0 while healthy and unpinged.
+   */
+  get pregnancyLift(): number {
+    return this.overlayLift + (this.ping.shown ? this.ping.height + READY_GAP_PX : 0);
+  }
+
   /** Where the ready or pinned heart sits: over the head, or stacked above the infection bubbles. */
   private heartY(y: number): number {
     return this.headY(y) - this.overlayLift;
+  }
+
+  /**
+   * The top of this sheep's overlay stack, where the ping sits: above the heart if one shows (at the
+   * top of its bob or pulse), else above the infection bubbles, else over the head.
+   */
+  private stackTopY(y: number): number {
+    let top = this.heartY(y);
+    if (this.marker === 'pinned') top -= this.pinnedHeart.height * SHEEP_SCALE + PIN_BOB.px + READY_GAP_PX;
+    else if (this.shownReady) {
+      const pulse = this.marker === 'candidate' ? CANDIDATE_PULSE.scale : 1;
+      top -= this.readyHeart.height * SHEEP_SCALE * pulse + READY_GAP_PX;
+    }
+    return top;
   }
 
   /** Just above the drawn head at sprite centre `y`, for the stage showing. */
@@ -273,6 +311,8 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
       this.pinnedHeart.setVisible(true).setPosition(this.x, this.heartY(this.y));
       tweens.add({ targets: this.pinBob, y: -PIN_BOB.px, duration: PIN_BOB.durationMs, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
+    // The stack changed under the ping: move it now, not at the next sync.
+    if (this.ping.shown) this.ping.place(this.x, this.stackTopY(this.y), this.lastTick);
   }
 
   /** UX-DR70: a short wobble for a sheep breed mode cannot pick. Rotation only: sync owns the position. */
@@ -324,6 +364,10 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
     this.shaking = false;
     this.shownInfected = false;
     this.stopInfection();
+    // A reused sprite must never come back pinged.
+    this.ping.hide();
+    this.pingStarving = false;
+    this.pingInfected = false;
     this.setAngle(0);
     this.setFlipX(false);
     this.setActive(false).setVisible(false);

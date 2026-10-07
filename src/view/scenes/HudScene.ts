@@ -10,6 +10,7 @@ import { reportError, showToast } from '../safetyNet';
 import { STRINGS } from '../strings';
 import { Button } from '../widgets/Button';
 import { HOVER_DELAY_MS, Tooltip } from '../widgets/Tooltip';
+import type { TooltipSource } from '../widgets/tooltipSource';
 import type { GameScene } from './GameScene';
 import type { OverlayScene } from './OverlayScene';
 
@@ -35,7 +36,7 @@ export class HudScene extends Phaser.Scene {
   private pauseButton!: Button;
   private popups!: FloatPopups;
   private tooltip!: Tooltip;
-  private tooltipFor: Button | null = null;
+  private tooltipFor: TooltipSource | null = null;
   // The text the tooltip shows for tooltipFor: a button's tooltip can change while shown (Breed's reason).
   private tooltipText: string | undefined = undefined;
   // Whether a modal was up last frame, to clear stale button hover once when one opens.
@@ -46,12 +47,15 @@ export class HudScene extends Phaser.Scene {
     breedingProgress: 0,
     breedingPipsPerFood: 0,
     breedBlock: 'notReady',
+    threats: { starving: 0, infected: 0, carcasses: 0 },
   };
   // Deaths since the last frame, by cause: one toast per cause per frame (UX-DR41/UX-DR92), so a wipe
   // of many sheep on one tick reads "5 sheep starved." instead of overflowing the 3-toast stack.
   private readonly deaths: Record<DeathCause, number> = { starved: 0, oldAge: 0, virus: 0, abomination: 0 };
-  // The buttons that can show a tooltip; built once, so updateTooltip allocates nothing per frame.
+  // The buttons that can show a tooltip; built once, so hoveredButton allocates nothing per frame.
   private tooltipButtons: readonly Button[] = [];
+  // Everything the one tooltip serves: the buttons, then the threat summary's counts (UX-DR39).
+  private tooltipSources: readonly TooltipSource[] = [];
 
   constructor() {
     super('HudScene');
@@ -75,6 +79,7 @@ export class HudScene extends Phaser.Scene {
       onActivate: this.pause,
     });
     this.tooltipButtons = [this.pauseButton, this.bar.farmButton, this.bar.breedFoodButton, this.bar.breedButton];
+    this.tooltipSources = [...this.tooltipButtons, ...this.bar.threats.sources];
     this.popups = new FloatPopups(this, POPUP_DEPTH);
     this.tooltip = new Tooltip(this, TOOLTIP_DEPTH);
 
@@ -111,8 +116,10 @@ export class HudScene extends Phaser.Scene {
       breed.setTooltip(
         v.breedBlock === 'capacity' ? STRINGS.breedNoRoom : v.breedBlock === 'notReady' ? STRINGS.breedNotReady : STRINGS.breedTooltip,
       );
+      // UX-DR39: live counts, redrawn only on a change.
+      this.bar.threats.set(v.threats);
       const modal = this.gameScene.modalOpen;
-      if (modal && !this.wasModal) for (const b of this.tooltipButtons) b.clearHover();
+      if (modal && !this.wasModal) for (const b of this.tooltipSources) b.clearHover();
       this.wasModal = modal;
       this.updateTooltip(this.game.loop.time, modal);
     } catch (err) {
@@ -197,11 +204,14 @@ export class HudScene extends Phaser.Scene {
   };
 
   /**
-   * True while the pointer is on a HUD control. The field camera can pan the pen under the Pause
-   * button, so GameScene's sheep hover (which reads the raw pointer) skips while this is true.
+   * True while the pointer is on a HUD control (a button or a threat count). The field camera can pan
+   * the pen under the Pause button, so GameScene's sheep hover (which reads the raw pointer) skips
+   * while this is true.
    */
   get pointerOverControl(): boolean {
-    return this.hoveredButton !== null;
+    const sources = this.tooltipSources;
+    for (let i = 0; i < sources.length; i++) if (sources[i].isHovered) return true;
+    return false;
   }
 
   /** The top-left Pause button (UX-DR76: pause is mouse-reachable); the same menu as Esc. */
@@ -250,13 +260,13 @@ export class HudScene extends Phaser.Scene {
   }
 
   private updateTooltip(now: number, modalOpen: boolean): void {
-    // At most one button is hovered, so one tooltip serves them all.
-    const buttons = this.tooltipButtons;
-    let hovered = buttons[0];
-    for (let i = 1; i < buttons.length && hovered.hoverSince < 0; i++) hovered = buttons[i];
+    // At most one source is hovered, so one tooltip serves them all.
+    const sources = this.tooltipSources;
+    let hovered = sources[0];
+    for (let i = 1; i < sources.length && hovered.hoverSince < 0; i++) hovered = sources[i];
     const b = hovered;
     const since = b.hoverSince;
-    // Under a modal the scrim takes the pointer, so the button never sees pointer-out: a hover that
+    // Under a modal the scrim takes the pointer, so the source never sees pointer-out: a hover that
     // began before Esc or the loss would otherwise pop its tooltip under the scrim.
     const show = !modalOpen && b.tooltip !== undefined && since >= 0 && now - since >= HOVER_DELAY_MS;
     if (!show) {

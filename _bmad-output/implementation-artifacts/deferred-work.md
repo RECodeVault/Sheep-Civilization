@@ -157,3 +157,13 @@ Real issues found in reviews that are not actionable in the story where they wer
 ## Deferred from: code review of 2-4-carcasses-and-death-announcements (2026-10-07)
 
 - **Old-age toast vs tuning (Story 3.6):** "A sheep died of old age. A long, full nine minutes." is Voice-table copy that matches `TUNING.oldAgeMs` (540 s) only by a comment in `strings.ts`. If 3.6 retunes the lifespan, update the copy (or build the minutes from `TUNING.oldAgeMs`).
+
+## Deferred from: story 2-6-alert-pings-and-threat-summary (2026-10-07)
+
+- **Pings above the shop panel (Story 3.2):** UX-DR10/UX-DR63 keep alert pings (and the other world overlays) above the open shop panel. Pings live in GameScene's world-overlay band (`FIELD_DEPTH.ping`, `src/view/field/depths.ts`), so a shop panel drawn in `OverlayScene` or `HudScene` would cover them. 3.2 must either draw the shop panel in GameScene (screen-fixed, below `FIELD_DEPTH.overlay`, with field clicks over it ignored), or move the world-overlay band into its own scene between the shop and the modals (2.6 Open Question 1).
+- **A crowded bottom bar (Stories 2.8, 3.2, 3.3, 4.5):** the threat summary takes x 858–1080 (`THREAT_X`, 222 px). The mockup's order puts the Medicine slot, money and flock counters (with separators) in the 588–846 gap, and the boost timer and Shop toggle in the last ~184 px. Both gaps are tight at the mockup's sizes; whichever story overflows first should re-space the bar (for example, shrink `GROUP_GAP` or drop the separators) rather than overlap. `BottomBar` asserts the summary's slot with `invariant`.
+- **Reduced motion (Story 5.7):** the ping's pop-in and bob (`PING` in `AlertPing.ts`) are juice; under reduced motion the ping should appear at once without bobbing. The ping and its settled dot are information and stay.
+
+## Deferred from: code review of 2-6-alert-pings-and-threat-summary (2026-10-07)
+
+- **Four-digit threat counts (Story 3.6):** `ThreatSummary`'s count box is 34 px, sized for "100". Starving and infected are capped by capacity, but carcasses stay until cleared, so 1 000+ uncleared carcasses would draw "1000" into the next slot. Unreachable in normal play; if 3.6 finds it can happen, clamp the text (for example "999+") and re-space the bar.

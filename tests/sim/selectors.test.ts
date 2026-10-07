@@ -6,6 +6,7 @@ import {
   canBreed,
   capacity,
   carcassIndex,
+  FULLNESS_EPSILON,
   hungerOf,
   isLost,
   onCooldown,
@@ -25,6 +26,8 @@ import {
   type PublicSheep,
 } from '../../src/sim/selectors';
 import { createCarcass, killSheep } from '../../src/sim/systems/carcass';
+import { infectSheep } from '../../src/sim/systems/virus';
+import { busyGame } from '../save/busy';
 import { fillFlock, newGame, runFor } from './helpers';
 
 describe('hungerOf', () => {
@@ -120,7 +123,7 @@ describe('publicSheep / selectPublicSheep', () => {
 describe('selectHudView', () => {
   it('fills the Farm bar from state and TUNING into the given object', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: -1, farmPipsPerFood: -1, breedingProgress: -1, breedingPipsPerFood: -1, breedBlock: 'capacity' };
+    const out: HudView = { farmProgress: -1, farmPipsPerFood: -1, breedingProgress: -1, breedingPipsPerFood: -1, breedBlock: 'capacity', threats: { starving: -1, infected: -1, carcasses: -1 } };
     expect(selectHudView(state, out)).toBe(out);
     expect(out).toEqual({
       farmProgress: 0,
@@ -128,12 +131,13 @@ describe('selectHudView', () => {
       breedingProgress: 0,
       breedingPipsPerFood: TUNING.breedingPipsPerFood,
       breedBlock: 'notReady',
+      threats: { starving: 0, infected: 0, carcasses: 0 },
     });
   });
 
   it('reflects a Farm on the next read', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, threats: { starving: -1, infected: -1, carcasses: -1 } };
     selectHudView(state, out);
     applyCommand(state, { type: 'Farm' });
     selectHudView(state, out);
@@ -142,11 +146,81 @@ describe('selectHudView', () => {
 
   it('reflects a FarmBreeding on the next read', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, threats: { starving: -1, infected: -1, carcasses: -1 } };
     selectHudView(state, out);
     applyCommand(state, { type: 'FarmBreeding' });
     selectHudView(state, out);
     expect(out.breedingProgress).toBe(TUNING.breedingPipsPerClick);
+  });
+});
+
+describe('selectHudView threats (UX-DR39)', () => {
+  const emptyOut = (): HudView => ({
+    farmProgress: 0,
+    farmPipsPerFood: 0,
+    breedingProgress: 0,
+    breedingPipsPerFood: 0,
+    breedBlock: null,
+    threats: { starving: -1, infected: -1, carcasses: -1 },
+  });
+
+  it('counts nothing in a new game', () => {
+    const state = newGame();
+    expect(selectHudView(state, emptyOut()).threats).toEqual({ starving: 0, infected: 0, carcasses: 0 });
+  });
+
+  it('counts Starving sheep with the hunger epsilon, infected sheep and carcasses, in place', () => {
+    const state = newGame();
+    const out = emptyOut();
+    const threats = out.threats;
+    const [a, b, c] = state.sheep;
+    a.fullness = TUNING.starvingBelow - 1;
+    // On the bound is Hungry, not Starving, and so is a value drifted just under it by float error.
+    b.fullness = TUNING.starvingBelow;
+    c.fullness = TUNING.starvingBelow - FULLNESS_EPSILON / 2;
+    selectHudView(state, out);
+    expect(out.threats).toBe(threats);
+    expect(threats).toEqual({ starving: 1, infected: 0, carcasses: 0 });
+    c.fullness = TUNING.fullnessMax;
+    infectSheep(state, c);
+    createCarcass(state, 100, 100);
+    createCarcass(state, 120, 100);
+    selectHudView(state, out);
+    expect(out.threats).toBe(threats);
+    expect(threats).toEqual({ starving: 1, infected: 1, carcasses: 2 });
+  });
+
+  it('counts a sheep that is both Starving and infected in both', () => {
+    const state = newGame();
+    const s = state.sheep[0];
+    s.fullness = 0.5;
+    infectSheep(state, s);
+    expect(selectHudView(state, emptyOut()).threats).toEqual({ starving: 1, infected: 1, carcasses: 0 });
+  });
+
+  it('agrees with the PublicSheep the field shows (AC 7)', () => {
+    const agree = (state: ReturnType<typeof newGame>) => {
+      const pub = selectPublicSheep(state, []);
+      const t = selectHudView(state, emptyOut()).threats;
+      expect(t.starving).toBe(pub.filter((p) => p.hunger === 'starving').length);
+      expect(t.infected).toBe(pub.filter((p) => p.infected).length);
+      expect(t.carcasses).toBe(selectCarcasses(state).length);
+    };
+    const busy = busyGame();
+    agree(busy);
+    expect(selectHudView(busy, emptyOut()).threats.infected).toBeGreaterThan(0);
+    const unfed = newGame(77);
+    fillFlock(unfed, 8);
+    runFor(unfed, TUNING.starveMs / 2);
+    agree(unfed);
+    expect(selectHudView(unfed, emptyOut()).threats.starving).toBeGreaterThan(0);
+  });
+
+  it('changes nothing and draws no rng', () => {
+    const state = busyGame();
+    const before = structuredClone(state);
+    selectHudView(state, emptyOut());
+    expect(state).toStrictEqual(before);
   });
 });
 
@@ -223,7 +297,7 @@ describe('breeding selectors (FR10, FR11, AR21)', () => {
 
   it('selectHudView fills breedBlock', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, threats: { starving: -1, infected: -1, carcasses: -1 } };
     expect(selectHudView(state, out).breedBlock).toBe('notReady');
     state.sheep[0].breedReady = state.sheep[1].breedReady = true;
     expect(selectHudView(state, out).breedBlock).toBe(null);

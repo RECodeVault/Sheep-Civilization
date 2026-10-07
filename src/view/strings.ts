@@ -5,6 +5,12 @@ import type { Hunger, Stage } from '../sim/selectors';
 
 const STAGE: Readonly<Record<Stage, string>> = Object.freeze({ lamb: 'Lamb', adult: 'Adult', elder: 'Elder' });
 const HUNGER: Readonly<Record<Hunger, string>> = Object.freeze({ fed: 'Fed', hungry: 'Hungry', starving: 'Starving' });
+// Threat summary hover (UX-DR39, UX-DR96), e.g. "2 starving". "carcass" is allowed (UX-DR97).
+const THREAT_TOOLTIP = Object.freeze({
+  starving: (n: number): string => `${n} starving`,
+  infected: (n: number): string => `${n} infected`,
+  carcasses: (n: number): string => (n === 1 ? '1 carcass' : `${n} carcasses`),
+});
 // Death toasts (UX-DR92, UX-DR97), after the subject: "A sheep starved.", or "3 sheep starved." for
 // deaths of one cause in the same frame (code review decision, Rylan 2026-10-07). Story 5.3 puts the
 // name in place of "A sheep", in `halo`. The Abomination's victims never get a cause (UX-DR64). Old
@@ -45,6 +51,7 @@ export const STRINGS = Object.freeze({
   breedTooltip: 'Breed: pick two adults',
   breedNoRoom: 'No room. Buy land.',
   breedNotReady: 'Needs 2 ready sheep.',
+  threatTooltip: THREAT_TOOLTIP,
   // Float popup (UX-DR44), e.g. "+1" when a full Farm or breeding bar drops a piece.
   farmPopup: (n: number): string => `+${n}`,
   // Meter value (UX-DR29), e.g. "3/8" for the Farm bar.

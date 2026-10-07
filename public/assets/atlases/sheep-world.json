@@ -312,9 +312,33 @@
         "y": 0.5
       }
     },
-    "breed-heart": {
+    "alert-ping": {
       "frame": {
         "x": 43,
+        "y": 109,
+        "w": 10,
+        "h": 10
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 10,
+        "h": 10
+      },
+      "sourceSize": {
+        "w": 10,
+        "h": 10
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "breed-heart": {
+      "frame": {
+        "x": 59,
         "y": 109,
         "w": 9,
         "h": 8
@@ -338,8 +362,8 @@
     },
     "infection-marker": {
       "frame": {
-        "x": 58,
-        "y": 109,
+        "x": 74,
+        "y": 99,
         "w": 9,
         "h": 8
       },
@@ -362,8 +386,8 @@
     },
     "breeding-piece": {
       "frame": {
-        "x": 73,
-        "y": 99,
+        "x": 74,
+        "y": 113,
         "w": 8,
         "h": 7
       },
@@ -386,8 +410,8 @@
     },
     "food-piece": {
       "frame": {
-        "x": 73,
-        "y": 112,
+        "x": 88,
+        "y": 113,
         "w": 8,
         "h": 6
       },
@@ -410,7 +434,7 @@
     },
     "heart-outline": {
       "frame": {
-        "x": 87,
+        "x": 89,
         "y": 99,
         "w": 7,
         "h": 6
@@ -434,7 +458,7 @@
     },
     "ready-heart": {
       "frame": {
-        "x": 100,
+        "x": 102,
         "y": 99,
         "w": 7,
         "h": 6
@@ -450,6 +474,30 @@
       "sourceSize": {
         "w": 7,
         "h": 6
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "alert-dot": {
+      "frame": {
+        "x": 102,
+        "y": 111,
+        "w": 5,
+        "h": 5
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 5,
+        "h": 5
+      },
+      "sourceSize": {
+        "w": 5,
+        "h": 5
       },
       "pivot": {
         "x": 0.5,
@@ -506,8 +554,8 @@
     },
     "munch-crumb": {
       "frame": {
-        "x": 65,
-        "y": 99,
+        "x": 59,
+        "y": 123,
         "w": 2,
         "h": 2
       },
