@@ -52,8 +52,13 @@ export const STRINGS = Object.freeze({
   breedNoRoom: 'No room. Buy land.',
   breedNotReady: 'Needs 2 ready sheep.',
   threatTooltip: THREAT_TOOLTIP,
-  // The Better Place's drop label while a sheep is dragged (UX-DR52, UX-DR96); the boost is Story 2.8's.
+  // The Better Place's drop label while a sheep is dragged (UX-DR52, UX-DR96): the food boost (FR19).
   betterPlaceLabel: '+2× food',
+  // The food boost (FR19): the Farm button's badge (UX-DR27), the popup when a sacrifice starts it
+  // (UX-DR44) and the bottom-bar timer (UX-DR38), e.g. "×2 0:18".
+  boostBadge: '×2',
+  boostPopup: '×2',
+  boostTimer: (time: string): string => `×2 ${time}`,
   // Sacrifice toast (UX-DR93). Story 5.3 puts the name in place of "A sheep", in `halo`.
   sacrificeToast: 'A sheep went to a Better Place.',
   // Float popup (UX-DR44), e.g. "+1" when a full Farm or breeding bar drops a piece.

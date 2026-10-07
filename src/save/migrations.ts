@@ -24,6 +24,8 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = Object.freeze({
   // Story 2.5: `infectedAt` (optional, absent = healthy) and the `seekCarcass` activity arrive. No
   // version-4 save holds either, so the state is unchanged.
   4: (s) => s,
+  // Story 2.8: no boost was running in a version-5 save (FR19).
+  5: (s) => ({ ...s, boostUntil: 0 }),
 });
 
 export type MigrationResult = { ok: true; state: unknown } | { ok: false; reason: string };

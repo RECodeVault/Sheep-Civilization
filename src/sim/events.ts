@@ -1,7 +1,7 @@
 // Sim → view events. The sim appends to a per-tick queue that lives outside GameState (events are
 // never saved); after each tick GameScene drains it onto the EventBus. Variants: SheepDied,
 // CarcassSpawned, CarcassCleared, CarcassEaten, Infected, Farmed, FoodDropped, FoodEaten,
-// BreedingFoodDropped, BreedingFoodEaten, Bred, LambBorn, Sacrificed, Lost.
+// BreedingFoodDropped, BreedingFoodEaten, Bred, LambBorn, Sacrificed, BoostStarted, Lost.
 
 export type DeathCause = 'starved' | 'oldAge' | 'virus' | 'abomination';
 
@@ -38,6 +38,11 @@ export type SimEvent =
   // adds `name`. Secrecy (AR18): `wasAbomination` is for the reveal (Story 4.4) only; the view must not
   // branch on it before then.
   | { type: 'Sacrificed'; id: number; wasAbomination: boolean }
+  // A sacrifice started the food boost (FR19), right after its Sacrificed: Farm clicks fill double pips
+  // until `until`. `renewed` is a reset of a boost that was still running (the HUD pops its timer).
+  // There is no BoostEnded: the end is derived (time >= boostUntil) and the HUD reads it each frame.
+  // Story 5.6 can add a system that emits one if it wants an end cue.
+  | { type: 'BoostStarted'; until: number; renewed: boolean }
   // The flock reached 0 (checkLastSheepAndLoss). Emitted once per game, after the last SheepDied.
   // survivedMs is state.lostAt; peakFlock is stats.peakFlock.
   | { type: 'Lost'; survivedMs: number; peakFlock: number };

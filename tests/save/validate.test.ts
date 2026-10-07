@@ -92,6 +92,14 @@ describe('validateState', () => {
     expect(validateState(r).ok).toBe(true);
   });
 
+  it('accepts a boost that never ran, one that has ended and one at its full length (Story 2.8)', () => {
+    for (const at of [0, 'past', 'full'] as const) {
+      const r = raw();
+      r.boostUntil = at === 0 ? 0 : at === 'past' ? (r.time as number) - 1 : (r.time as number) + TUNING.boostMs;
+      expect(validateState(r).ok).toBe(true);
+    }
+  });
+
   it('does not mutate its input', () => {
     const r = raw();
     r.sheep[0].fullness = Number.NaN;
@@ -126,6 +134,11 @@ describe('validateState', () => {
     ['a negative farmProgress', (r) => (r.farmProgress = -1), 'farmProgress'],
     ['a full farmProgress', (r) => (r.farmProgress = TUNING.farmPipsPerFood), 'farmProgress'],
     ['a missing breedingProgress', (r) => delete r.breedingProgress, 'breedingProgress'],
+    ['a missing boostUntil', (r) => delete r.boostUntil, 'state.boostUntil'],
+    ['a fractional boostUntil', (r) => (r.boostUntil = 1.5), 'state.boostUntil'],
+    ['a negative boostUntil', (r) => (r.boostUntil = -1), 'state.boostUntil'],
+    ['a string boostUntil', (r) => (r.boostUntil = '100'), 'state.boostUntil'],
+    ['a boostUntil beyond time + boostMs', (r) => (r.boostUntil = (r.time as number) + TUNING.boostMs + 1), 'state.boostUntil'],
     ['a fractional breedingProgress', (r) => (r.breedingProgress = 1.5), 'breedingProgress'],
     ['a negative breedingProgress', (r) => (r.breedingProgress = -1), 'breedingProgress'],
     ['a full breedingProgress', (r) => (r.breedingProgress = TUNING.breedingPipsPerFood), 'breedingProgress'],

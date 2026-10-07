@@ -10,7 +10,7 @@ const START_FLOCK = TUNING.startFlockAdults + TUNING.startFlockLambs;
 describe('createNewGame', () => {
   it('has exactly the GameState fields', () => {
     expect(Object.keys(newGame()).sort()).toEqual(
-      ['breedingPieces', 'breedingProgress', 'carcasses', 'farmProgress', 'foodPieces', 'lastEra', 'nextId', 'pregnancies', 'rng', 'sheep', 'stats', 'time'].sort(),
+      ['boostUntil', 'breedingPieces', 'breedingProgress', 'carcasses', 'farmProgress', 'foodPieces', 'lastEra', 'nextId', 'pregnancies', 'rng', 'sheep', 'stats', 'time'].sort(),
     );
   });
 
@@ -73,6 +73,10 @@ describe('createNewGame', () => {
     expect(JSON.parse(JSON.stringify(state))).toStrictEqual(state);
     runFor(state, 10_000);
     expect(JSON.parse(JSON.stringify(state))).toStrictEqual(state);
+  });
+
+  it('starts with no boost (boostUntil 0)', () => {
+    expect(newGame().boostUntil).toBe(0);
   });
 
   it('starts with no lostAt (omitted, not undefined)', () => {

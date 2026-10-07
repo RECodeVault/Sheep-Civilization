@@ -166,6 +166,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 
 - **Pings above the shop panel (Story 3.2):** UX-DR10/UX-DR63 keep alert pings (and the other world overlays) above the open shop panel. Pings live in GameScene's world-overlay band (`FIELD_DEPTH.ping`, `src/view/field/depths.ts`), so a shop panel drawn in `OverlayScene` or `HudScene` would cover them. 3.2 must either draw the shop panel in GameScene (screen-fixed, below `FIELD_DEPTH.overlay`, with field clicks over it ignored), or move the world-overlay band into its own scene between the shop and the modals (2.6 Open Question 1).
 - **A crowded bottom bar (Stories 2.8, 3.2, 3.3, 4.5):** the threat summary takes x 858–1080 (`THREAT_X`, 222 px). The mockup's order puts the Medicine slot, money and flock counters (with separators) in the 588–846 gap, and the boost timer and Shop toggle in the last ~184 px. Both gaps are tight at the mockup's sizes; whichever story overflows first should re-space the bar (for example, shrink `GROUP_GAP` or drop the separators) rather than overlap. `BottomBar` asserts the summary's slot with `invariant`.
+  - **Story 2.8:** the boost timer now sits at x 1 092–1 196 (`BOOST_X`, `BOOST_TIMER_W` 104), leaving 68 px to the 1 264 safe edge. `BottomBar` asserts that at least 64 px (`SHOP_RESERVE`) remain for 3.2's Shop toggle (mockup about 80 px). 3.2 must re-space the bar (or narrow the timer) rather than overlap.
 - **Reduced motion (Story 5.7):** the ping's pop-in and bob (`PING` in `AlertPing.ts`) are juice; under reduced motion the ping should appear at once without bobbing. The ping and its settled dot are information and stay.
 
 ## Deferred from: code review of 2-6-alert-pings-and-threat-summary (2026-10-07)
@@ -185,3 +186,8 @@ Real issues found in reviews that are not actionable in the story where they wer
 
 - **Stale camera play area (Story 3.3):** `GameScene.playArea` (pen ∪ Better Place) is built once in `create`, so when the fence grows in place the pan clamp and centring still use the old pen. Rebuild it (and re-clamp `PenCamera`) when the land tier changes. `fenceBounds` is constant until then.
 
+## Deferred from: story 2-8-sacrifice-food-boost (2026-10-07)
+
+- **Audio (Story 5.6):** a cue when a boost starts (`BoostStarted`). An end cue would need a `BoostEnded` event, which is not emitted (the end is derived from `boostUntil`); 5.6 would add a small system that emits it once when `time` reaches `boostUntil`.
+- **Reduced motion (Story 5.7):** the Farm glow pulse (`BOOST_MOTION` in `FarmBoost.ts`), the timer pop (`BOOST_TIMER_MOTION` in `BoostTimer.ts`) and the "×2" float popup are juice. The glow itself, the badge and the timer are information and stay.
+- **Better Hoe (Story 4.7):** raise the base in `farmPipsPerClick(state)` (`selectors.ts`); the boost doubles whatever the base is (2 → 4, 3 → 6).

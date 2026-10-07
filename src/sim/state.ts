@@ -104,6 +104,11 @@ export interface GameState {
   /** Pips in the current breeding bar, 0 to `TUNING.breedingPipsPerFood − 1` (FR8). */
   breedingProgress: number;
   breedingPieces: BreedingPiece[];
+  /**
+   * Game-ms deadline of the sacrifice food boost (FR19); 0 = never boosted. Boosted is derived:
+   * `time < boostUntil` (selectors.ts isBoosted).
+   */
+  boostUntil: number;
   pregnancies: Pregnancy[];
   carcasses: Carcass[];
   stats: Stats;
@@ -149,6 +154,7 @@ export function createNewGame(seed: number): GameState {
     foodPieces: [],
     breedingProgress: 0,
     breedingPieces: [],
+    boostUntil: 0,
     pregnancies: [],
     carcasses: [],
     stats: { died: 0, sold: 0, sacrificed: 0, moneyEarned: 0, peakFlock: 0 },

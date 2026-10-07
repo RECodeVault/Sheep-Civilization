@@ -31,9 +31,13 @@ export const TUNING = Object.freeze({
   startFullness: 60,
   // FR3 (changed 2026-10-06): a Farm click fills farmPipsPerClick pips of an 8-pip bar; every full
   // bar drops 1 food piece at a random spot in the pen. There is no food stock. Better Hoe (4.7)
-  // raises the pips per click and the boost (2.8) doubles them.
+  // raises the pips per click and the boost doubles them (selectors.ts farmPipsPerClick).
   farmPipsPerFood: 8,
   farmPipsPerClick: 1,
+  // FR19 / GDD The Better Place: each sacrifice "doubles the pips each Farm click fills, for 30 s". A
+  // sacrifice during a boost resets it to 30 s; boosts never stack. Farm (food) only, never breeding.
+  boostMs: 30_000,
+  boostPipMultiplier: 2,
   // FR8 (changed 2026-10-06): Farm Breeding Food works like Farm. A click fills breedingPipsPerClick
   // pips of an 8-pip bar; every full bar drops 1 breeding piece in the pen, which an adult eats to
   // become ready (FR8a). No stock, no cap. Never boosted, and Better Hoe does not apply.

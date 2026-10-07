@@ -77,6 +77,9 @@ function check(x: unknown): void {
   int(s, 'rng', 'state', 0, RNG_MAX);
   int(s, 'farmProgress', 'state', 0, TUNING.farmPipsPerFood - 1);
   int(s, 'breedingProgress', 'state', 0, TUNING.breedingPipsPerFood - 1);
+  // FR19: a sacrifice sets the boost at most boostMs ahead; 0 = never. A past deadline is just not
+  // boosted, but a far-future one would be an hours-long boost from a corrupt save.
+  int(s, 'boostUntil', 'state', 0, time + TUNING.boostMs);
   if (!ERAS.includes(s.lastEra as Era)) fail('state.lastEra is not a known era');
 
   const sheep = array(s, 'sheep');

@@ -15,7 +15,7 @@ import { formatGameTime } from '../core/format';
 import { log } from '../core/log';
 import { decodeSave, encodeSave } from '../save/saveFile';
 import { rngRange } from '../sim/rng';
-import { fenceBounds, innerFence, stageOf } from '../sim/selectors';
+import { boostRemainingMs, fenceBounds, innerFence, stageOf } from '../sim/selectors';
 import { createSheep, type GameState } from '../sim/state';
 import { createCarcass } from '../sim/systems/carcass';
 import { createBreedingPiece, createFoodPiece } from '../sim/systems/feeding';
@@ -177,6 +177,14 @@ export function installDebugOverlay(game: Phaser.Game): void {
     });
     refreshSim();
   });
+  // Story 2.8: starts (or resets) the food boost without a sacrifice, for checking the Farm glow, the
+  // badge and the timer. No BoostStarted event, so the timer does not pop and no "×2" popup rises.
+  const boostButton = button(row2, 'Boost', () => {
+    activeScene()?.debugMutate((s) => {
+      s.boostUntil = s.time + TUNING.boostMs;
+    });
+    refreshSim();
+  });
 
   const row3 = buttonRow(panel);
   const dumpButton = button(row3, 'Dump state', () => {
@@ -217,6 +225,7 @@ export function installDebugOverlay(game: Phaser.Game): void {
     carcassButton,
     starveButton,
     infectButton,
+    boostButton,
     dumpButton,
     copyButton,
     loadButton,
@@ -285,7 +294,7 @@ export function installDebugOverlay(game: Phaser.Game): void {
     const speed = scene.simClock.speed;
     timeLine.textContent = `time   ${formatGameTime(s.time)} (${s.time} ms) · ${speed === 0 ? 'paused' : `×${speed}`}`;
     sheepLine.textContent = `sheep  ${s.sheep.length} · carcasses ${s.carcasses.length} · infected ${countInfected(s)}`;
-    foodLine.textContent = `food   pieces ${s.foodPieces.length} · bar ${s.farmProgress}/${TUNING.farmPipsPerFood}`;
+    foodLine.textContent = `food   pieces ${s.foodPieces.length} · bar ${s.farmProgress}/${TUNING.farmPipsPerFood} · boost ${formatGameTime(boostRemainingMs(s))}`;
     pauseButton.textContent = speed === 0 ? 'Resume' : 'Pause';
     stepButton.disabled = speed !== 0;
     for (let i = 0; i < SPEEDS.length; i++) highlight(speedButtons[i], speed === SPEEDS[i]);

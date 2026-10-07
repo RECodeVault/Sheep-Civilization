@@ -3,7 +3,7 @@ import { TUNING } from '../config/tuning';
 import { assertNever } from '../core/types';
 import { emit } from './events';
 import { rngRange } from './rng';
-import { innerFence } from './selectors';
+import { farmPipsPerClick, innerFence } from './selectors';
 import type { GameState } from './state';
 import { sacrifice } from './systems/betterPlace';
 import { breed } from './systems/breeding';
@@ -59,15 +59,16 @@ export function applyCommand(state: GameState, cmd: Command): void {
 
 /**
  * FR3 (changed 2026-10-06): a click fills pips of the Farm bar, and every full bar drops one food
- * piece at a random reachable spot in the pen. There is no food stock. Better Hoe (4.7) and the
- * boost (2.8) change the pips per click here, so one click may complete several bars.
+ * piece at a random reachable spot in the pen. There is no food stock. The pips per click come from
+ * farmPipsPerClick: Better Hoe (4.7) raises the base and a sacrifice boost doubles it (FR19), so one
+ * click may complete several bars.
  */
 function farm(state: GameState): void {
   // Between clicks a valid bar is a whole number below farmPipsPerFood. A loaded save may hold NaN, a
   // negative or a huge value (1e20 - 8 === 1e20 would loop for ever): start that bar over instead.
   const p = state.farmProgress;
   if (!(Number.isInteger(p) && p >= 0 && p < TUNING.farmPipsPerFood)) state.farmProgress = 0;
-  state.farmProgress += TUNING.farmPipsPerClick;
+  state.farmProgress += farmPipsPerClick(state);
   let added = 0;
   while (state.farmProgress >= TUNING.farmPipsPerFood) {
     state.farmProgress -= TUNING.farmPipsPerFood;
@@ -82,7 +83,8 @@ function farm(state: GameState): void {
 /**
  * FR8 (changed 2026-10-06): Farm Breeding Food works like Farm. A click fills pips of the breeding
  * bar, and every full bar drops one breeding piece at a random reachable spot in the pen; adults eat
- * them to become ready (FR8a). No stock, no cap. Never boosted (2.8), and Better Hoe does not apply.
+ * them to become ready (FR8a). No stock, no cap. Always breedingPipsPerClick: the sacrifice boost
+ * (FR19) and Better Hoe never apply.
  */
 function farmBreeding(state: GameState): void {
   // The same corrupt-bar guard as farm(): a bad value from a loaded save starts the bar over.

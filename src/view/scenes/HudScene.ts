@@ -48,6 +48,7 @@ export class HudScene extends Phaser.Scene {
     breedingProgress: 0,
     breedingPipsPerFood: 0,
     breedBlock: 'notReady',
+    boostRemainingMs: 0,
     threats: { starving: 0, infected: 0, carcasses: 0 },
   };
   // Deaths since the last frame, by cause: one toast per cause per frame (UX-DR41/UX-DR92), so a wipe
@@ -120,6 +121,9 @@ export class HudScene extends Phaser.Scene {
       );
       // UX-DR39: live counts, redrawn only on a change.
       this.bar.threats.set(v.threats);
+      // FR19 / UX-DR27 / UX-DR38: the boosted Farm look and the countdown, both no-ops without a change.
+      this.bar.farmBoost.setBoosted(v.boostRemainingMs > 0);
+      this.bar.boostTimer.set(v.boostRemainingMs);
       const modal = this.gameScene.modalOpen;
       if (modal && !this.wasModal) for (const b of this.tooltipSources) b.clearHover();
       this.wasModal = modal;
@@ -265,6 +269,12 @@ export class HudScene extends Phaser.Scene {
         // UX-DR93: one at a time (a sheep is dragged in by hand). Never branches on wasAbomination: the
         // reveal is Story 4.4's.
         showToast(STRINGS.sacrificeToast, { announcement: true });
+      } else if (e.type === 'BoostStarted') {
+        // UX-DR38 / UX-DR44: the timer pops (on a start and a reset alike) and "×2" rises over Farm. The
+        // glow and the timer's text follow in this frame's refresh.
+        this.bar.boostTimer.pop();
+        const b = this.bar.farmButton;
+        this.popups.spawn(b.x + b.width / 2, b.y - POPUP_LIFT_PX, STRINGS.boostPopup);
       }
     } catch (err) {
       reportError('ui', err);

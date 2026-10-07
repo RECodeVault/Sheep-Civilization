@@ -4,9 +4,16 @@ import { MIGRATIONS, migrate, type Migration } from '../../src/save/migrations';
 import { validateState } from '../../src/save/validate';
 import { newGame } from '../sim/helpers';
 
+/** A JSON copy of a current-version state in the version-5 shape (before Story 2.8's boost). */
+function toVersion5(state: object): Record<string, unknown> {
+  const v5 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+  delete v5.boostUntil;
+  return v5;
+}
+
 /** A JSON copy of a current-version state in the version-3 shape (before Story 2.3's breeding fields). */
 function toVersion3(state: object): Record<string, unknown> {
-  const v3 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+  const v3 = toVersion5(state);
   delete v3.pregnancies;
   for (const s of v3.sheep as Record<string, unknown>[]) delete s.cooldownUntil;
   return v3;
@@ -54,11 +61,20 @@ describe('migrate', () => {
 
   it('migrates a version-4 state (before the virus) unchanged: nobody infected, nobody seeking a carcass', () => {
     const state = newGame(3);
-    const v4 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+    const v4 = toVersion5(state);
     const r = migrate(4, v4);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.state).toStrictEqual(state);
+    expect(validateState(r.state).ok).toBe(true);
+  });
+
+  it('migrates a version-5 state (before the boost) with no boost running', () => {
+    const state = newGame(3);
+    const r = migrate(5, toVersion5(state));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.state).toStrictEqual({ ...state, boostUntil: 0 });
     expect(validateState(r.state).ok).toBe(true);
   });
 

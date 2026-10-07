@@ -250,7 +250,25 @@ export interface ThreatCounts {
   carcasses: number;
 }
 
-/** What the HUD shows. Later stories add money, flock, capacity and boost. */
+/** FR19: a sacrifice food boost is running. It ends exactly at boostUntil. */
+export function isBoosted(state: GameState): boolean {
+  return state.time < state.boostUntil;
+}
+
+/** Game-ms left of the food boost, or 0 when none is running (the HUD's boost timer). */
+export function boostRemainingMs(state: GameState): number {
+  return Math.max(0, state.boostUntil - state.time);
+}
+
+/**
+ * The pips one Farm click fills (FR3, FR19). Better Hoe (4.7) raises the base here; the boost
+ * doubles whatever the base is. The breeding bar never uses this (FR8).
+ */
+export function farmPipsPerClick(state: GameState): number {
+  return TUNING.farmPipsPerClick * (isBoosted(state) ? TUNING.boostPipMultiplier : 1);
+}
+
+/** What the HUD shows. Later stories add money, flock and capacity. */
 export interface HudView {
   /** Pips in the current Farm bar, out of farmPipsPerFood (FR3). */
   farmProgress: number;
@@ -260,6 +278,8 @@ export interface HudView {
   breedingPipsPerFood: number;
   /** Why Breed is greyed, or null (FR11). */
   breedBlock: BreedBlock;
+  /** Game-ms left of the food boost, 0 when none (FR19): the Farm glow and the boost timer. */
+  boostRemainingMs: number;
   /** The threat summary (UX-DR39), filled in place. */
   threats: ThreatCounts;
 }
@@ -271,6 +291,7 @@ export function selectHudView(state: GameState, out: HudView): HudView {
   out.breedingProgress = state.breedingProgress;
   out.breedingPipsPerFood = TUNING.breedingPipsPerFood;
   out.breedBlock = breedBlock(state);
+  out.boostRemainingMs = boostRemainingMs(state);
   const t = out.threats;
   let starving = 0;
   let infected = 0;

@@ -213,3 +213,67 @@ describe('applyCommand ClearCarcass (FR13)', () => {
     expect(drained()).toEqual([{ type: 'CarcassCleared', id: c.id, x: c.x, y: c.y }]);
   });
 });
+
+describe('Farm while boosted (FR19)', () => {
+  const boosted = TUNING.farmPipsPerClick * TUNING.boostPipMultiplier;
+
+  function boostedGame(): GameState {
+    const state = newGame();
+    state.time = 5_000;
+    state.boostUntil = state.time + TUNING.boostMs;
+    drained();
+    return state;
+  }
+
+  it('fills farmPipsPerClick × boostPipMultiplier pips per click', () => {
+    const state = boostedGame();
+    farm(state, 1);
+    expect(state.farmProgress).toBe(boosted);
+    expect(drained()).toEqual([{ type: 'Farmed', resource: 'food', added: 0 }]);
+  });
+
+  it('completes a bar in farmPipsPerFood / boosted clicks, dropping one piece', () => {
+    const state = boostedGame();
+    farm(state, TUNING.farmPipsPerFood / boosted);
+    expect(state.farmProgress).toBe(0);
+    expect(state.foodPieces).toHaveLength(1);
+    const events = drained();
+    expect(events.filter((e) => e.type === 'FoodDropped')).toHaveLength(1);
+    expect(events[events.length - 1]).toEqual({ type: 'Farmed', resource: 'food', added: 1 });
+  });
+
+  it('carries leftover pips: a bar one short plus a boosted click drops one piece and keeps the rest', () => {
+    const state = boostedGame();
+    state.farmProgress = TUNING.farmPipsPerFood - 1;
+    farm(state, 1);
+    expect(state.foodPieces).toHaveLength(1);
+    expect(state.farmProgress).toBe(boosted - 1);
+  });
+
+  it('fills one click value when never boosted, after the boost and exactly at boostUntil', () => {
+    const never = newGame();
+    farm(never, 1);
+    expect(never.farmProgress).toBe(TUNING.farmPipsPerClick);
+    const after = boostedGame();
+    after.time = after.boostUntil + 1_000;
+    farm(after, 1);
+    expect(after.farmProgress).toBe(TUNING.farmPipsPerClick);
+    const atEnd = boostedGame();
+    atEnd.time = atEnd.boostUntil;
+    farm(atEnd, 1);
+    expect(atEnd.farmProgress).toBe(TUNING.farmPipsPerClick);
+  });
+
+  it('never boosts the breeding bar (FR8)', () => {
+    const state = boostedGame();
+    applyCommand(state, { type: 'FarmBreeding' });
+    expect(state.breedingProgress).toBe(TUNING.breedingPipsPerClick);
+  });
+
+  it('still starts a corrupt bar over, then adds the boosted pips', () => {
+    const state = boostedGame();
+    state.farmProgress = Number.NaN;
+    farm(state, 1);
+    expect(state.farmProgress).toBe(boosted);
+  });
+});

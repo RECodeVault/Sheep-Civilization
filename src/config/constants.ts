@@ -26,7 +26,8 @@ export const AUTOSAVE_MS = 10_000;
 // 5 since Story 2.5: sheep `infectedAt` (optional) and the `seekCarcass` activity. A version-4 save
 // migrates unchanged; the bump is so an older build refuses a version-5 save instead of loading it and
 // silently dropping an infection (it would keep `infectedAt` as an unknown key and never act on it).
-export const SAVE_SCHEMA_VERSION = 5;
+// 6 since Story 2.8: `boostUntil`, the sacrifice food boost's deadline (a version-5 save gets 0).
+export const SAVE_SCHEMA_VERSION = 6;
 
 /*
  * Colour-usage rules (DESIGN.md Colors, Do's and Don'ts — UX-DR2):

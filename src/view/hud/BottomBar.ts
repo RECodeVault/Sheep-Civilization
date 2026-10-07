@@ -1,11 +1,13 @@
 import type Phaser from 'phaser';
-import { COMPONENTS, LAYOUT, SPACING } from '../../config/constants';
+import { COMPONENTS, LAYOUT, RADIUS, SPACING } from '../../config/constants';
 import { invariant } from '../../core/invariant';
 import { STRINGS } from '../strings';
 import { Button } from '../widgets/Button';
 import { OUTLINE_PX } from '../widgets/box';
 import { Panel } from '../widgets/Panel';
 import { FRAME } from '../assetKeys';
+import { BOOST_TIMER_W, BoostTimer } from './BoostTimer';
+import { FarmBoost } from './FarmBoost';
 import { FARM_PROGRESS_W, FarmProgress } from './FarmProgress';
 import { THREAT_SUMMARY_W, ThreatSummary } from './ThreatSummary';
 
@@ -36,12 +38,22 @@ const BREED_W = 104;
 const THREAT_X = 858;
 const THREAT_MAX_RIGHT = 1_080;
 invariant(THREAT_X + THREAT_SUMMARY_W <= THREAT_MAX_RIGHT, 'BottomBar: the threat summary overruns its slot');
+// The boost timer (UX-DR38, Story 2.8): one group gap right of the threat summary. What is left to the
+// safe edge is for the Shop toggle (3.2; mockups/hud.html `.shop-toggle` is about 80 px), which may have
+// to re-space the bar (deferred-work.md). [ASSUMPTION, browser-checked]
+const BOOST_X = THREAT_MAX_RIGHT + GROUP_GAP;
+const SHOP_RESERVE = 64;
+invariant(
+  BOOST_X + BOOST_TIMER_W <= LAYOUT.canvasWidth - LAYOUT.safeMargin - SHOP_RESERVE,
+  'BottomBar: the boost timer leaves no room for the Shop toggle',
+);
 
 /**
  * The HUD bottom bar: a full-width wool surface with actions on the left (UX-DR25). Story 1.6 builds
  * the Farm button with the Farm progress bar and its count beneath it (1.7), 2.2 the Farm Breeding
- * Food button with the breeding bar, 2.3 the Breed tool, 2.6 the threat summary on the right; later
- * stories add their widgets between them and at the right end.
+ * Food button with the breeding bar, 2.3 the Breed tool, 2.6 the threat summary on the right, 2.8 the
+ * Farm button's boosted glow and badge and the boost timer; later stories add their widgets between
+ * them and at the right end.
  */
 export class BottomBar {
   readonly farmButton: Button;
@@ -50,6 +62,8 @@ export class BottomBar {
   readonly breedingProgress: FarmProgress;
   readonly breedButton: Button;
   readonly threats: ThreatSummary;
+  readonly farmBoost: FarmBoost;
+  readonly boostTimer: BoostTimer;
 
   constructor(scene: Phaser.Scene, onFarm: () => void, onFarmBreeding: () => void, onBreed: () => void) {
     // The bar is a square Panel whose outline runs off the left, right and bottom canvas edges, so
@@ -60,6 +74,9 @@ export class BottomBar {
       LAYOUT.canvasWidth + OUTLINE_PX * 2,
       LAYOUT.hudBarHeight + OUTLINE_PX,
     );
+    // Before the Farm button and the widgets right of it, so its glow draws under them.
+    const farm = COMPONENTS.buttonFarm;
+    this.farmBoost = new FarmBoost(scene, FARM_X, FARM_Y, FARM_W, farm.height, RADIUS[farm.rounded]);
     this.farmButton = new Button(scene, COMPONENTS.buttonFarm, {
       x: FARM_X,
       y: FARM_Y,
@@ -95,5 +112,6 @@ export class BottomBar {
       onActivate: onBreed,
     });
     this.threats = new ThreatSummary(scene, THREAT_X, BAR_TOP + LAYOUT.hudBarHeight / 2);
+    this.boostTimer = new BoostTimer(scene, BOOST_X, BAR_TOP + LAYOUT.hudBarHeight / 2);
   }
 }

@@ -26,6 +26,7 @@ describe('encodeSave / decodeSave', () => {
     delete v2.breedingProgress;
     delete v2.breedingPieces;
     delete v2.pregnancies;
+    delete v2.boostUntil;
     for (const s of v2.sheep as Record<string, unknown>[]) {
       delete s.breedReady;
       delete s.cooldownUntil;
@@ -38,9 +39,28 @@ describe('encodeSave / decodeSave', () => {
     const state = newGame(7);
     const v3 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
     delete v3.pregnancies;
+    delete v3.boostUntil;
     for (const s of v3.sheep as Record<string, unknown>[]) delete s.cooldownUntil;
     const raw = JSON.stringify({ schemaVersion: 3, savedAt: NOW.toISOString(), state: v3 });
     expect(decodeSave(raw)).toStrictEqual(state);
+  });
+
+  it('decodes a version-5 save (before the boost) with no boost running', () => {
+    const state = newGame(7);
+    const v5 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+    delete v5.boostUntil;
+    const raw = JSON.stringify({ schemaVersion: 5, savedAt: NOW.toISOString(), state: v5 });
+    expect(decodeSave(raw)).toStrictEqual(state);
+  });
+
+  it('round-trips an active boost: a reload resumes with the same time left', () => {
+    const state = newGame(4242);
+    runFor(state, 5_000);
+    state.boostUntil = state.time + TUNING.boostMs;
+    runFor(state, 12_000);
+    const decoded = decodeSave(encodeSave(state, NOW));
+    expect(decoded).toStrictEqual(state);
+    expect(decoded && decoded.boostUntil - decoded.time).toBe(TUNING.boostMs - 12_000);
   });
 
   it('writes a dragged sheep as wander (no drag survives a reload) without touching the live state', () => {
