@@ -7,6 +7,7 @@ import {
   clearCarcass,
   createCarcass,
   killSheep,
+  removeSheep,
   updateCarcassEating,
 } from '../../../src/sim/systems/carcass';
 import { createBreedingPiece, createFoodPiece } from '../../../src/sim/systems/feeding';
@@ -57,6 +58,45 @@ describe('killSheep', () => {
     expect(() => killSheep(state, 9_999, 'starved')).toThrow(/killSheep/);
     expect(state).toEqual(before);
     expect(drained()).toEqual([]);
+  });
+});
+
+describe('removeSheep', () => {
+  it('removes exactly that sheep in order, with no carcass, no events, no rng and no new id', () => {
+    const state = newGame(7);
+    const [a, b, c] = state.sheep;
+    const nextId = state.nextId;
+    const rng = state.rng;
+    removeSheep(state, b.id, 'sacrificed');
+    expect(state.sheep).toEqual([a, c]);
+    expect(state.carcasses).toEqual([]);
+    expect(state.stats).toMatchObject({ sacrificed: 1, sold: 0, died: 0 });
+    expect(state.nextId).toBe(nextId);
+    expect(state.rng).toBe(rng);
+    expect(drained()).toEqual([]);
+  });
+
+  it("counts a 'sold' removal as sold", () => {
+    const state = newGame(7);
+    removeSheep(state, state.sheep[0].id, 'sold');
+    expect(state.stats).toMatchObject({ sacrificed: 0, sold: 1, died: 0 });
+  });
+
+  it('rejects an unknown id without changing the state', () => {
+    const state = newGame(7);
+    const before = structuredClone(state);
+    expect(() => removeSheep(state, 9_999, 'sacrificed')).toThrow(/removeSheep/);
+    expect(state).toEqual(before);
+  });
+
+  it('removing the last sheep loses the game', () => {
+    const state = newGame(7);
+    state.time = 4_200;
+    for (const s of state.sheep.slice()) removeSheep(state, s.id, 'sacrificed');
+    expect(state.lostAt).toBe(4_200);
+    expect(drained()).toEqual([
+      { type: 'Lost', survivedMs: 4_200, peakFlock: TUNING.startFlockAdults + TUNING.startFlockLambs },
+    ]);
   });
 });
 

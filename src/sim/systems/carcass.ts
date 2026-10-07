@@ -1,7 +1,7 @@
 // Pattern N1, the single death pipeline: killSheep is the only way a sheep dies. Hunger, lifecycle
 // (2.1), virus (2.5) and the Abomination (4.3) all call it, so every death is counted, announced and
-// leaves a carcass (FR12, since Story 2.4). Nothing else removes sheep from state.sheep (removeSheep, for
-// selling and sacrifice, arrives in Epic 2). Both end with checkLastSheepAndLoss: selling or
+// leaves a carcass (FR12, since Story 2.4). removeSheep is the only other way out of state.sheep: a
+// sacrifice (2.7) or a sale (3.1), with no carcass. Both end with checkLastSheepAndLoss: selling or
 // sacrificing the last sheep is a loss too.
 //
 // Carcasses live here too (System Location Mapping): createCarcass, clearCarcass (FR13, the player's
@@ -35,6 +35,26 @@ export function killSheep(state: GameState, id: number, cause: DeathCause): void
   emit({ type: 'SheepDied', id, cause, x: s.x, y: s.y });
   if (c !== undefined) emit({ type: 'CarcassSpawned', id: c.id, x: c.x, y: c.y });
   // Last, so Lost follows the SheepDied that caused it.
+  checkLastSheepAndLoss(state);
+}
+
+/** Why a sheep left without dying (pattern N1). */
+export type RemoveReason = 'sold' | 'sacrificed';
+
+/**
+ * Pattern N1: the only way a sheep leaves without dying (FR18 sacrifice; 3.1 sale). No carcass, and no
+ * event of its own: the caller emits Sacrificed (or Sold) first, so a Lost from the loss check follows
+ * it. Like killSheep it replaces state.sheep with a new, shorter array.
+ */
+export function removeSheep(state: GameState, id: number, reason: RemoveReason): void {
+  if (!state.sheep.some((x) => x.id === id)) {
+    invariant(false, `removeSheep: unknown sheep ${id}`);
+    return;
+  }
+  // Allocates, which is fine: a removal is a rare event, not per-tick work.
+  state.sheep = state.sheep.filter((x) => x.id !== id);
+  if (reason === 'sacrificed') state.stats.sacrificed += 1;
+  else state.stats.sold += 1;
   checkLastSheepAndLoss(state);
 }
 
@@ -134,7 +154,7 @@ function eatCarcass(state: GameState, s: Sheep, k: number): void {
 }
 
 /**
- * Pattern N1: runs after every removal (killSheep now, removeSheep in Epic 2). Loss = 0 sheep alive
+ * Pattern N1: runs after every removal (killSheep and removeSheep). Loss = 0 sheep alive
  * (FR38): records the time once and emits Lost; step() and applyCommand() then do nothing.
  */
 export function checkLastSheepAndLoss(state: GameState): void {

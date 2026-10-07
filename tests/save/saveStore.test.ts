@@ -76,6 +76,17 @@ describe('writeSave / loadSave', () => {
     expect(saveWarnings()).toBe(0);
   });
 
+  it('saves mid-drag: the dragged sheep loads back wandering, and the live state keeps its drag', () => {
+    const storage = new MemoryStorage();
+    const state = busyGame();
+    state.sheep[0].activity = 'dragged';
+    delete state.sheep[0].targetId;
+    expect(writeSave(state, storage, NOW)).toBe(true);
+    expect(state.sheep[0].activity).toBe('dragged');
+    expect(loadSave(storage)?.sheep[0].activity).toBe('wander');
+    expect(saveWarnings()).toBe(0);
+  });
+
   it('returns null with no warning when there is no save', () => {
     expect(loadSave(new MemoryStorage())).toBeNull();
     expect(saveWarnings()).toBe(0);

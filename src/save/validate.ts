@@ -13,6 +13,7 @@ export type ValidationResult = { ok: true; state: GameState } | { ok: false; rea
 
 type Obj = Record<string, unknown>;
 
+// `dragged` is never saved (encodeSave writes it as `wander`), so a save holding it is rejected.
 const ACTIVITIES: readonly SheepActivity[] = ['wander', 'seekFood', 'seekBreedingFood', 'seekCarcass', 'eating'];
 const ERAS: readonly Era[] = ['pasture', 'village', 'town', 'wool-empire'];
 const STAT_COUNTS = ['died', 'sold', 'sacrificed', 'peakFlock'] as const;

@@ -43,6 +43,19 @@ describe('encodeSave / decodeSave', () => {
     expect(decodeSave(raw)).toStrictEqual(state);
   });
 
+  it('writes a dragged sheep as wander (no drag survives a reload) without touching the live state', () => {
+    const state = newGame(4242);
+    runFor(state, 1_000);
+    state.sheep[1].activity = 'dragged';
+    delete state.sheep[1].targetId;
+    const live = structuredClone(state);
+    const decoded = decodeSave(encodeSave(state, NOW));
+    expect(state).toStrictEqual(live);
+    expect(decoded?.sheep[1].activity).toBe('wander');
+    expect({ ...decoded?.sheep[1], activity: 'dragged' }).toStrictEqual(state.sheep[1]);
+    expect(decoded?.sheep.filter((_, i) => i !== 1)).toStrictEqual(state.sheep.filter((_, i) => i !== 1));
+  });
+
   it('wraps the state in the versioned envelope with an ISO savedAt', () => {
     const state = newGame(7);
     const file: unknown = JSON.parse(encodeSave(state, NOW));

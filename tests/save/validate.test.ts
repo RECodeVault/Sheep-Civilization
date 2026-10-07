@@ -180,6 +180,8 @@ describe('validateState', () => {
     ['a bornAt after time', (r) => (r.sheep[0].bornAt = (r.time as number) + 100), 'sheep[0].bornAt'],
     ['a NaN restUntil', (r) => (r.sheep[0].restUntil = Number.NaN), 'sheep[0].restUntil'],
     ['an unknown activity', (r) => (r.sheep[0].activity = 'dancing'), 'sheep[0].activity'],
+    // Never saved: encodeSave writes a dragged sheep as wander (Story 2.7).
+    ['the dragged activity', (r) => (r.sheep[0].activity = 'dragged'), 'sheep[0].activity'],
     ['a null targetId', (r) => (r.sheep[0].targetId = null), 'sheep[0].targetId'],
     ['a fractional targetId', (r) => (r.sheep[0].targetId = 1.5), 'sheep[0].targetId'],
     ['a sheep left of the fence', (r) => (r.sheep[0].x = f.x - 1), 'sheep[0].x'],

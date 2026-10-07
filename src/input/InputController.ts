@@ -12,8 +12,8 @@ export interface InputHooks {
   modalOpen(): boolean;
   /**
    * The Esc chain (UX-DR73, agreed 2026-10-05), in order; each step returns true when it consumed
-   * the press: close start-over confirm → close sub-panel → cancel drag (2.7) → exit breed mode
-   * (`exitBreedMode`) → close shop (3.2) → open/close pause.
+   * the press: close start-over confirm → close sub-panel → cancel drag (`cancelDrag`) → exit breed
+   * mode (`exitBreedMode`) → close shop (3.2) → open/close pause.
    */
   readonly esc: readonly (() => boolean)[];
   /** Pans the field camera by a screen-space drag (PenCamera clamps it to the pen). */
@@ -28,6 +28,19 @@ export interface InputHooks {
   shake(id: number): void;
   /** Queues a command for the next tick. */
   dispatch(cmd: Command): void;
+  /**
+   * A press on sheep `id` at canvas point (sx, sy) passed the drag threshold: pick it up (FR16).
+   * False if it cannot be (its sprite is gone); the press is then dropped.
+   */
+  beginDrag(id: number, screenX: number, screenY: number): boolean;
+  /** The held pointer is at canvas point (sx, sy); called every frame of a drag. */
+  moveDrag(screenX: number, screenY: number): void;
+  /** Released at canvas point (sx, sy): a sacrifice over the Better Place, otherwise a drop (UX-DR67). */
+  endDrag(screenX: number, screenY: number): void;
+  /** Puts the dragged sheep back where it was picked up. */
+  cancelDrag(): void;
+  /** False once the dragged sheep is gone (it died mid-drag): the drag ends with no command. */
+  dragAlive(): boolean;
   /** True while the pointer is on a HUD control (the Pause button can sit over the panned field). */
   pointerOnHud(): boolean;
 }
@@ -43,8 +56,11 @@ const FIELD_BOTTOM = LAYOUT.canvasHeight - LAYOUT.hudBarHeight;
  * The single owner of gameplay pointer and keyboard input (AR8). 1.6 added F, 1.10 the Esc chain,
  * the modal check and right-drag panning, 2.2 G, 2.3 breed mode (`idle` / `breeding`): the Breed
  * tool toggles it, a left click picks adult A then adult B, and right-click, Esc, the tool again or a
- * modal cancel it. 2.4 added field clicks in `idle` (a click on a carcass clears it, FR13); 2.7 adds
- * drag. Turns input into commands or UI events; never touches GameState.
+ * modal cancel it. 2.4 added field clicks in `idle` (a click on a carcass clears it, FR13). 2.7 added
+ * `dragging` (FR16): a left press on a sheep in `idle` that moves past 6 px picks it up; the release
+ * puts it down or sacrifices it, and Esc, a modal, blur or a release off the canvas cancel it. The
+ * drag's geometry and commands live in the view (SheepDrag, through the hooks). Turns input into
+ * commands or UI events; never touches GameState.
  */
 export class InputController {
   private readonly keyboard: Phaser.Input.Keyboard.KeyboardPlugin | null;
@@ -59,8 +75,8 @@ export class InputController {
   private panDownY = 0;
   private panLastX = 0;
   private panLastY = 0;
-  // The input mode (AR8): Story 2.7 adds 'dragging'. pickA is breed mode's first-picked adult, 0 for none.
-  private mode: 'idle' | 'breeding' = 'idle';
+  // The input mode (AR8). pickA is breed mode's first-picked adult, 0 for none.
+  private mode: 'idle' | 'breeding' | 'dragging' = 'idle';
   private pickA = 0;
   // A left press on the field, in either mode: a click if released within the threshold, acting on
   // what was under the press (hit-tested at the press, so a sheep wandering under a held pointer is
@@ -71,6 +87,9 @@ export class InputController {
   private clickDownX = 0;
   private clickDownY = 0;
   private clickTarget = 0;
+  // The sheep under an idle press (hit-tested at the press, like clickTarget): moved past the threshold,
+  // the press drags it. 0 = none, and always 0 in breed mode (no drags there).
+  private dragTarget = 0;
   // Phaser's KeyboardManager replays its whole per-step queue on every new key event, and its
   // duplicate check compares only with the event before, so with three or more key events in one
   // step an earlier keydown is dispatched again (KeyboardPlugin.update). Each handler ignores an
@@ -86,7 +105,7 @@ export class InputController {
     bus.on('breedTool:pressed', this.toggleBreedMode, this);
     bus.on('hud:rightPressed', this.onHudRightPress, this);
     // A press released outside the canvas, or a pointer that leaves it, is no click (Task 7.3).
-    input.on(Phaser.Input.Events.POINTER_UP_OUTSIDE, this.cancelClick, this);
+    input.on(Phaser.Input.Events.POINTER_UP_OUTSIDE, this.onUpOutside, this);
     input.on(Phaser.Input.Events.GAME_OUT, this.cancelClick, this);
     // UX-DR74: the browser context menu is disabled once for the page in BootScene (Phaser adds a
     // listener per call that can never be removed).
@@ -100,6 +119,11 @@ export class InputController {
     this.keyboard.on('keydown-F', this.onFarmKey, this);
     this.keyboard.on('keydown-G', this.onFarmBreedingKey, this);
     this.keyboard.on('keydown-ESC', this.onEscKey, this);
+  }
+
+  /** True while a sheep is being dragged. */
+  get dragging(): boolean {
+    return this.mode === 'dragging';
   }
 
   /** True while in breed mode. */
@@ -124,12 +148,15 @@ export class InputController {
       this.pickA = 0;
       this.notifyBreedMode();
     }
+    this.updateDrag();
     this.updateClick();
     this.updatePan();
   }
 
   /** The Breed tool (UX-DR31, UX-DR71): enters breed mode, or cancels it when it is on. */
   toggleBreedMode(): void {
+    // The left button is busy with the sheep; the tool cannot really be clicked mid-drag.
+    if (this.mode === 'dragging') return;
     if (this.mode === 'breeding') {
       this.exitBreedMode();
       return;
@@ -150,16 +177,28 @@ export class InputController {
     return true;
   }
 
+  /**
+   * Cancels a drag: the sheep goes back where it was picked up. Returns true if one was live (the Esc
+   * chain step, after closing a sub-panel and before exiting breed mode).
+   */
+  cancelDrag(): boolean {
+    if (this.mode !== 'dragging') return false;
+    this.mode = 'idle';
+    this.hooks.cancelDrag();
+    return true;
+  }
+
   /** Drops any press in progress (window blur or hide: its release may never arrive). */
   cancelPress(): void {
     this.panArmed = false;
     this.panning = false;
     this.clickArmed = false;
+    this.cancelDrag();
   }
 
   destroy(): void {
     this.input.off('pointerdown', this.onPointerDown, this);
-    this.input.off(Phaser.Input.Events.POINTER_UP_OUTSIDE, this.cancelClick, this);
+    this.input.off(Phaser.Input.Events.POINTER_UP_OUTSIDE, this.onUpOutside, this);
     this.input.off(Phaser.Input.Events.GAME_OUT, this.cancelClick, this);
     bus.off('breedTool:pressed', this.toggleBreedMode, this);
     bus.off('hud:rightPressed', this.onHudRightPress, this);
@@ -175,14 +214,20 @@ export class InputController {
       this.clickArmed = false;
       return;
     }
-    // Moving past the threshold makes it a drag, which both modes ignore (2.7 adds sheep drags).
-    // Checked while held and again at the release point (upX/upY), so a press, move and release
-    // inside one frame is no click either.
+    // Moving past the threshold makes it a drag (UX-DR66): an idle press on a sheep picks it up, and
+    // anything else is simply dropped. Checked while held and again at the release point (upX/upY),
+    // so a press, move and release inside one frame is a drag, not a click.
     const down = p.leftButtonDown();
     const dx = (down ? p.x : p.upX) - this.clickDownX;
     const dy = (down ? p.y : p.upY) - this.clickDownY;
     if (dx * dx + dy * dy > DRAG_THRESHOLD2) {
       this.clickArmed = false;
+      if (this.mode === 'idle' && this.dragTarget !== 0 && this.hooks.beginDrag(this.dragTarget, this.clickDownX, this.clickDownY)) {
+        this.mode = 'dragging';
+        // Released in the same frame: put it down at once (updateDrag would see the release next frame,
+        // but the pointer may be pressed again by then).
+        if (!down) this.finishDrag(p.upX, p.upY);
+      }
       return;
     }
     if (down) return;
@@ -205,6 +250,39 @@ export class InputController {
   /** Drops a field click in progress (released outside the canvas, pointer left it). */
   private cancelClick(): void {
     this.clickArmed = false;
+  }
+
+  /**
+   * A release outside the canvas: no click, and a drag is cancelled. Leaving the canvas while holding
+   * (GAME_OUT) does not cancel a drag: the sheep waits at the last point until the pointer comes back.
+   */
+  private onUpOutside(): void {
+    this.cancelClick();
+    this.cancelDrag();
+  }
+
+  /**
+   * Each frame of a drag: follow the held pointer, put the sheep down on release, and cancel under a
+   * modal. A sheep that died mid-drag ends it with no command (AC 9). Allocates nothing.
+   */
+  private updateDrag(): void {
+    if (this.mode !== 'dragging') return;
+    if (!this.hooks.dragAlive()) {
+      this.mode = 'idle';
+      return;
+    }
+    if (this.hooks.modalOpen()) {
+      this.cancelDrag();
+      return;
+    }
+    const p = this.input.activePointer;
+    if (p.leftButtonDown()) this.hooks.moveDrag(p.x, p.y);
+    else this.finishDrag(p.upX, p.upY);
+  }
+
+  private finishDrag(x: number, y: number): void {
+    this.mode = 'idle';
+    this.hooks.endDrag(x, y);
   }
 
   /**
@@ -296,7 +374,8 @@ export class InputController {
   // Runs inside Phaser's input step, where a throw would stop the game loop.
   private onPointerDown(pointer: Phaser.Input.Pointer): void {
     try {
-      if (this.hooks.modalOpen()) return;
+      // The left button holds the sheep: no new click, pan or right-click until it is put down.
+      if (this.hooks.modalOpen() || this.mode === 'dragging') return;
       const onField = pointer.y < FIELD_BOTTOM;
       if (pointer.rightButtonDown()) {
         this.panArmed = true;
@@ -312,9 +391,12 @@ export class InputController {
         this.clickMode = this.mode;
         this.clickDownX = pointer.x;
         this.clickDownY = pointer.y;
-        // Breed mode only picks sheep; idle clears carcasses, even one with a sheep standing on it.
-        this.clickTarget =
-          this.mode === 'breeding' ? this.hooks.sheepAt(pointer.x, pointer.y) : this.hooks.carcassAt(pointer.x, pointer.y);
+        // Breed mode only picks sheep; an idle click clears carcasses, even one with a sheep standing on
+        // it, and an idle drag picks up the sheep under the press.
+        const breeding = this.mode === 'breeding';
+        const sheep = this.hooks.sheepAt(pointer.x, pointer.y);
+        this.clickTarget = breeding ? sheep : this.hooks.carcassAt(pointer.x, pointer.y);
+        this.dragTarget = breeding ? 0 : sheep;
       }
     } catch (err) {
       reportError('ui', err);

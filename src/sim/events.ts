@@ -1,7 +1,7 @@
 // Sim → view events. The sim appends to a per-tick queue that lives outside GameState (events are
 // never saved); after each tick GameScene drains it onto the EventBus. Variants: SheepDied,
 // CarcassSpawned, CarcassCleared, CarcassEaten, Infected, Farmed, FoodDropped, FoodEaten,
-// BreedingFoodDropped, BreedingFoodEaten, Bred, LambBorn, Lost.
+// BreedingFoodDropped, BreedingFoodEaten, Bred, LambBorn, Sacrificed, Lost.
 
 export type DeathCause = 'starved' | 'oldAge' | 'virus' | 'abomination';
 
@@ -34,6 +34,10 @@ export type SimEvent =
   | { type: 'Bred'; pregnancyId: number; parentA: number; parentB: number; x: number; y: number }
   // A pending lamb was born at (x, y) (lifecycle.ts). Story 4.1 spawns the Abomination from this.
   | { type: 'LambBorn'; id: number; pregnancyId: number; x: number; y: number }
+  // Sheep `id` went into the Better Place (FR18; betterPlace.ts), before any Lost it caused. Story 5.3
+  // adds `name`. Secrecy (AR18): `wasAbomination` is for the reveal (Story 4.4) only; the view must not
+  // branch on it before then.
+  | { type: 'Sacrificed'; id: number; wasAbomination: boolean }
   // The flock reached 0 (checkLastSheepAndLoss). Emitted once per game, after the last SheepDied.
   // survivedMs is state.lostAt; peakFlock is stats.peakFlock.
   | { type: 'Lost'; survivedMs: number; peakFlock: number };

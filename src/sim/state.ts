@@ -6,10 +6,10 @@ import { fenceBounds } from './selectors';
 
 /**
  * The sheep's explicit state machine; feeding.ts owns the seekFood/seekBreedingFood/eating
- * transitions and carcass.ts owns seekCarcass (FR14). Later stories add stalking (4.3) and dragged
- * (2.7).
+ * transitions, carcass.ts owns seekCarcass (FR14) and drag.ts owns dragged (FR16, 2.7). A later story
+ * adds stalking (4.3).
  */
-export type SheepActivity = 'wander' | 'seekFood' | 'seekBreedingFood' | 'seekCarcass' | 'eating';
+export type SheepActivity = 'wander' | 'seekFood' | 'seekBreedingFood' | 'seekCarcass' | 'eating' | 'dragged';
 
 export interface Sheep {
   id: number;

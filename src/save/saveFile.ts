@@ -13,8 +13,18 @@ export interface SaveFile {
 }
 
 export function encodeSave(state: GameState, now: Date = new Date()): string {
-  const file: SaveFile = { schemaVersion: SAVE_SCHEMA_VERSION, savedAt: now.toISOString(), state };
+  const file: SaveFile = { schemaVersion: SAVE_SCHEMA_VERSION, savedAt: now.toISOString(), state: savable(state) };
   return JSON.stringify(file);
+}
+
+/**
+ * The state as it is saved. No drag survives a reload, so a sheep saved as `dragged` (Story 2.7) would
+ * hang in the air for ever: it is written as `wander` at its sim position (where it was picked up). A
+ * copy, only when needed; the live state is never mutated. Validation therefore never sees `dragged`.
+ */
+function savable(state: GameState): GameState {
+  if (!state.sheep.some((s) => s.activity === 'dragged')) return state;
+  return { ...state, sheep: state.sheep.map((s) => (s.activity === 'dragged' ? { ...s, activity: 'wander' } : s)) };
 }
 
 /** Parses a save: JSON → envelope check → migrate → validate (AR9). Never throws. */

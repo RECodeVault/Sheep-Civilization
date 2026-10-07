@@ -1,5 +1,6 @@
 // Movement and flock spacing (AR5): per-tick steering from wander, separation and fence
-// containment, with neighbour queries through the uniform grid. No physics engine (ADR-3).
+// containment, with neighbour queries through the uniform grid. No physics engine (ADR-3). A dragged
+// sheep (FR16) is excluded from steering until it is dropped: it neither moves nor pushes or is pushed.
 import { TICK_MS } from '../../config/constants';
 import { TUNING } from '../../config/tuning';
 import { assertNever } from '../../core/types';
@@ -122,6 +123,11 @@ export function updateMovement(state: GameState): void {
       case 'eating':
         // Munching in place; separation below still nudges it like a grazer.
         break;
+      case 'dragged':
+        // In the air (FR16): no walk and no separation push; pass 2 leaves it where it was picked up.
+        vx[i] = 0;
+        vy[i] = 0;
+        continue;
       default:
         assertNever(s.activity);
     }
@@ -132,6 +138,8 @@ export function updateMovement(state: GameState): void {
     const count = queryNeighbours(sheep, i, space, neighbours);
     for (let k = 0; k < count; k++) {
       const o = sheep[neighbours[k]];
+      // A dragged sheep is in the air: it pushes nobody (the grid still holds it, so skip on read).
+      if (o.activity === 'dragged') continue;
       const dx = s.x - o.x;
       const dy = s.y - o.y;
       const d = Math.sqrt(dx * dx + dy * dy);
@@ -163,6 +171,8 @@ export function updateMovement(state: GameState): void {
   // keeps facing the pen.
   for (let i = 0; i < n; i++) {
     const s = sheep[i];
+    // Not integrated or clamped: it keeps its pickup spot until it is dropped (drag.ts).
+    if (s.activity === 'dragged') continue;
     let x = s.x + vx[i] * DT;
     let y = s.y + vy[i] * DT;
     if (x < left || x > right) {

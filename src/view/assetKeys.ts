@@ -16,6 +16,10 @@ export const FRAME = Object.freeze({
   elderIdle: 'elder-idle',
   elderHungry: 'elder-hungry',
   elderStarving: 'elder-starving',
+  // Story 2.7: legs dangling while dragged (UX-DR60).
+  adultDragged: 'adult-dragged',
+  lambDragged: 'lamb-dragged',
+  elderDragged: 'elder-dragged',
   fencePost: 'fence-post',
   fenceRailH: 'fence-rail-h',
   fenceRailV: 'fence-rail-v',
@@ -31,6 +35,12 @@ export const FRAME = Object.freeze({
   alertPing: 'alert-ping',
   alertDot: 'alert-dot',
   munchCrumb: 'munch-crumb',
+  // The Better Place (UX-DR47, UX-DR52) and its suction sparkle (UX-DR80).
+  betterPlace: 'better-place',
+  betterPlaceLit: 'better-place-lit',
+  betterPlaceGlow: 'better-place-glow',
+  betterPlaceRingPrefix: 'better-place-ring-',
+  sparkle: 'sparkle',
   pipFood: 'pip-food',
   pipBreeding: 'pip-breeding',
   pipEmpty: 'pip-empty',

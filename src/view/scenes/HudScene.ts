@@ -241,6 +241,10 @@ export class HudScene extends Phaser.Scene {
       } else if (e.type === 'SheepDied') {
         // Counted here, toasted once per frame in refresh (flushDeathToasts).
         this.deaths[e.cause]++;
+      } else if (e.type === 'Sacrificed') {
+        // UX-DR93: one at a time (a sheep is dragged in by hand). Never branches on wasAbomination: the
+        // reveal is Story 4.4's.
+        showToast(STRINGS.sacrificeToast, { announcement: true });
       }
     } catch (err) {
       reportError('ui', err);

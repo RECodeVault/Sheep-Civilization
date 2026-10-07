@@ -42,11 +42,22 @@ const SHEEP_FRAME: Readonly<Record<Stage, Readonly<Record<Hunger, string>>>> = O
   adult: Object.freeze({ fed: FRAME.adultIdle, hungry: FRAME.adultHungry, starving: FRAME.adultStarving }),
   elder: Object.freeze({ fed: FRAME.elderIdle, hungry: FRAME.elderHungry, starving: FRAME.elderStarving }),
 });
+// UX-DR60: a dragged sheep dangles its legs; one frame per stage (the hunger pose waits until it is put
+// down; the ping and tint still show Starving and infected).
+const DRAGGED_FRAME: Readonly<Record<Stage, string>> = Object.freeze({
+  lamb: FRAME.lambDragged,
+  adult: FRAME.adultDragged,
+  elder: FRAME.elderDragged,
+});
+// UX-DR60: a dragged sheep is lifted this far above where it would stand.
+const LIFT_PX = 4;
 
 /**
  * Draws a sheep between its previous and current tick positions (fixed-step interpolation), so the
- * 10 Hz sim looks smooth at any refresh rate. Rendering is one tick behind the sim; Story 2.7's drag
- * must snap to the pointer instead. The positions here are view state only, never game data.
+ * 10 Hz sim looks smooth at any refresh rate. Rendering is one tick behind the sim, except while the
+ * sheep is held (Story 2.7's drag, `hold`): then it is drawn at the held point, lifted and dangling,
+ * every frame, and on `release` it snaps to the sim position instead of sliding there. The positions
+ * here are view state only, never game data.
  */
 export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEntitySprite<PublicSheep> {
   private boundId = 0;
@@ -59,6 +70,13 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
   /** The stage and hunger whose frame is showing; null forces the next sync to set it. */
   private shownStage: Stage | null = null;
   private shownHunger: Hunger | null = null;
+  /** Held by a drag (Story 2.7): drawn at (heldX, heldY), lifted. shownHeld is the frame's held state. */
+  private held = false;
+  private heldX = 0;
+  private heldY = 0;
+  private shownHeld = false;
+  /** Set by release: the next sync snaps to the sim position (no slide from the pickup spot). */
+  private snapNext = false;
   /** The ready heart, owned by this sprite and pooled with it; shown while the sheep is ready (FR8a). */
   private readonly readyHeart: Phaser.GameObjects.Image;
   private shownReady = false;
@@ -121,10 +139,11 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
 
   sync(pub: PublicSheep, alpha: number, simTime: number): void {
     // Either may change alone: a sheep ages while its hunger holds steady, and the reverse.
-    if (pub.stage !== this.shownStage || pub.hunger !== this.shownHunger) {
+    if (pub.stage !== this.shownStage || pub.hunger !== this.shownHunger || this.held !== this.shownHeld) {
       this.shownStage = pub.stage;
       this.shownHunger = pub.hunger;
-      this.setFrame(SHEEP_FRAME[pub.stage][pub.hunger]);
+      this.shownHeld = this.held;
+      this.setFrame(this.held ? DRAGGED_FRAME[pub.stage] : SHEEP_FRAME[pub.stage][pub.hunger]);
     }
     if (this.fresh) {
       // A newly bound (possibly reused) sprite starts at rest, never sliding in from an old spot.
@@ -153,17 +172,27 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
       this.currY = pub.y;
       this.lastTick = simTime;
       const dx = this.currX - this.prevX;
-      if (dx < -FACING_DEADBAND_PX) this.setFlipX(true);
-      else if (dx > FACING_DEADBAND_PX) this.setFlipX(false);
+      // A dropped sheep jumps to where it was put down: that is no walk, so the facing holds.
+      if (!this.snapNext) {
+        if (dx < -FACING_DEADBAND_PX) this.setFlipX(true);
+        else if (dx > FACING_DEADBAND_PX) this.setFlipX(false);
+      }
     }
-    const x = this.prevX + (this.currX - this.prevX) * alpha;
-    const y = this.prevY + (this.currY - this.prevY) * alpha;
+    if (this.snapNext) {
+      // Released from a drag after the tick that put it down: start at rest where the sim has it.
+      this.snapNext = false;
+      this.prevX = this.currX = pub.x;
+      this.prevY = this.currY = pub.y;
+      this.lastTick = simTime;
+    }
+    // Held: at the pointer, every frame, lifted (UX-DR60). The sim keeps it at the pickup spot.
+    const x = this.held ? this.heldX : this.prevX + (this.currX - this.prevX) * alpha;
+    const y = this.held ? this.heldY - LIFT_PX : this.prevY + (this.currY - this.prevY) * alpha;
+    // Lower sheep draw in front; a held sheep draws above them all.
+    const depth = this.held ? FIELD_DEPTH.dragged : y;
     const moved = this.x !== x || this.y !== y;
-    if (moved) {
-      this.setPosition(x, y);
-      // Lower sheep draw in front.
-      this.setDepth(y);
-    }
+    if (moved) this.setPosition(x, y);
+    if (depth !== this.depth) this.setDepth(depth);
     const infectedChanged = pub.infected !== this.shownInfected;
     if (infectedChanged) this.setInfected(pub.infected);
     // The pinned heart takes the ready heart's place while this sheep is A.
@@ -196,6 +225,24 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
     this.pingStarving = starving;
     this.pingInfected = infected;
     if (this.ping.shown) this.ping.place(x, this.stackTopY(y), simTime);
+  }
+
+  /**
+   * Holds the sheep at world (x, y) for this frame's sync (a drag, Story 2.7): drawn there lifted, in
+   * its dangling frame, at the drag depth, with its overlays. Call before the layer syncs, every frame
+   * it stays held. Allocates nothing.
+   */
+  hold(x: number, y: number): void {
+    this.held = true;
+    this.heldX = x;
+    this.heldY = y;
+  }
+
+  /** Ends a hold: the next sync snaps to the sim position (never slides there) and stands it down. */
+  release(): void {
+    if (!this.held) return;
+    this.held = false;
+    this.snapNext = true;
   }
 
   /**
@@ -355,6 +402,10 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
     this.fresh = true;
     this.shownStage = null;
     this.shownHunger = null;
+    // A reused sprite must never come back held, lifted or dangling.
+    this.held = false;
+    this.shownHeld = false;
+    this.snapNext = false;
     this.shownReady = false;
     this.lastReady = false;
     this.readyHeart.setVisible(false);

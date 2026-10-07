@@ -5,18 +5,27 @@ import { emit } from './events';
 import { rngRange } from './rng';
 import { innerFence } from './selectors';
 import type { GameState } from './state';
+import { sacrifice } from './systems/betterPlace';
 import { breed } from './systems/breeding';
 import { clearCarcass } from './systems/carcass';
+import { drop, pickUp } from './systems/drag';
 import { createBreedingPiece, createFoodPiece } from './systems/feeding';
 
-// Later stories append Sell, Sacrifice, Buy, …
+// Later stories append Sell, Buy, …
 export type Command =
   | { type: 'Farm' }
   | { type: 'FarmBreeding' }
   // FR9: the Breed tool picked sheep a, then sheep b. breeding.ts checks the pair again.
   | { type: 'Breed'; a: number; b: number }
   // FR13: a left click on a carcass in the default input mode. carcass.ts ignores an id that is gone.
-  | { type: 'ClearCarcass'; id: number };
+  | { type: 'ClearCarcass'; id: number }
+  // FR16: a drag started on sheep `id`; it stops wandering (drag.ts).
+  | { type: 'PickUp'; id: number }
+  // UX-DR67: the dragged sheep was put down at world (x, y); the sim clamps it inside the fence. A
+  // cancelled drag drops it back where it was picked up.
+  | { type: 'Drop'; id: number; x: number; y: number }
+  // FR18: sheep `id` was dropped into the Better Place (betterPlace.ts). An id that is gone is ignored.
+  | { type: 'Sacrifice'; id: number };
 
 export function applyCommand(state: GameState, cmd: Command): void {
   // FR38: a lost game takes no more commands. The sim is the authority; view guards are for feel.
@@ -33,6 +42,15 @@ export function applyCommand(state: GameState, cmd: Command): void {
       return;
     case 'ClearCarcass':
       clearCarcass(state, cmd.id);
+      return;
+    case 'PickUp':
+      pickUp(state, cmd.id);
+      return;
+    case 'Drop':
+      drop(state, cmd.id, cmd.x, cmd.y);
+      return;
+    case 'Sacrifice':
+      sacrifice(state, cmd.id);
       return;
     default:
       assertNever(cmd);

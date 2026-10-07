@@ -23,6 +23,8 @@ import { createNewGame, type BreedingPiece, type Carcass, type FoodPiece, type G
 import { step } from '../../sim/step';
 import { ATLAS, FRAME, HEART_CURSOR } from '../assetKeys';
 import { bus } from '../bus';
+import type { Rect } from '../../config/tuning';
+import { BETTER_PLACE, BETTER_PLACE_BOUNDS, BetterPlace } from '../field/BetterPlace';
 import { CarcassSprite } from '../field/CarcassSprite';
 import { FIELD_DEPTH } from '../field/depths';
 import { EntityLayer } from '../field/EntityLayer';
@@ -32,6 +34,7 @@ import { ObjectPool } from '../field/ObjectPool';
 import { PenCamera } from '../field/PenCamera';
 import { PregnancyHeart } from '../field/PregnancyHeart';
 import { spriteIndexAt } from '../field/hitTest';
+import { SheepDrag } from '../field/SheepDrag';
 import { SheepHover } from '../field/SheepHover';
 import { SheepSprite } from '../field/SheepSprite';
 import { clearAnnouncements, markGameStarted, reportError, setForceSave, showToast } from '../safetyNet';
@@ -84,6 +87,21 @@ const DUST = {
   scale: { start: 2, end: 3 },
   alpha: { start: 1, end: 0 },
 } as const;
+// UX-DR80 suction: the sacrificed sheep's body spirals into the hole, then halo sparkles burst. A
+// pooled ghost image plays it, so the real sprite leaves through the layer's sweep as usual (playExit
+// stays synchronous). Visual only; Story 5.7's reduced motion revisits it. [ASSUMPTION, tune in the
+// browser] values.
+const SUCTION = { durationMs: 400, spinDeg: 360, ghosts: 3 } as const;
+const SPARKLE_BURST = 10;
+const SPARKLE = {
+  lifespan: 500,
+  speed: { min: 40, max: 110 },
+  angle: { min: 0, max: 360 },
+  gravityY: -30,
+  scale: { start: 2, end: 1 },
+  alpha: { start: 1, end: 0 },
+} as const;
+
 /** Optional scene data: a state to resume instead of a new game (a loaded save, or debug Load save). */
 export interface GameSceneData {
   state?: GameState;
@@ -120,6 +138,14 @@ export class GameScene extends Phaser.Scene {
   private munch!: Phaser.GameObjects.Particles.ParticleEmitter;
   private poof!: Phaser.GameObjects.Particles.ParticleEmitter;
   private dust!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private sparkle!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private betterPlace!: BetterPlace;
+  private sheepDrag!: SheepDrag;
+  /** The pen plus the drop targets: what the camera centres on and keeps in view (Story 2.7). */
+  private playArea!: Rect;
+  /** UX-DR80 suction ghosts, reused round-robin (never created during play). */
+  private readonly ghosts: Phaser.GameObjects.Image[] = [];
+  private nextGhost = 0;
   // A carcass already clicked (its ClearCarcass is queued for the next tick) is skipped by carcassAt,
   // so a fast second click reaches the carcass under it. Bound once: no closure per click.
   private readonly clearQueued = (id: number): boolean => {
@@ -144,6 +170,7 @@ export class GameScene extends Phaser.Scene {
       } else if (e.type === 'LambBorn') this.poof.explode(POOF_PUFFS, e.x, e.y);
       else if (e.type === 'CarcassSpawned') this.dust.explode(DUST_SPAWN_PUFFS, e.x, e.y);
       else if (e.type === 'CarcassCleared') this.dust.explode(DUST_CLEAR_PUFFS, e.x, e.y);
+      else if (e.type === 'Sacrificed') this.suck(e.id);
     } catch (err) {
       reportError('ui', err);
     }
@@ -181,9 +208,12 @@ export class GameScene extends Phaser.Scene {
     // Placeholder ground until the era backgrounds arrive in Epic 3 (`pasture` is an art tone).
     this.cameras.main.setBackgroundColor(COLORS.pasture);
     new Fence(this, fenceBounds(this.state));
-    // Every game (new, continued, restarted) opens with the pen centred above the bar (Rylan).
+    this.betterPlace = new BetterPlace(this);
+    // Every game (new, continued, restarted) opens with the play area (the pen and the Better Place)
+    // centred above the bar, and the pan keeps all of it in view (Story 2.7; was the pen alone, 1.10).
+    this.playArea = union(fenceBounds(this.state), BETTER_PLACE_BOUNDS);
     this.penCamera = new PenCamera(this.cameras.main);
-    this.penCamera.centreOn(fenceBounds(this.state));
+    this.penCamera.centreOn(this.playArea);
     this.carcassLayer = new EntityLayer(new ObjectPool(() => new CarcassSprite(this), CARCASS_POOL_SIZE));
     this.foodLayer = new EntityLayer(new ObjectPool(() => new FoodSprite(this), FOOD_POOL_SIZE));
     this.breedingLayer = new EntityLayer(
@@ -201,6 +231,14 @@ export class GameScene extends Phaser.Scene {
     this.dust = this.add
       .particles(0, 0, ATLAS.sheepWorld, { frame: FRAME.dust, emitting: false, ...DUST })
       .setDepth(FIELD_DEPTH.particles);
+    this.sparkle = this.add
+      .particles(0, 0, ATLAS.sheepWorld, { frame: FRAME.sparkle, emitting: false, ...SPARKLE })
+      .setDepth(FIELD_DEPTH.particles);
+    this.ghosts.length = 0;
+    this.nextGhost = 0;
+    for (let i = 0; i < SUCTION.ghosts; i++) {
+      this.ghosts.push(this.add.image(0, 0, ATLAS.sheepWorld, FRAME.adultIdle).setDepth(FIELD_DEPTH.dragged).setVisible(false));
+    }
     // The sheep tooltip is the top of FIELD_DEPTH (above pings). Sheep hover stays in this scene;
     // HudScene draws above it. The panned pen can slide under the Pause button, so the sheep hover
     // skips while the pointer is on a HUD control (pointerOnHudControl) and the two tooltips never
@@ -210,16 +248,19 @@ export class GameScene extends Phaser.Scene {
     // so it is looked up on each press, never cached.
     const overlay = (): OverlayScene => this.scene.get('OverlayScene') as OverlayScene;
     const camera = this.cameras.main;
+    const drag = new SheepDrag(camera, this.sheepLayer, (cmd) => this.dispatch(cmd));
+    this.sheepDrag = drag;
     const input: InputController = new InputController(this.input, {
       modalOpen: () => this.modalOpen,
       esc: [
         () => overlay().closeConfirm(),
         () => overlay().closeSubPanel(),
-        // Story 2.7's cancel drag slots in here, and 3.2's close shop after breed mode.
+        (): boolean => input.cancelDrag(),
+        // 3.2's close shop slots in after breed mode.
         (): boolean => input.exitBreedMode(),
         () => overlay().togglePause(),
       ],
-      panBy: (dx, dy) => this.penCamera.panBy(dx, dy, fenceBounds(this.state)),
+      panBy: (dx, dy) => this.penCamera.panBy(dx, dy, this.playArea),
       // World point as SheepHover takes it: the pointer plus this frame's scroll (zoom 1).
       sheepAt: (sx, sy) => {
         const i = spriteIndexAt(this.publicSheep, this.sheepLayer, sx + camera.scrollX, sy + camera.scrollY);
@@ -246,6 +287,11 @@ export class GameScene extends Phaser.Scene {
       shake: (id) => this.sheepLayer.spriteFor(id)?.shake(),
       dispatch: (cmd) => this.dispatch(cmd),
       pointerOnHud: () => this.pointerOnHudControl(),
+      beginDrag: (id, sx, sy) => drag.begin(id, sx, sy),
+      moveDrag: (sx, sy) => drag.move(sx, sy),
+      endDrag: (sx, sy) => drag.end(sx, sy, this.state.time),
+      cancelDrag: () => drag.cancel(this.state.time),
+      dragAlive: () => drag.live,
     });
     this.inputController = input;
     bus.on('sim', this.onSim, this);
@@ -395,7 +441,8 @@ export class GameScene extends Phaser.Scene {
     try {
       // SheepHover reads the raw pointer, not hit objects, so it would show under any modal's scrim
       // or through a HUD control the pen is panned under.
-      if (this.modalOpen || this.pointerOnHudControl()) this.sheepHover.clear();
+      // UX-DR60: and hidden for the whole of a drag.
+      if (this.modalOpen || this.pointerOnHudControl() || this.inputController.dragging) this.sheepHover.clear();
       else this.sheepHover.update(this.publicSheep, this.game.loop.time);
     } catch (err) {
       reportError('ui', err);
@@ -484,7 +531,11 @@ export class GameScene extends Phaser.Scene {
     this.foodLayer.sync(selectFoodPieces(this.state), this.clock.alpha, this.state.time);
     this.breedingLayer.sync(selectBreedingPieces(this.state), this.clock.alpha, this.state.time);
     selectPublicSheep(this.state, this.publicSheep);
+    // Before the layer syncs: a dragged (or just released) sheep is drawn at its held point.
+    this.sheepDrag.sync(this.state);
     this.sheepLayer.sync(this.publicSheep, this.clock.alpha, this.state.time);
+    this.betterPlace.setHighlight(this.sheepDrag.highlight);
+    this.betterPlace.update(this.game.loop.time);
     this.pregnancyLayer.sync(this.drawnPregnancies(), this.clock.alpha, this.state.time);
     this.syncBreedMarkers();
   }
@@ -512,6 +563,43 @@ export class GameScene extends Phaser.Scene {
     return list;
   }
 
+  /**
+   * UX-DR80: sheep `id` went into the Better Place. Runs inside the tick's drain, before render()'s sweep,
+   * so its sprite is still bound and drawn where it was dropped: a ghost copies it and spirals in.
+   */
+  private suck(id: number): void {
+    const spr = this.sheepLayer.spriteFor(id);
+    if (spr === undefined) return;
+    const ghost = this.ghosts[this.nextGhost];
+    this.nextGhost = (this.nextGhost + 1) % this.ghosts.length;
+    const tweens = this.tweens;
+    tweens.killTweensOf(ghost);
+    ghost
+      .setFrame(spr.frame.name)
+      .setFlipX(spr.flipX)
+      .setScale(spr.scaleX)
+      .setAngle(spr.angle)
+      .setPosition(spr.x, spr.y)
+      .setVisible(true);
+    if (spr.isTinted) ghost.setTint(spr.tint).setTintMode(spr.tintMode);
+    else ghost.clearTint();
+    // A closure per sacrifice: a rare event.
+    tweens.add({
+      targets: ghost,
+      x: BETTER_PLACE.x,
+      y: BETTER_PLACE.y,
+      scale: 0,
+      angle: spr.angle + SUCTION.spinDeg,
+      duration: SUCTION.durationMs,
+      ease: 'Cubic.easeIn',
+      onComplete: () => {
+        ghost.setVisible(false);
+        this.sparkle.explode(SPARKLE_BURST, BETTER_PLACE.x, BETTER_PLACE.y);
+        this.betterPlace.gulp();
+      },
+    });
+  }
+
   /** UX-DR56/UX-DR69: in breed mode A shows its pinned heart and every other pickable adult a pulse. */
   private syncBreedMarkers(): void {
     const input = this.inputController;
@@ -525,6 +613,18 @@ export class GameScene extends Phaser.Scene {
       spr.setBreedMarker(!breeding ? 'none' : p.id === a ? 'pinned' : p.canBreed ? 'candidate' : 'none');
     }
   }
+}
+
+/** The smallest rect holding both. Allocates; called once per game. */
+function union(a: Rect, b: Rect): Rect {
+  const x = Math.min(a.x, b.x);
+  const y = Math.min(a.y, b.y);
+  return {
+    x,
+    y,
+    width: Math.max(a.x + a.width, b.x + b.width) - x,
+    height: Math.max(a.y + a.height, b.y + b.height) - y,
+  };
 }
 
 /**

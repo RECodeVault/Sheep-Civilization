@@ -22,6 +22,7 @@ Real issues found in reviews that are not actionable in the story where they wer
   - **Resolved in Story 1.10:** Farm (F and the click) is ignored while any modal is up, so nothing queues while paused and nothing bursts on resume; the queue only fills while the clock runs, and each tick empties it. No input arrives between SHUTDOWN and `create()`.
 - **Exit animations (Story 2.4):** `PooledEntitySprite.playExit()` returns nothing and `EntityLayer` releases the sprite immediately. The architecture's N3 contract is `playExit(done)`, releasing to the pool only when the exit animation ends. Change the interface and the sweep when death puffs or sell animations arrive.
   - **Moved to Stories 2.7 / 3.1 (sacrifice suction, sale):** 2.4 put the death's slapstick beat on the carcass's spawn (a flop and a dust puff), so the dying sheep's sprite still hides at once and `playExit()` stays synchronous.
+  - **Resolved in Story 2.7 (no interface change):** the suction plays on a pooled ghost image in `GameScene` (`suck`), started from `Sacrificed` while the real sprite is still bound; the sprite leaves through the normal sweep and `playExit()` stays synchronous. 3.1 can reuse the ghost for the sale.
 - **Fence growth (Story 3.3):** `Fence.setBounds` destroys and re-creates its images, and `GameScene` keeps no reference to the `Fence`. Growing the fence during play must reuse or pool the parts (project rule: never `destroy()` during play) and keep the instance.
 - **Failed asset load (Story 1.4):** `PreloadScene` logs `FILE_LOAD_ERROR` and still starts `GameScene`, so a missing atlas renders the sheep and fence as Phaser missing-texture boxes with no message. Decision 2026-10-05: keep log-and-continue; the Story 1.4 error safety net should show the player a message when an atlas fails to load.
   - **Resolved in Story 1.4:** after loading, `PreloadScene` checks that both atlas textures exist. If one is missing it logs a warn and shows "Some of the pasture didn't load. Try reloading the page." once; the game still starts.
@@ -107,6 +108,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Esc and shortcuts on the lose screen (Story 1.10):** the `Esc` chain must do nothing while the lose panel is up (no pause over a lost game), and the modal check that ignores F/G must include it. Today F is already a no-op when lost (`HudScene.farm` and `applyCommand` both guard). The one scrim lives in `OverlayScene` for the pause and confirm modals to reuse.
   - **Resolved in Story 1.10:** the Esc chain's last step swallows the press when lost, `modalOpen` includes the lose screen (F and the Farm click are ignored), and the Pause button sits under the lose scrim.
 - **`removeSheep` (Story 2.7, sacrifice; 3.1, sell):** it must end with `checkLastSheepAndLoss(state)`, exported from `systems/carcass.ts`; selling or sacrificing the last sheep is a loss.
+  - **Resolved in Story 2.7:** `removeSheep(state, id, 'sold' | 'sacrificed')` in `carcass.ts` counts the stat and ends with the loss check (no carcass, no event of its own). 3.1 emits `Sold` and adds the money.
 - **`LastSheep` (Story 5.5):** emit it from `checkLastSheepAndLoss` when the flock drops to 1 (marked comment).
 
 ## Deferred from: code review of 1-8-losing-the-flock (2026-10-06)
@@ -145,7 +147,9 @@ Real issues found in reviews that are not actionable in the story where they wer
     - **Resolved in Story 2.3:** any right-click on the canvas (field or bar) cancels breed mode; only a press that began on the field pans. Breed-mode clicks hit-test in world coordinates (`sheepIndexAt` at pointer + scroll).
   - **2.4 / 2.7:** field clicks and sheep drags must hit-test in world coordinates (`camera.getWorldPoint`, as `SheepHover` does), and the sheep drag must not start on a right press.
     - **2.4 part resolved:** carcass clicks hit-test at pointer + camera scroll (as `SheepHover` does, not `getWorldPoint`). The 2.7 drag part stays open.
+    - **Resolved in Story 2.7:** the drag picks the sheep at the press (pointer + scroll) and only on a left press.
   - **2.7 / 3.1:** the Better Place and the Market were placed in canvas terms (upper-left x ≈ 450–590; right edge). They are world objects now, so place them relative to the pen, and consider pinning the camera to the pen plus both targets so a drag can always reach them.
+    - **2.7 part resolved:** the Better Place is fixed at world (520, 108) (the mockup, clear of the Land I fence). The camera centres on and pins to the play area (pen ∪ `BETTER_PLACE_BOUNDS`); this revises 1.10's "centred on the pen" (2.7 Open Question 1). 3.1 adds the Market to `GameScene.playArea`.
   - **3.3:** when the fence grows, re-clamp (or re-centre) the camera; `PenCamera` centres a pen too big to fit.
 
 ## Deferred from: code review of 2-1-life-stages-and-the-gdd-starting-flock (2026-10-06)
@@ -167,3 +171,12 @@ Real issues found in reviews that are not actionable in the story where they wer
 ## Deferred from: code review of 2-6-alert-pings-and-threat-summary (2026-10-07)
 
 - **Four-digit threat counts (Story 3.6):** `ThreatSummary`'s count box is 34 px, sized for "100". Starving and infected are capped by capacity, but carcasses stay until cleared, so 1 000+ uncleared carcasses would draw "1000" into the next slot. Unreachable in normal play; if 3.6 finds it can happen, clamp the text (for example "999+") and re-space the bar.
+
+## Deferred from: story 2-7-drag-a-sheep-into-the-better-place (2026-10-07)
+
+- **The Market (Story 3.1):** add its bounds to `GameScene.playArea` (union with the pen and the Better Place), its armed and hovered highlight next to `BetterPlace.setHighlight`, and the invalid "Too young" target for lambs. `SheepDrag.end` decides the target from the pointer: add the Market test beside `inBetterPlace`.
+- **Fence growth vs the hole (Story 3.3):** the hole is fixed at world (520, 108). The Land I fence (mockup 430–1062 × 184–598) stays clear of it, but check the later tiers, and recompute `GameScene.playArea` (and re-clamp the camera) when the fence grows.
+- **A victim picked up mid-approach (Story 4.3):** a dragged sheep keeps its sim position (the pickup spot), so the Abomination would walk to where it was picked up. Decide whether a dragged victim is re-picked like a sacrificed one.
+- **The reveal (Story 4.4):** `Sacrificed.wasAbomination` is always false today; the HUD toast and `GameScene.suck` must branch on it only there.
+- **Audio (Story 5.6):** the `[suction]` caption and SFX on `Sacrificed`.
+- **Reduced motion (Story 5.7):** the suction spiral (`SUCTION`), the ring spin and hole suck (`BP_MOTION` in `BetterPlace.ts`) and the 4 px lift are juice; the lit rim, glow and label are information and stay.
