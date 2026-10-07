@@ -11,6 +11,9 @@ export type BusEvents = {
   'farmBreeding:pressed': undefined;
   // The Breed tool was clicked (HudScene); InputController toggles breed mode (UX-DR71).
   'breedTool:pressed': undefined;
+  // A right press landed on a HUD control (HudScene), which captures it from GameScene; InputController
+  // counts it toward the right-click that cancels breed mode (UX-DR74).
+  'hud:rightPressed': undefined;
   // InputController entered or left breed mode, or picked or dropped adult A (0 = none). HudScene
   // shows the tool's active look; GameScene the cursor and the sheep markers.
   'breedMode:changed': { active: boolean; pickedA: number };

@@ -150,6 +150,9 @@ export function sheepIndex(state: GameState, id: number): number {
 /** A lamb on the way, as the view draws it: a heart between the parents (UX-DR56). */
 export interface PublicPregnancy {
   id: number;
+  /** The parents' ids (not secret), so the view can place the heart between their drawn sprites. */
+  parentA: number;
+  parentB: number;
   x: number;
   y: number;
 }
@@ -181,10 +184,12 @@ export function selectPregnancies(state: GameState, out: PublicPregnancy[]): Pub
   for (let i = 0; i < list.length; i++) {
     let p = out[i];
     if (p === undefined) {
-      p = { id: 0, x: 0, y: 0 };
+      p = { id: 0, parentA: 0, parentB: 0, x: 0, y: 0 };
       out[i] = p;
     }
     p.id = list[i].id;
+    p.parentA = list[i].parentA;
+    p.parentB = list[i].parentB;
     pregnancySpot(state, list[i], p);
   }
   out.length = list.length;

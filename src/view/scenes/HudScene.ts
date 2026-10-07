@@ -78,6 +78,7 @@ export class HudScene extends Phaser.Scene {
     bus.on('farm:pressed', this.farm, this);
     bus.on('farmBreeding:pressed', this.farmBreeding, this);
     bus.on('breedMode:changed', this.onBreedMode, this);
+    this.input.on(Phaser.Input.Events.POINTER_DOWN, this.onPointerDown, this);
     // Phaser updates scenes in REVERSE array order (SceneManager.update), so HudScene's update()
     // would run before GameScene ticks and show last frame's food. PRE_RENDER fires after every
     // scene has updated, so the meter shows a change on the frame it happens (UX-DR29).
@@ -88,6 +89,7 @@ export class HudScene extends Phaser.Scene {
       bus.off('farm:pressed', this.farm, this);
       bus.off('farmBreeding:pressed', this.farmBreeding, this);
       bus.off('breedMode:changed', this.onBreedMode, this);
+      this.input.off(Phaser.Input.Events.POINTER_DOWN, this.onPointerDown, this);
       this.events.off(Phaser.Scenes.Events.PRE_RENDER, this.refresh, this);
     });
   }
@@ -165,6 +167,25 @@ export class HudScene extends Phaser.Scene {
     }
   };
 
+  /**
+   * A right press on one of this scene's controls never reaches GameScene (top-only input), so it is
+   * passed on for the right-click that cancels breed mode. Presses off the controls reach it directly.
+   */
+  private readonly onPointerDown = (pointer: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]): void => {
+    try {
+      if (pointer.rightButtonDown() && over.length > 0) bus.emit('hud:rightPressed', undefined);
+    } catch (err) {
+      reportError('ui', err);
+    }
+  };
+
+  /** The hovered HUD button, or null (GameScene restores its cursor after a breed-mode change). */
+  get hoveredButton(): Button | null {
+    const buttons = this.tooltipButtons;
+    for (let i = 0; i < buttons.length; i++) if (buttons[i].isHovered) return buttons[i];
+    return null;
+  }
+
   /** The tool's active look follows breed mode (heart-deep fill, wool label). */
   private readonly onBreedMode = (e: { active: boolean }): void => {
     this.bar.breedButton.setToggled(e.active);
@@ -175,9 +196,7 @@ export class HudScene extends Phaser.Scene {
    * button, so GameScene's sheep hover (which reads the raw pointer) skips while this is true.
    */
   get pointerOverControl(): boolean {
-    const buttons = this.tooltipButtons;
-    for (let i = 0; i < buttons.length; i++) if (buttons[i].isHovered) return true;
-    return false;
+    return this.hoveredButton !== null;
   }
 
   /** The top-left Pause button (UX-DR76: pause is mouse-reachable); the same menu as Esc. */

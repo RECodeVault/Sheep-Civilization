@@ -1,4 +1,4 @@
-import type Phaser from 'phaser';
+import Phaser from 'phaser';
 import { LAYOUT } from '../config/constants';
 import { log } from '../core/log';
 import type { Command } from '../sim/commands';
@@ -56,14 +56,16 @@ export class InputController {
   private panDownY = 0;
   private panLastX = 0;
   private panLastY = 0;
-  // Breed mode (AR8). pickA is the first-picked adult's id, 0 for none.
-  private breedingMode = false;
+  // The input mode (AR8): Story 2.7 adds 'dragging'. pickA is breed mode's first-picked adult, 0 for none.
+  private mode: 'idle' | 'breeding' = 'idle';
   private pickA = 0;
-  // A left press on the field in breed mode: a click if released within the threshold. Resolved at
-  // the press point (screen coordinates; the sheep hit test maps them into the world).
+  // A left press on the field in breed mode: a click if released within the threshold, acting on the
+  // sheep that was under the press (hit-tested at the press, so a sheep wandering under a held
+  // pointer is never picked instead). 0 = empty field.
   private clickArmed = false;
   private clickDownX = 0;
   private clickDownY = 0;
+  private clickSheep = 0;
   // Phaser's KeyboardManager replays its whole per-step queue on every new key event, and its
   // duplicate check compares only with the event before, so with three or more key events in one
   // step an earlier keydown is dispatched again (KeyboardPlugin.update). Each handler ignores an
@@ -77,6 +79,10 @@ export class InputController {
     this.input = input;
     input.on('pointerdown', this.onPointerDown, this);
     bus.on('breedTool:pressed', this.toggleBreedMode, this);
+    bus.on('hud:rightPressed', this.onHudRightPress, this);
+    // A press released outside the canvas, or a pointer that leaves it, is no click (Task 7.3).
+    input.on(Phaser.Input.Events.POINTER_UP_OUTSIDE, this.cancelClick, this);
+    input.on(Phaser.Input.Events.GAME_OUT, this.cancelClick, this);
     // UX-DR74: the browser context menu is disabled once for the page in BootScene (Phaser adds a
     // listener per call that can never be removed).
     this.keyboard = input.keyboard;
@@ -93,7 +99,7 @@ export class InputController {
 
   /** True while in breed mode. */
   get breeding(): boolean {
-    return this.breedingMode;
+    return this.mode === 'breeding';
   }
 
   /** The first-picked adult in breed mode, or 0. */
@@ -119,20 +125,20 @@ export class InputController {
 
   /** The Breed tool (UX-DR31, UX-DR71): enters breed mode, or cancels it when it is on. */
   toggleBreedMode(): void {
-    if (this.breedingMode) {
+    if (this.mode === 'breeding') {
       this.exitBreedMode();
       return;
     }
     if (this.hooks.modalOpen()) return;
-    this.breedingMode = true;
+    this.mode = 'breeding';
     this.pickA = 0;
     this.notifyBreedMode();
   }
 
   /** Leaves breed mode, forgetting A. Returns true if it was on (the Esc chain step). */
   exitBreedMode(): boolean {
-    if (!this.breedingMode) return false;
-    this.breedingMode = false;
+    if (this.mode !== 'breeding') return false;
+    this.mode = 'idle';
     this.pickA = 0;
     this.clickArmed = false;
     this.notifyBreedMode();
@@ -148,7 +154,10 @@ export class InputController {
 
   destroy(): void {
     this.input.off('pointerdown', this.onPointerDown, this);
+    this.input.off(Phaser.Input.Events.POINTER_UP_OUTSIDE, this.cancelClick, this);
+    this.input.off(Phaser.Input.Events.GAME_OUT, this.cancelClick, this);
     bus.off('breedTool:pressed', this.toggleBreedMode, this);
+    bus.off('hud:rightPressed', this.onHudRightPress, this);
     this.keyboard?.off('keydown-F', this.onFarmKey, this);
     this.keyboard?.off('keydown-G', this.onFarmBreedingKey, this);
     this.keyboard?.off('keydown-ESC', this.onEscKey, this);
@@ -157,19 +166,42 @@ export class InputController {
   private updateClick(): void {
     if (!this.clickArmed) return;
     const p = this.input.activePointer;
-    if (!this.breedingMode || this.hooks.modalOpen()) {
+    if (this.mode !== 'breeding' || this.hooks.modalOpen()) {
       this.clickArmed = false;
       return;
     }
-    if (p.leftButtonDown()) {
-      // Moving past the threshold makes it a drag, which breed mode ignores (2.7 adds sheep drags).
-      const dx = p.x - this.clickDownX;
-      const dy = p.y - this.clickDownY;
-      if (dx * dx + dy * dy > DRAG_THRESHOLD2) this.clickArmed = false;
+    // Moving past the threshold makes it a drag, which breed mode ignores (2.7 adds sheep drags).
+    // Checked while held and again at the release point (upX/upY), so a press, move and release
+    // inside one frame is no click either.
+    const down = p.leftButtonDown();
+    const dx = (down ? p.x : p.upX) - this.clickDownX;
+    const dy = (down ? p.y : p.upY) - this.clickDownY;
+    if (dx * dx + dy * dy > DRAG_THRESHOLD2) {
+      this.clickArmed = false;
       return;
     }
+    if (down) return;
     this.clickArmed = false;
-    this.pick(this.hooks.sheepAt(this.clickDownX, this.clickDownY));
+    this.pick(this.clickSheep);
+  }
+
+  /** Drops a breed-mode click in progress (released outside the canvas, pointer left it). */
+  private cancelClick(): void {
+    this.clickArmed = false;
+  }
+
+  /**
+   * A right press on a HUD control (HudScene). Its button zone captures the press, so this scene never
+   * sees it; it still counts for the right-click that cancels breed mode, but never pans.
+   */
+  private onHudRightPress(): void {
+    if (this.hooks.modalOpen()) return;
+    const p = this.input.activePointer;
+    this.panArmed = true;
+    this.panFromField = false;
+    this.panning = false;
+    this.panDownX = this.panLastX = p.x;
+    this.panDownY = this.panLastY = p.y;
   }
 
   /** UX-DR70: a click in breed mode on sheep `id` (0 = empty field). */
@@ -223,7 +255,7 @@ export class InputController {
 
   private notifyBreedMode(): void {
     // A mode change is a rare event, so the payload object is fine.
-    bus.emit('breedMode:changed', { active: this.breedingMode, pickedA: this.pickA });
+    bus.emit('breedMode:changed', { active: this.mode === 'breeding', pickedA: this.pickA });
   }
 
   private onFarmKey(event: KeyboardEvent): void {
@@ -258,10 +290,11 @@ export class InputController {
         this.panDownY = this.panLastY = pointer.y;
         return;
       }
-      if (pointer.leftButtonDown() && this.breedingMode && onField && !this.hooks.pointerOnHud()) {
+      if (pointer.leftButtonDown() && this.mode === 'breeding' && onField && !this.hooks.pointerOnHud()) {
         this.clickArmed = true;
         this.clickDownX = pointer.x;
         this.clickDownY = pointer.y;
+        this.clickSheep = this.hooks.sheepAt(pointer.x, pointer.y);
       }
     } catch (err) {
       reportError('ui', err);

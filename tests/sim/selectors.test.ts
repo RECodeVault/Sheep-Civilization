@@ -217,17 +217,17 @@ describe('selectPregnancies', () => {
     state.pregnancies.push({ id: 77, parentA: a.id, parentB: b.id, dueAt: 1, x: 1, y: 2 });
     const out: PublicPregnancy[] = [];
     expect(selectPregnancies(state, out)).toBe(out);
-    expect(out).toEqual([{ id: 77, x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }]);
+    expect(out).toEqual([{ id: 77, parentA: a.id, parentB: b.id, x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }]);
     const first = out[0];
 
     killSheep(state, b.id, 'starved');
     selectPregnancies(state, out);
     expect(out[0]).toBe(first);
-    expect(out[0]).toEqual({ id: 77, x: a.x, y: a.y });
+    expect(out[0]).toMatchObject({ id: 77, x: a.x, y: a.y });
 
     killSheep(state, a.id, 'starved');
     selectPregnancies(state, out);
-    expect(out[0]).toEqual({ id: 77, x: 1, y: 2 });
+    expect(out[0]).toMatchObject({ id: 77, x: 1, y: 2 });
 
     state.pregnancies.length = 0;
     selectPregnancies(state, out);

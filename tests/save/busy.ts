@@ -2,7 +2,7 @@ import { TUNING } from '../../src/config/tuning';
 import { applyCommand } from '../../src/sim/commands';
 import { drainEvents } from '../../src/sim/events';
 import type { GameState } from '../../src/sim/state';
-import { fillFlock, newGame, runFor } from '../sim/helpers';
+import { fillFlock, innerFence, newGame, runFor } from '../sim/helpers';
 
 /**
  * A mid-game state with every saved field in use: a 12-sheep flock, pieces on the ground with
@@ -23,14 +23,16 @@ export function busyGame(seed = 31337): GameState {
   // A pregnancy (Story 2.3): two more adults bred, so they are on cooldown and their lamb is on the way.
   // Set directly: 12 sheep are over the base capacity, so a Breed command would be refused.
   const [a, b] = [state.sheep[3], state.sheep[4]];
+  const r = innerFence(state);
   a.cooldownUntil = b.cooldownUntil = state.time + TUNING.breedCooldownMs;
   state.pregnancies.push({
     id: state.nextId++,
     parentA: a.id,
     parentB: b.id,
     dueAt: state.time + TUNING.gestationMs,
-    x: (a.x + b.x) / 2,
-    y: (a.y + b.y) / 2,
+    // Clamped as breed() does: validation requires the inner fence.
+    x: Math.min(r.right, Math.max(r.left, (a.x + b.x) / 2)),
+    y: Math.min(r.bottom, Math.max(r.top, (a.y + b.y) / 2)),
   });
   drainEvents(() => {});
   runFor(state, 1_000);

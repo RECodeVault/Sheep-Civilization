@@ -72,8 +72,9 @@ describe('validateState', () => {
 
   it('accepts a pregnancy whose parents have died', () => {
     const r = raw();
-    r.pregnancies[0].parentA = 9_000;
-    r.pregnancies[0].parentB = 9_001;
+    // Ids that were issued (below nextId) but name no living sheep.
+    r.pregnancies[0].parentA = r.foodPieces[0].id;
+    r.pregnancies[0].parentB = r.pregnancies[0].id;
     expect(validateState(r).ok).toBe(true);
   });
 
@@ -136,6 +137,8 @@ describe('validateState', () => {
     ['a pregnancy sharing a sheep id', (r) => (r.pregnancies[0].id = r.sheep[0].id), 'pregnancies[0].id'],
     ['a pregnancy parentA of 0', (r) => (r.pregnancies[0].parentA = 0), 'pregnancies[0].parentA'],
     ['a fractional pregnancy parentB', (r) => (r.pregnancies[0].parentB = 1.5), 'pregnancies[0].parentB'],
+    ['a pregnancy naming one parent twice', (r) => (r.pregnancies[0].parentB = r.pregnancies[0].parentA), 'pregnancies[0].parentB'],
+    ['a pregnancy parent id not yet issued', (r) => (r.pregnancies[0].parentA = r.nextId), 'pregnancies[0].parentA'],
     ['a NaN pregnancy dueAt', (r) => (r.pregnancies[0].dueAt = Number.NaN), 'pregnancies[0].dueAt'],
     [
       'a pregnancy dueAt past a fresh gestation',

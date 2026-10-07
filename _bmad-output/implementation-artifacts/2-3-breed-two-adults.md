@@ -4,7 +4,7 @@ baseline_commit: 29a43ad348d7037a766ea5c41edeb4bd110d3d4a
 
 # Story 2.3: Breed Two Adults
 
-Status: review
+Status: done
 
 <!-- Created 2026-10-07 by create-story. Builds on 2.2 (breeding bar, breeding pieces, breedReady, ready heart). -->
 
@@ -252,6 +252,20 @@ so that I can grow my flock.
     - **960×540:** legible.
     - No console errors.
   - [x] 14.2 Check capacity with the debug "+10 sheep" button: Breed greys with "No room. Buy land.", and an active breed mode exits.
+
+### Review Findings
+
+- [x] [Review][Patch] A right-click on a HUD button (Farm, Farm Breeding Food, Breed, Pause) does not cancel breed mode: HudScene's button zones capture the press, so GameScene never sees it (AC 6, Task 7.4) [src/input/InputController.ts:285]
+- [x] [Review][Patch] Entering or leaving breed mode while the pointer is on a HUD button replaces its hand cursor with the heart or the arrow until the pointer re-enters (AC 3) [src/view/scenes/GameScene.ts:116]
+- [x] [Review][Patch] A breed-mode click is not disarmed on GAME_OUT or a release outside the canvas, and a press, >6 px move and release within one frame counts as a click (Task 7.3) [src/input/InputController.ts:322]
+- [x] [Review][Patch] The click is hit-tested at release with that frame's sprites and camera scroll, not at the press point; resolve the sheep at press time (AC 5) [src/input/InputController.ts:337]
+- [x] [Review][Patch] Breed markers lag a frame behind mode changes, and on picking A the ready heart and the pinned heart both show for a frame [src/view/scenes/GameScene.ts:322]
+- [x] [Review][Patch] The pregnancy heart follows the parents' tick positions while the sheep are drawn interpolated, so it runs up to a tick ahead [src/view/field/PregnancyHeart.ts:40]
+- [x] [Review][Patch] Births due on the same tick are made in reverse pregnancy order (ids and rng draws reversed); loop forward [src/sim/systems/lifecycle.ts:30]
+- [x] [Review][Patch] Save validation accepts a pregnancy with parentA === parentB or a parent id ≥ nextId (a later sheep would inherit the pregnancy) [src/save/validate.ts:159]
+- [x] [Review][Patch] The busy save fixture stores an unclamped parents' midpoint while validation requires the inner fence: a seed or tuning change could break every round-trip test [tests/save/busy.ts:63]
+- [x] [Review][Patch] Breed mode is a boolean, not the `'idle' | 'breeding'` mode the task and AR8 specify (2.7 adds `dragging`) [src/input/InputController.ts:61]
+- [x] [Review][Patch] deferred-work.md still says sheep die by 420 s in the resolved long-dev-run item; add the 540 s update [_bmad-output/implementation-artifacts/deferred-work.md:150]
 
 ## Dev Notes
 
@@ -508,6 +522,27 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
 - AC 10: `npm test` (355 passed), `npm run typecheck` and `npm run lint` all pass.
 - `deferred-work.md`: the Button disabled-state gaps, the right-click cancel and the long-dev-run items are marked resolved in 2.3.
 
+- Code review (2026-10-07): 3 layers (Blind Hunter, Edge Case Hunter, Acceptance Auditor). 0 decisions, 11 patches applied, 0 deferred, 7 dismissed:
+  - the lost-lamb behaviour (an approved Open Question default);
+  - the tooltip re-arming on an enable flip under the pointer (the intended reason tooltip);
+  - a supposedly missing `sheepIndexAt` export (it existed);
+  - the "draws no rng" test (rng is a number, so it is not vacuous);
+  - "Needs 2 ready sheep." with a ready sheep on cooldown (only corrupt or debug states);
+  - the one-parent heart wording and the hook-versus-bus wording (both contradictions inside the spec; the code follows the tasks).
+- Review patches:
+  - A right press on a HUD control is forwarded (`hud:rightPressed`), so a right-click on any button cancels breed mode.
+  - A hovered button keeps its hand cursor when breed mode toggles.
+  - A breed-mode click is disarmed on `POINTER_UP_OUTSIDE` and `GAME_OUT`, measured again at the release point, and hit-tested at the press.
+  - Input runs before render, and `SheepSprite.setBreedMarker` swaps the hearts at once, so markers never lag and never show two hearts.
+  - The pregnancy heart follows the parents' drawn sprites (`PublicPregnancy.parentA/parentB`).
+  - Births run forwards (pregnancy order).
+  - Validation rejects a pregnancy naming one parent twice or a parent id at or above `nextId`.
+  - The busy fixture clamps its pregnancy spot.
+  - `InputController.mode` is `'idle' | 'breeding'`.
+  - `deferred-work.md` notes the 540 s lifespan.
+  - Tests: 358 pass, typecheck and lint are clean, and the browser was re-checked (HUD right-clicks cancel, the hand stays on Breed, a release outside picks nothing, a single pinned heart, a pair still breeds).
+- 2026-10-07 (Rylan): the Breed button is 64 px tall and top-aligned with Farm and Farm Breeding Food (was 56 px, centred). DESIGN.md and UX-DR31 updated.
+
 ### File List
 
 - `src/config/tuning.ts`, `src/config/constants.ts` (modified)
@@ -532,7 +567,10 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
 - `tests/save/busy.ts`, `tests/save/migrations.test.ts`, `tests/save/saveFile.test.ts`, `tests/save/validate.test.ts` (modified)
 - `_bmad-output/implementation-artifacts/2-3-breed-two-adults.md` (new)
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`, `_bmad-output/implementation-artifacts/deferred-work.md` (modified)
+- `_bmad-output/planning-artifacts/gdds/gdd-sheep-civilization-2026-10-05/{gdd,epics}.md`, `_bmad-output/planning-artifacts/epics.md`, `_bmad-output/planning-artifacts/ux-designs/ux-sheep-civilization-2026-10-05/{DESIGN,EXPERIENCE}.md` (modified: the 6-minute adulthood and the 64 px Breed button)
 
 ### Change Log
 
 - 2026-10-07: Implemented breeding: the Breed tool and breed mode, the `Breed` command with cooldown and capacity, gestation and birth, pregnancy hearts and the birth poof, the cooldown tooltip icon, save schema 4, the Button and Tooltip widget extensions, and the debug "Ready adults" button. Status → review.
+- 2026-10-07: Adulthood lengthened to 6 minutes (adult 60–420 s, elder to 540 s; Rylan).
+- 2026-10-07: Breed button set to 64 px and aligned with the Farm buttons (Rylan). Code review: 11 patches applied. Status → done.

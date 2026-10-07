@@ -172,6 +172,8 @@ export const COMPONENTS = defineComponents({
     height: 64,
   },
   // DESIGN.md gives no typography for the Breed tool; `label`, like every other button label (UX-DR4).
+  // 64 px, the height of Farm and Farm Breeding Food, so the three buttons line up (Rylan, 2026-10-07;
+  // was 56).
   buttonBreedTool: {
     backgroundColor: 'wool',
     borderColor: 'heartDeep',
@@ -180,7 +182,7 @@ export const COMPONENTS = defineComponents({
     activeTextColor: 'wool',
     typography: 'label',
     rounded: 'md',
-    height: 56,
+    height: 64,
   },
   buttonDisabled: {
     backgroundColor: 'disabled',

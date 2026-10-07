@@ -24,10 +24,9 @@ const GROUP_GAP = SPACING[3];
 const BREED_FOOD_X = FARM_X + Math.max(FARM_W, FARM_PROGRESS_W) + GROUP_GAP;
 const BREED_FOOD_W = 200;
 // The Breed tool (UX-DR31): right of the Farm Breeding Food group, 104 px wide (mockups/hud.html
-// `.btn-breed`), centred in the bar like the mockup (`.hud` align-items: center).
+// `.btn-breed`), top-aligned with the Farm buttons at their height (Rylan, 2026-10-07).
 const BREED_X = BREED_FOOD_X + Math.max(BREED_FOOD_W, FARM_PROGRESS_W) + GROUP_GAP;
 const BREED_W = 104;
-const BREED_Y = BAR_TOP + (LAYOUT.hudBarHeight - COMPONENTS.buttonBreedTool.height) / 2;
 
 /**
  * The HUD bottom bar: a full-width wool surface with actions on the left (UX-DR25). Story 1.6 builds
@@ -75,7 +74,7 @@ export class BottomBar {
     // No key hint: the Breed tool has no shortcut (UX-DR72). Greyed until two adults are ready.
     this.breedButton = new Button(scene, COMPONENTS.buttonBreedTool, {
       x: BREED_X,
-      y: BREED_Y,
+      y: FARM_Y,
       width: BREED_W,
       label: STRINGS.breedLabel,
       icon: FRAME.iconHeart,

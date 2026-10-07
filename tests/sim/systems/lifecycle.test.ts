@@ -138,6 +138,21 @@ describe('updateLifecycle', () => {
     expect([state.sheep[1].x, state.sheep[1].y]).toEqual([p.x, p.y]);
   });
 
+  it('lambs due on the same tick are born in pregnancy order (ids and rng draws follow it)', () => {
+    const state = gameWithAges([TUNING.lambUntilMs]);
+    const r = innerFence(state);
+    const first = state.nextId++;
+    const second = state.nextId++;
+    state.pregnancies.push({ id: first, parentA: 900, parentB: 901, dueAt: state.time + TICK_MS, x: r.left, y: r.top });
+    state.pregnancies.push({ id: second, parentA: 902, parentB: 903, dueAt: state.time + TICK_MS, x: r.right, y: r.top });
+    const events = runFed(state, 1);
+    const born = events.filter((e) => e.type === 'LambBorn');
+    expect(born.map((e) => e.type === 'LambBorn' && e.pregnancyId)).toEqual([first, second]);
+    const [a, b] = born.map((e) => (e.type === 'LambBorn' ? e.id : 0));
+    expect(a).toBeLessThan(b);
+    expect(state.pregnancies).toEqual([]);
+  });
+
   it('births run before old age: a lamb due as the last sheep dies keeps the game going', () => {
     const state = gameWithAges([TUNING.oldAgeMs - TICK_MS]);
     const r = innerFence(state);

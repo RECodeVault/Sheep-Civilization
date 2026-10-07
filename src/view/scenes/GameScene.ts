@@ -118,9 +118,14 @@ export class GameScene extends Phaser.Scene {
       reportError('ui', err);
     }
   };
-  // UX-DR31: the heart cursor while in breed mode. HUD buttons keep their hand (Phaser sets it on over).
+  // UX-DR31: the heart cursor while in breed mode. setDefaultCursor writes the canvas cursor at once,
+  // and Phaser sets a button's hand only on pointer-over, so a hovered HUD button gets its own back.
   private readonly onBreedMode = (e: { active: boolean }): void => {
-    this.input.manager.setDefaultCursor(e.active ? HEART_CURSOR : '');
+    const manager = this.input.manager;
+    manager.setDefaultCursor(e.active ? HEART_CURSOR : '');
+    const hud = this.scene.get('HudScene') as HudScene;
+    const b = hud.sys.isActive() ? hud.hoveredButton : null;
+    if (b !== null) manager.canvas.style.cursor = b.isEnabled ? 'pointer' : 'default';
   };
 
   constructor() {
@@ -299,6 +304,16 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(): void {
+    // Input first, so a mode change or a pick is drawn this frame (markers never lag a frame), and a
+    // command it dispatches applies in this frame's ticks. View-only work has its own guard: a bug
+    // here is a UI error, and must not count as a sim error, which would stop saving.
+    try {
+      // FR11 / UX-DR31: a greyed Breed tool, or any modal, ends breed mode (a no-op when it is off).
+      if (this.modalOpen || breedBlock(this.state) !== null) this.inputController.exitBreedMode();
+      this.inputController.update();
+    } catch (err) {
+      reportError('ui', err);
+    }
     // A throw inside a Phaser frame would stop the game loop for good, so sim and render errors are
     // caught here and reported; the frame finishes and the game keeps running.
     try {
@@ -323,12 +338,8 @@ export class GameScene extends Phaser.Scene {
       // The remaining ticks of this frame are dropped, so a bad state throws once per frame at most.
       reportError('sim', err);
     }
-    // View-only work (the pan and the sheep tooltip) has its own guard: a bug here is a UI error, and
-    // must not count as a sim error, which would stop saving.
+    // The sheep tooltip reads the sprites just rendered; guarded like the input above.
     try {
-      // FR11 / UX-DR31: a greyed Breed tool, or any modal, ends breed mode (a no-op when it is off).
-      if (this.modalOpen || breedBlock(this.state) !== null) this.inputController.exitBreedMode();
-      this.inputController.update();
       // SheepHover reads the raw pointer, not hit objects, so it would show under any modal's scrim
       // or through a HUD control the pen is panned under.
       if (this.modalOpen || this.pointerOnHudControl()) this.sheepHover.clear();
@@ -420,8 +431,30 @@ export class GameScene extends Phaser.Scene {
     this.breedingLayer.sync(selectBreedingPieces(this.state), this.clock.alpha, this.state.time);
     selectPublicSheep(this.state, this.publicSheep);
     this.sheepLayer.sync(this.publicSheep, this.clock.alpha, this.state.time);
-    this.pregnancyLayer.sync(selectPregnancies(this.state, this.publicPregnancies), this.clock.alpha, this.state.time);
+    this.pregnancyLayer.sync(this.drawnPregnancies(), this.clock.alpha, this.state.time);
     this.syncBreedMarkers();
+  }
+
+  /**
+   * The pending lambs, with the heart's spot moved onto the parents' drawn (interpolated) sprites, so
+   * it floats between them instead of running a tick ahead. Allocates nothing.
+   */
+  private drawnPregnancies(): readonly PublicPregnancy[] {
+    const list = selectPregnancies(this.state, this.publicPregnancies);
+    for (let i = 0; i < list.length; i++) {
+      const g = list[i];
+      const a = this.sheepLayer.spriteFor(g.parentA);
+      const b = this.sheepLayer.spriteFor(g.parentB);
+      if (a !== undefined && b !== undefined) {
+        g.x = (a.x + b.x) / 2;
+        g.y = (a.y + b.y) / 2;
+      } else if (a !== undefined || b !== undefined) {
+        const s = (a ?? b) as SheepSprite;
+        g.x = s.x;
+        g.y = s.y;
+      }
+    }
+    return list;
   }
 
   /** UX-DR56/UX-DR69: in breed mode A shows its pinned heart and every other pickable adult a pulse. */

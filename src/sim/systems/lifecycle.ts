@@ -35,10 +35,14 @@ export function updateLifecycle(state: GameState): void {
  */
 function births(state: GameState): void {
   const list = state.pregnancies;
-  // Backwards, so a splice never skips one. A birth is a rare event: only it allocates.
-  for (let i = list.length - 1; i >= 0; i--) {
+  // Forwards, so lambs due on one tick are born (ids, rng draws) in pregnancy order; the index stays
+  // put after a splice. A birth is a rare event: only it allocates.
+  for (let i = 0; i < list.length; ) {
     const g = list[i];
-    if (state.time < g.dueAt) continue;
+    if (state.time < g.dueAt) {
+      i++;
+      continue;
+    }
     pregnancySpot(state, g, spot);
     const r = innerFence(state);
     const lamb = createSheep(state, {

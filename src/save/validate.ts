@@ -156,9 +156,9 @@ function check(x: unknown): void {
     const o = pregnancies[i];
     const p = `pregnancies[${i}]`;
     claimId(o, p);
-    // Parent ids may name sheep that have since died (the lamb is still born), so only the shape counts.
-    int(o, 'parentA', p, 1);
-    int(o, 'parentB', p, 1);
+    // Parent ids may name sheep that have since died (the lamb is still born), but must be two sheep;
+    // that they were issued is checked after nextId below.
+    if (int(o, 'parentB', p, 1) === int(o, 'parentA', p, 1)) fail(`${p}.parentB is the same sheep as parentA`);
     if (finite(o, 'dueAt', p) > time + TUNING.gestationMs) fail(`${p}.dueAt is after time + gestationMs`);
     // Breed clamps the spot to the inner fence, where a lamb born there can move.
     within(finite(o, 'x', p), inner.left, inner.right, `${p}.x`);
@@ -176,4 +176,11 @@ function check(x: unknown): void {
 
   // After the entities, so a bad entity field is reported rather than the id it happens to use.
   if (nextId <= maxId) fail(`state.nextId ${nextId} is not above every id (max ${maxId})`);
+  // A parent id at or above nextId was never issued: the next sheep created would inherit the pregnancy.
+  for (let i = 0; i < pregnancies.length; i++) {
+    const o = pregnancies[i];
+    for (const k of ['parentA', 'parentB'] as const) {
+      if ((o[k] as number) >= nextId) fail(`pregnancies[${i}].${k} ${String(o[k])} was never issued (nextId ${nextId})`);
+    }
+  }
 }

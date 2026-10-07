@@ -57,6 +57,8 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
   /** Breed mode's pinned heart over adult A (UX-DR56), owned and pooled like the ready heart. */
   private readonly pinnedHeart: Phaser.GameObjects.Image;
   private marker: BreedMarker = 'none';
+  /** pub.ready at the last sync, so a marker change can show or hide the ready heart at once. */
+  private lastReady = false;
   /** The pinned heart's bob offset, tweened (visual only). */
   private readonly pinBob = { y: 0 };
 
@@ -135,6 +137,7 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
       this.setDepth(y);
     }
     // The pinned heart takes the ready heart's place while this sheep is A.
+    this.lastReady = pub.ready;
     const ready = pub.ready && this.marker !== 'pinned';
     const shown = ready !== this.shownReady;
     if (shown) {
@@ -156,6 +159,13 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
     if (marker === this.marker) return;
     this.clearMarker();
     this.marker = marker;
+    // Swap the hearts now, not at the next sync: no frame shows both, or neither.
+    const ready = this.lastReady && marker !== 'pinned';
+    if (ready !== this.shownReady) {
+      this.shownReady = ready;
+      this.readyHeart.setVisible(ready);
+      if (ready) this.readyHeart.setPosition(this.x, this.y - this.displayHeight / 2 - READY_GAP_PX);
+    }
     const tweens = this.scene.tweens;
     if (marker === 'candidate') {
       tweens.add({
@@ -208,6 +218,7 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
     this.shownStage = null;
     this.shownHunger = null;
     this.shownReady = false;
+    this.lastReady = false;
     this.readyHeart.setVisible(false);
     this.clearMarker();
     this.scene.tweens.killTweensOf(this);

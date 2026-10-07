@@ -109,7 +109,7 @@ components:
     activeBackgroundColor: '{colors.heart-deep}'
     activeTextColor: '{colors.wool}'
     rounded: '{rounded.md}'
-    height: 56px
+    height: 64px # was 56px; matches Farm and Farm Breeding Food (Rylan, 2026-10-07)
   button-disabled:
     backgroundColor: '{colors.disabled}'
     textColor: '{colors.disabled-ink}'
