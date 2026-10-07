@@ -125,6 +125,8 @@ export class HudScene extends Phaser.Scene {
       this.bar.farmBoost.setBoosted(v.boostRemainingMs > 0);
       this.bar.boostTimer.set(v.boostRemainingMs);
       const modal = this.gameScene.modalOpen;
+      // The boost's time stops under a modal, so its glow stops pulsing too.
+      this.bar.farmBoost.setFrozen(modal);
       if (modal && !this.wasModal) for (const b of this.tooltipSources) b.clearHover();
       this.wasModal = modal;
       // A sheep dragged across the bar lights no button and pops no tooltip: the HUD's input is off for

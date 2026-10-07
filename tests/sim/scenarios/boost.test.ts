@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { TICK_MS } from '../../../src/config/constants';
 import { TUNING } from '../../../src/config/tuning';
 import { applyCommand } from '../../../src/sim/commands';
+import { boostRemainingMs } from '../../../src/sim/selectors';
 import type { GameState } from '../../../src/sim/state';
 import { fillFlock, newGame, runFor } from '../helpers';
 
@@ -63,6 +64,8 @@ describe('the sacrifice food boost in play (FR19)', () => {
     while (state.sheep.length > 0) sacrificeOne(state);
     expect(state.lostAt).toBe(state.time);
     expect(state.boostUntil).toBe(state.time + TUNING.boostMs);
+    // The time stops with the loss, so the deadline never passes: the HUD must not show it as running.
+    expect(boostRemainingMs(state)).toBe(0);
     applyCommand(state, { type: 'Farm' });
     expect(state.farmProgress).toBe(0);
   });

@@ -4,7 +4,7 @@ baseline_commit: f449be1
 
 # Story 2.8: Sacrifice Food Boost
 
-Status: review
+Status: done
 
 <!-- Created 2026-10-07 by create-story. Builds on 2.7 (Sacrifice command, betterPlace.ts, Sacrificed event, "+2× food" label), 1.6/1.7 (Farm button, Farm progress bar, Farmed event, float popups), 2.6 (bottom-bar layout, threat summary slot) and 1.9/2.2–2.5 (save validate + migrations). -->
 
@@ -151,6 +151,15 @@ so that the dark choice has a real payoff.
       - **4.7:** Better Hoe raises the base in `farmPipsPerClick(state)`, and the boost doubles it (2 → 4, 3 → 6);
       - **5.4:** the stats panel may want "boosts" or not (not in FR36; leave it out).
   - [x] 8.3 Architecture: update only if Rylan asks. Two one-line notes are worth offering: `BoostEnded` is not emitted (derived), and `BoostStarted` carries `{ until, renewed }`.
+
+### Review Findings
+
+- [x] [Review][Patch] A last-sheep sacrifice (or debug Boost after a loss) leaves the boost frozen behind the lose screen, and in the lost save: the glow pulses, the badge shows and the timer sticks at 0:30. `isBoosted` and `boostRemainingMs` should be false/0 once `lostAt` is set. [src/sim/selectors.ts:isBoosted]
+- [x] [Review][Patch] The Farm glow keeps pulsing under the pause menu and other modals while the boost is frozen; pause the glow tween while a modal is open. [src/view/hud/FarmBoost.ts:setBoosted]
+- [x] [Review][Patch] Task 8.2 is marked [x] but the 5.4 (stats panel) bullet is missing from deferred-work.md's 2.8 section. [_bmad-output/implementation-artifacts/deferred-work.md]
+- [x] [Review][Patch] The "completes a bar" test divides farmPipsPerFood by the boosted click value; it only holds while that divides evenly. Use `Math.ceil` and assert the leftover. [tests/sim/commands.test.ts:Farm while boosted]
+- [x] [Review][Defer] Save validation bounds `boostUntil` by the live `TUNING.boostMs`, so lowering it later rejects saves made mid-boost (as `cooldownUntil` already does with `breedCooldownMs`). [src/save/validate.ts:82] — deferred: the same pattern is already used for cooldownUntil; Story 3.6 (the tuning pass) should clamp both, or validate both against a fixed ceiling
+- [x] [Review][Defer] `SHOP_RESERVE` is 64 px, not the mockup's ~80 px Shop toggle, instead of shrinking the timer's padding as Task 5.2 said. [src/view/hud/BottomBar.ts:SHOP_RESERVE] — deferred: 3.2 re-spaces the bar when it adds the toggle (already noted in deferred-work.md)
 
 ## Dev Notes
 
@@ -444,6 +453,13 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
 
 ### Change Log
 
+- 2026-10-07: Code review: 4 patch findings fixed, 2 deferred (the validation bound vs a retune, for 3.6; the Shop toggle space, for 3.2) and 7 dismissed. The fixes:
+  - a lost game is never boosted (`isBoosted`/`boostRemainingMs` gate on `lostAt`), so a last-sheep sacrifice leaves no frozen glow, badge or timer;
+  - the glow pulse pauses under a modal (`FarmBoost.setFrozen`);
+  - the 5.4 deferred note;
+  - the boosted bar test is robust to tuning.
+
+  Tests: 487. Typecheck and lint are clean. Browser-checked: the glow holds still under pause and pulses again after Resume; the lose screen after a last-sheep sacrifice shows no boost. Status → done.
 - 2026-10-07: Implemented Story 2.8. The sacrifice food boost:
   - `boostUntil`, ×2 Farm pips for 30 s, reset and never stacked, and the `BoostStarted` event;
   - save schema 6 with a migration and validation;

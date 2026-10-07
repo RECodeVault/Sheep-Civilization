@@ -411,6 +411,15 @@ describe('the boost selectors (FR19)', () => {
     expect(boostRemainingMs(state)).toBe(0);
   });
 
+  it('a lost game is never boosted, even with a deadline ahead (the last sheep was sacrificed)', () => {
+    const state = newGame();
+    state.boostUntil = state.time + TUNING.boostMs;
+    state.lostAt = state.time;
+    expect(isBoosted(state)).toBe(false);
+    expect(boostRemainingMs(state)).toBe(0);
+    expect(farmPipsPerClick(state)).toBe(TUNING.farmPipsPerClick);
+  });
+
   it('selectHudView reports the time left', () => {
     const state = newGame();
     state.boostUntil = state.time + TUNING.boostMs;

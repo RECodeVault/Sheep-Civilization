@@ -38,6 +38,8 @@ export class FarmBoost {
   private readonly badge: Phaser.GameObjects.Image;
   private readonly badgeText: Phaser.GameObjects.Text;
   private boosted = false;
+  private frozen = false;
+  private pulse: Phaser.Tweens.Tween | null = null;
 
   /** (x, y, w, h) is the Farm button's box in canvas px. */
   constructor(scene: Phaser.Scene, x: number, y: number, w: number, h: number, radius: number) {
@@ -68,18 +70,32 @@ export class FarmBoost {
     this.boosted = on;
     const tweens = this.scene.tweens;
     tweens.killTweensOf(this.glow);
+    this.pulse = null;
     this.glow.setAlpha(1).setVisible(on);
     this.badge.setVisible(on);
     this.badgeText.setVisible(on);
     if (!on) return;
-    tweens.add({
+    this.pulse = tweens.add({
       targets: this.glow,
       alpha: BOOST_MOTION.glowMinAlpha,
       duration: BOOST_MOTION.glowPulseMs,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
+      paused: this.frozen,
     });
+  }
+
+  /**
+   * Holds the pulse still while the boost is frozen (a modal is open: pause, confirm, lose), so nothing
+   * on the HUD moves while the game time does not. A no-op unless it changes.
+   */
+  setFrozen(frozen: boolean): void {
+    if (frozen === this.frozen) return;
+    this.frozen = frozen;
+    if (this.pulse === null) return;
+    if (frozen) this.pulse.pause();
+    else this.pulse.resume();
   }
 }
 

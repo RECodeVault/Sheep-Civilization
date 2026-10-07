@@ -250,14 +250,17 @@ export interface ThreatCounts {
   carcasses: number;
 }
 
-/** FR19: a sacrifice food boost is running. It ends exactly at boostUntil. */
+/**
+ * FR19: a sacrifice food boost is running. It ends exactly at boostUntil. A lost game is never boosted:
+ * time stops with the loss (often a last-sheep sacrifice), so its deadline would otherwise stay ahead.
+ */
 export function isBoosted(state: GameState): boolean {
-  return state.time < state.boostUntil;
+  return state.lostAt === undefined && state.time < state.boostUntil;
 }
 
 /** Game-ms left of the food boost, or 0 when none is running (the HUD's boost timer). */
 export function boostRemainingMs(state: GameState): number {
-  return Math.max(0, state.boostUntil - state.time);
+  return isBoosted(state) ? state.boostUntil - state.time : 0;
 }
 
 /**

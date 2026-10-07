@@ -232,10 +232,11 @@ describe('Farm while boosted (FR19)', () => {
     expect(drained()).toEqual([{ type: 'Farmed', resource: 'food', added: 0 }]);
   });
 
-  it('completes a bar in farmPipsPerFood / boosted clicks, dropping one piece', () => {
+  it('completes a bar in ceil(farmPipsPerFood / boosted) clicks, dropping one piece and keeping the rest', () => {
     const state = boostedGame();
-    farm(state, TUNING.farmPipsPerFood / boosted);
-    expect(state.farmProgress).toBe(0);
+    const clicks = Math.ceil(TUNING.farmPipsPerFood / boosted);
+    farm(state, clicks);
+    expect(state.farmProgress).toBe(clicks * boosted - TUNING.farmPipsPerFood);
     expect(state.foodPieces).toHaveLength(1);
     const events = drained();
     expect(events.filter((e) => e.type === 'FoodDropped')).toHaveLength(1);
