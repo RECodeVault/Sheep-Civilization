@@ -17,6 +17,8 @@ export type BusEvents = {
   // InputController entered or left breed mode, or picked or dropped adult A (0 = none). HudScene
   // shows the tool's active look; GameScene the cursor and the sheep markers.
   'breedMode:changed': { active: boolean; pickedA: number };
+  // GameScene opened or closed the shop panel (Story 3.2); HudScene shows the Shop toggle's open look.
+  'shop:toggled': { open: boolean };
 };
 
 export const bus = new EventBus<BusEvents>();

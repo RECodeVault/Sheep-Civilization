@@ -28,7 +28,8 @@ export const AUTOSAVE_MS = 10_000;
 // silently dropping an infection (it would keep `infectedAt` as an unknown key and never act on it).
 // 6 since Story 2.8: `boostUntil`, the sacrifice food boost's deadline (a version-5 save gets 0).
 // 7 since Story 3.1: `money`, the spendable balance (a version-6 save gets 0).
-export const SAVE_SCHEMA_VERSION = 7;
+// 8 since Story 3.2: `owned`, the one-time shop purchases (a version-7 save gets []).
+export const SAVE_SCHEMA_VERSION = 8;
 
 /*
  * Colour-usage rules (DESIGN.md Colors, Do's and Don'ts — UX-DR2):
@@ -98,10 +99,12 @@ export const TYPOGRAPHY = deepFreeze({
   display: { fontFamily: FONT_FAMILIES.pixel, fontSize: 56, fontWeight: 700, lineHeight: 1.1 },
   title: { fontFamily: FONT_FAMILIES.pixel, fontSize: 32, fontWeight: 600, lineHeight: 1.2 },
   label: { fontFamily: FONT_FAMILIES.pixel, fontSize: 20, fontWeight: 500, lineHeight: 1.2 },
-  numeric: { fontFamily: FONT_FAMILIES.pixel, fontSize: 22, fontWeight: 600, lineHeight: 1 },
+  // Numbers are set in Nunito, not Pixelify Sans: the pixel font's digits were hard to read (its 5 reads
+  // as an S). Heavy weights keep them chunky beside the pixel labels. (Rylan, 2026-10-07, Story 3.2)
+  numeric: { fontFamily: FONT_FAMILIES.body, fontSize: 22, fontWeight: 800, lineHeight: 1 },
   body: { fontFamily: FONT_FAMILIES.body, fontSize: 18, fontWeight: 600, lineHeight: 1.35 },
   caption: { fontFamily: FONT_FAMILIES.body, fontSize: 18, fontWeight: 800, lineHeight: 1.3 },
-  popup: { fontFamily: FONT_FAMILIES.pixel, fontSize: 24, fontWeight: 700, lineHeight: 1 },
+  popup: { fontFamily: FONT_FAMILIES.body, fontSize: 24, fontWeight: 900, lineHeight: 1 },
 } as const satisfies Record<string, TypographyRole>);
 
 export type TypographyToken = keyof typeof TYPOGRAPHY;
@@ -110,8 +113,8 @@ export type TypographyToken = keyof typeof TYPOGRAPHY;
 export const TYPOGRAPHY_USAGE = deepFreeze({
   display: ['title logo', 'era banner', '"The flock is gone."'],
   title: ['menu headers ("Paused")', '"Last sheep!"'],
-  label: ['all buttons', 'shop row names and prices', '"Shop" header', 'era badge'],
-  numeric: ['meter values', 'money', 'flock/capacity', 'boost timer'],
+  label: ['all buttons', 'shop row names', '"Shop" header', 'era badge'],
+  numeric: ['meter values', 'money', 'flock/capacity', 'boost timer', 'shop row prices', 'Market price tag', 'threat counts'],
   body: ['tooltips', 'announcement toasts'],
   caption: ['audio captions', 'shop row effect lines'],
   popup: ['"+1" / "+2" / "$10" float popups'],
@@ -227,8 +230,10 @@ export const COMPONENTS = defineComponents({
     width: 96,
     height: 40,
   },
+  // DESIGN.md gives no border; the mockup's `.shop-toggle` has the 2 px bark outline every button has.
   shopToggle: {
     backgroundColor: 'wood',
+    borderColor: 'bark',
     textColor: 'wool',
     openBackgroundColor: 'hay',
     openTextColor: 'bark',
@@ -258,6 +263,8 @@ export const COMPONENTS = defineComponents({
     priceColor: 'bark',
     unaffordableTextColor: 'disabledInk',
     typography: 'label',
+    // The price is a number: `numeric`, like every other number (Rylan, 2026-10-07).
+    priceTypography: 'numeric',
     effectTypography: 'caption',
     rounded: 'md',
     height: 56,
@@ -306,9 +313,9 @@ export const COMPONENTS = defineComponents({
     outlineColor: 'bark',
     size: 14,
   },
+  // DESIGN.md's `iconColor: hay` coin was dropped: just "$n" (Rylan, 2026-10-07).
   moneyCounter: {
     textColor: 'bark',
-    iconColor: 'hay',
     typography: 'numeric',
   },
   flockCounter: {

@@ -102,7 +102,7 @@ export class Market {
     // A status tag, not a button: no drop offset (UX-DR9). Its box is re-baked per distinct text.
     // boxTexture leaves DROP_PX of room right and below for a drop it does not draw here, so the box and
     // text sit that much up and right of the container's anchor.
-    this.tagText = scene.add.text(-DROP_PX / 2, -TAG_PAD_Y - DROP_PX, '', textStyle('label', SPEC.priceTagText)).setOrigin(0.5, 1);
+    this.tagText = scene.add.text(-DROP_PX / 2, -TAG_PAD_Y - DROP_PX, '', textStyle('numeric', SPEC.priceTagText)).setOrigin(0.5, 1);
     this.tagBox = scene.add.image(0, 0, '__DEFAULT').setOrigin(0.5, 1);
     // Anchored at the tag's bottom centre, so it grows upward off the outline. The tag is information,
     // so it draws in the world-overlay band, above a sheep held near the top of the stall.

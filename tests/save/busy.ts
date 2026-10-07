@@ -10,7 +10,7 @@ import { fillFlock, innerFence, newGame, runFor } from '../sim/helpers';
  * A mid-game state with every saved field in use: a 12-sheep flock, pieces on the ground with
  * seekers walking to them, a half-filled Farm bar, breeding pieces with seekers and a part-filled
  * breeding bar, a ready sheep, a pregnancy with its parents on cooldown, a carcass, an infected
- * sheep, an active sacrifice boost, money from sales and an advanced rng. Callers assert it is busy.
+ * sheep, an active sacrifice boost, money from sales, two shop purchases and an advanced rng. Callers assert it is busy.
  */
 export function busyGame(seed = 31337): GameState {
   const state = newGame(seed);
@@ -47,6 +47,8 @@ export function busyGame(seed = 31337): GameState {
   state.money = earned;
   state.stats.moneyEarned += earned;
   state.stats.sold += 3;
+  // Shop purchases (Story 3.2). Set directly: a Buy would change the money set just above.
+  state.owned = ['land1', 'flowerPatch'];
   drainEvents(() => {});
   runFor(state, 1_000);
   return state;
@@ -54,7 +56,7 @@ export function busyGame(seed = 31337): GameState {
 
 /**
  * True when the state exercises both kinds of seeker, targets, pieces, both part-filled bars, a ready
- * sheep, a sheep on cooldown, a pregnancy, a carcass, an infected sheep, an active boost and money.
+ * sheep, a sheep on cooldown, a pregnancy, a carcass, an infected sheep, an active boost, money and shop purchases.
  */
 export function isBusy(state: GameState): boolean {
   return (
@@ -70,6 +72,7 @@ export function isBusy(state: GameState): boolean {
     state.carcasses.length > 0 &&
     state.sheep.some((s) => s.infectedAt !== undefined) &&
     state.time < state.boostUntil &&
-    state.money > 0
+    state.money > 0 &&
+    state.owned.length > 0
   );
 }

@@ -38,11 +38,20 @@ export class PenCamera {
     this.apply();
   }
 
-  /** Moves the view by a screen-space drag of (dx, dy): the field follows the pointer. */
-  panBy(dx: number, dy: number, area: Rect): void {
-    this.x = clamp(this.x - dx, minX(area), maxX(area));
+  /**
+   * Moves the view by a screen-space drag of (dx, dy): the field follows the pointer. `leftInset` is the
+   * screen x the area's left edge must stay at or right of: the safe edge, or the open shop panel's right
+   * edge plus the margin (Story 3.2), so the panel never covers the Better Place.
+   */
+  panBy(dx: number, dy: number, area: Rect, leftInset: number = EDGE): void {
+    this.x = clamp(this.x - dx, minX(area), maxX(area, leftInset));
     this.y = clamp(this.y - dy, minY(area), maxY(area));
     this.apply();
+  }
+
+  /** Keeps the current view inside the limits (the shop opened: a new `leftInset`). No move if inside. */
+  reclamp(area: Rect, leftInset: number = EDGE): void {
+    this.panBy(0, 0, area, leftInset);
   }
 
   private apply(): void {
@@ -52,9 +61,10 @@ export class PenCamera {
   }
 }
 
-// Area left edge at or right of EDGE on screen, right edge at or left of VIEW_W - EDGE; same for y.
+// Area left edge at or right of `leftInset` (EDGE unless the shop is open) on screen, right edge at or
+// left of VIEW_W - EDGE; same for y with EDGE.
 const minX = (p: Rect): number => p.x + p.width - VIEW_W + EDGE;
-const maxX = (p: Rect): number => p.x - EDGE;
+const maxX = (p: Rect, leftInset: number = EDGE): number => p.x - leftInset;
 const minY = (p: Rect): number => p.y + p.height - VIEW_H + EDGE;
 const maxY = (p: Rect): number => p.y - EDGE;
 

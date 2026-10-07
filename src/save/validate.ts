@@ -6,8 +6,8 @@
 // Pure: never mutates its input and never throws. Hand-written guards only (no schema library).
 // Unknown extra keys are tolerated and kept: a field a later build added is harmless to this one.
 import { TUNING } from '../config/tuning';
-import { fenceBounds, innerFence } from '../sim/selectors';
-import type { Era, GameState, SheepActivity } from '../sim/state';
+import { fenceBounds, innerFence, SHOP_ITEMS, shopRequires } from '../sim/selectors';
+import type { Era, GameState, SheepActivity, ShopItemId } from '../sim/state';
 
 export type ValidationResult = { ok: true; state: GameState } | { ok: false; reason: string };
 
@@ -81,8 +81,21 @@ function check(x: unknown): void {
   // boosted, but a far-future one would be an hours-long boost from a corrupt save.
   int(s, 'boostUntil', 'state', 0, time + TUNING.boostMs);
   // FR21: whole dollars, no cap beyond the counter ceiling. Not checked against stats.moneyEarned: the
-  // DEV "Add money" button (3.2) adds money that was never earned.
+  // DEV "+$100" button (3.2) adds money that was never earned.
   int(s, 'money', 'state', 0);
+  // FR22 / FR23: known one-time items in purchase order, each bought once, every Land tier after the one
+  // before it. Not
+  // checked against money or earnings (the DEV "+$100" button breaks any such link).
+  const owned = s.owned;
+  if (!Array.isArray(owned)) fail('state.owned is not an array');
+  for (let i = 0; i < owned.length; i++) {
+    const item = owned[i] as ShopItemId;
+    if (typeof item !== 'string' || !SHOP_ITEMS.includes(item)) fail(`state.owned[${i}] is not a known shop item`);
+    if (owned.indexOf(item) !== i) fail(`state.owned has ${item} twice`);
+    // In purchase order: a tier's prerequisite was bought before it.
+    const req = shopRequires(item);
+    if (req !== null && !(owned.indexOf(req) >= 0 && owned.indexOf(req) < i)) fail(`state.owned has ${item} before ${req}`);
+  }
   if (!ERAS.includes(s.lastEra as Era)) fail('state.lastEra is not a known era');
 
   const sheep = array(s, 'sheep');

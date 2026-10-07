@@ -108,6 +108,15 @@ describe('validateState', () => {
     }
   });
 
+  it('accepts owning nothing, everything, and a valid set in purchase order (Story 3.2)', () => {
+    const sets: unknown[][] = [[], ['land1', 'land2', 'land3', 'flowerPatch', 'scarecrow'], ['scarecrow', 'land1', 'flowerPatch', 'land2', 'land3']];
+    for (const owned of sets) {
+      const r = raw();
+      r.owned = owned;
+      expect(validateState(r).ok).toBe(true);
+    }
+  });
+
   it('does not mutate its input', () => {
     const r = raw();
     r.sheep[0].fullness = Number.NaN;
@@ -149,6 +158,14 @@ describe('validateState', () => {
     ['a fractional money', (r) => (r.money = 2.5), 'state.money'],
     ['a string money', (r) => (r.money = '10'), 'state.money'],
     ['a money above the counter ceiling', (r) => (r.money = 2 ** 48 + 1), 'state.money'],
+    ['a missing owned', (r) => delete r.owned, 'state.owned'],
+    ['an owned that is not an array', (r) => (r.owned = 'land1'), 'state.owned'],
+    ['an unknown owned item', (r) => (r.owned = ['land1', 'castle']), 'state.owned'],
+    ['a non-string owned item', (r) => (r.owned = [1]), 'state.owned'],
+    ['an owned item bought twice', (r) => (r.owned = ['flowerPatch', 'flowerPatch']), 'state.owned'],
+    ['Land II without Land I', (r) => (r.owned = ['land2']), 'state.owned'],
+    ['Land III without Land II', (r) => (r.owned = ['land1', 'land3']), 'state.owned'],
+    ['Land II bought before Land I', (r) => (r.owned = ['land2', 'land1']), 'state.owned'],
     ['a missing boostUntil', (r) => delete r.boostUntil, 'state.boostUntil'],
     ['a fractional boostUntil', (r) => (r.boostUntil = 1.5), 'state.boostUntil'],
     ['a negative boostUntil', (r) => (r.boostUntil = -1), 'state.boostUntil'],

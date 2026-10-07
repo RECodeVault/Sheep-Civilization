@@ -13,10 +13,11 @@ const SPEC = COMPONENTS.threatSummary;
 const ICON_SCALE = 2;
 const ICON_SLOT_W = 28;
 const ICON_GAP = SPACING[1];
-// The count sits in a fixed-width box wide enough for "100" in numeric type (33 px measured), so a growing count never
-// moves the pairs (UX-DR5). It is left-aligned against its icon: right-aligned, a single digit sat
-// nearer the next pair's icon than its own and read as belonging to it (browser check, 2026-10-07).
-const COUNT_BOX_W = 34;
+// The count sits in a fixed-width box wide enough for "100" in numeric type (40 px in Nunito 800,
+// measured 2026-10-07; it was 33 in Pixelify Sans), so a growing count never moves the pairs (UX-DR5).
+// It is left-aligned against its icon: right-aligned, a single digit sat nearer the next pair's icon
+// than its own and read as belonging to it (browser check, 2026-10-07).
+const COUNT_BOX_W = 40;
 // mockups/hud.html `.threat` puts pairs 10 px apart, but its counts have no fixed box; with one, 12
 // (SPACING[3]) keeps each pair visibly apart. [ASSUMPTION, browser-checked]
 const PAIR_GAP = SPACING[3];

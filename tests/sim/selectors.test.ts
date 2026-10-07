@@ -14,7 +14,13 @@ import {
   isLost,
   onCooldown,
   publicSheep,
+  buyBlock,
   salePrice,
+  selectShopView,
+  SHOP_ITEMS,
+  shopPrice,
+  shopRequires,
+  type ShopRowView,
   selectBreedingPieces,
   selectCarcasses,
   selectFoodPieces,
@@ -127,7 +133,7 @@ describe('publicSheep / selectPublicSheep', () => {
 describe('selectHudView', () => {
   it('fills the Farm bar from state and TUNING into the given object', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: -1, farmPipsPerFood: -1, breedingProgress: -1, breedingPipsPerFood: -1, breedBlock: 'capacity', boostRemainingMs: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: -1, farmPipsPerFood: -1, breedingProgress: -1, breedingPipsPerFood: -1, breedBlock: 'capacity', boostRemainingMs: -1, money: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
     expect(selectHudView(state, out)).toBe(out);
     expect(out).toEqual({
       farmProgress: 0,
@@ -136,22 +142,30 @@ describe('selectHudView', () => {
       breedingPipsPerFood: TUNING.breedingPipsPerFood,
       breedBlock: 'notReady',
       boostRemainingMs: 0,
+      money: 0,
       threats: { starving: 0, infected: 0, carcasses: 0 },
     });
   });
 
   it('reflects a Farm on the next read', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
     selectHudView(state, out);
     applyCommand(state, { type: 'Farm' });
     selectHudView(state, out);
     expect(out.farmProgress).toBe(TUNING.farmPipsPerClick);
   });
 
+  it('fills the balance (UX-DR34)', () => {
+    const state = newGame();
+    state.money = 145;
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    expect(selectHudView(state, out).money).toBe(145);
+  });
+
   it('reflects a FarmBreeding on the next read', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
     selectHudView(state, out);
     applyCommand(state, { type: 'FarmBreeding' });
     selectHudView(state, out);
@@ -167,6 +181,7 @@ describe('selectHudView threats (UX-DR39)', () => {
     breedingPipsPerFood: 0,
     breedBlock: null,
     boostRemainingMs: -1,
+    money: -1,
     threats: { starving: -1, infected: -1, carcasses: -1 },
   });
 
@@ -303,7 +318,7 @@ describe('breeding selectors (FR10, FR11, AR21)', () => {
 
   it('selectHudView fills breedBlock', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
     expect(selectHudView(state, out).breedBlock).toBe('notReady');
     state.sheep[0].breedReady = state.sheep[1].breedReady = true;
     expect(selectHudView(state, out).breedBlock).toBe(null);
@@ -424,7 +439,7 @@ describe('the boost selectors (FR19)', () => {
   it('selectHudView reports the time left', () => {
     const state = newGame();
     state.boostUntil = state.time + TUNING.boostMs;
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
     expect(selectHudView(state, out).boostRemainingMs).toBe(TUNING.boostMs);
   });
 });
@@ -434,5 +449,59 @@ describe('salePrice (FR17)', () => {
     expect(salePrice('adult')).toBe(TUNING.sellPriceAdult);
     expect(salePrice('elder')).toBe(TUNING.sellPriceElder);
     expect(salePrice('lamb')).toBe(0);
+  });
+});
+
+describe('shop selectors (FR22, FR23, UX-DR24)', () => {
+  it('lists the Must items in GDD order', () => {
+    expect(SHOP_ITEMS).toEqual(['land1', 'land2', 'land3', 'flowerPatch', 'scarecrow']);
+  });
+
+  it('prices every item from TUNING', () => {
+    expect(shopPrice('land1')).toBe(TUNING.landPrices[0]);
+    expect(shopPrice('land2')).toBe(TUNING.landPrices[1]);
+    expect(shopPrice('land3')).toBe(TUNING.landPrices[2]);
+    expect(shopPrice('flowerPatch')).toBe(TUNING.flowerPatchPrice);
+    expect(shopPrice('scarecrow')).toBe(TUNING.scarecrowPrice);
+  });
+
+  it('locks each Land tier behind the previous one; everything else is free to buy', () => {
+    expect(shopRequires('land1')).toBeNull();
+    expect(shopRequires('land2')).toBe('land1');
+    expect(shopRequires('land3')).toBe('land2');
+    expect(shopRequires('flowerPatch')).toBeNull();
+    expect(shopRequires('scarecrow')).toBeNull();
+  });
+
+  it('buyBlock: owned, then locked, then poor, else null', () => {
+    const state = newGame();
+    expect(buyBlock(state, 'land1')).toBe('poor');
+    expect(buyBlock(state, 'land2')).toBe('locked');
+    state.money = shopPrice('land1');
+    expect(buyBlock(state, 'land1')).toBeNull();
+    state.owned.push('land1');
+    state.money = 0;
+    // Owned wins over poor; the next tier is now only poor.
+    expect(buyBlock(state, 'land1')).toBe('owned');
+    expect(buyBlock(state, 'land2')).toBe('poor');
+    // Locked wins over poor.
+    expect(buyBlock(state, 'land3')).toBe('locked');
+  });
+
+  it('selectShopView fills the given rows in place, one per item', () => {
+    const state = newGame();
+    state.money = shopPrice('flowerPatch');
+    const out: ShopRowView[] = SHOP_ITEMS.map((item) => ({ item, price: -1, block: 'owned' as const }));
+    const rows = out.slice();
+    expect(selectShopView(state, out)).toBe(out);
+    expect(out).toHaveLength(SHOP_ITEMS.length);
+    for (let i = 0; i < out.length; i++) expect(out[i]).toBe(rows[i]);
+    expect(out.map((r) => [r.item, r.price, r.block])).toEqual([
+      ['land1', shopPrice('land1'), 'poor'],
+      ['land2', shopPrice('land2'), 'locked'],
+      ['land3', shopPrice('land3'), 'locked'],
+      ['flowerPatch', shopPrice('flowerPatch'), null],
+      ['scarecrow', shopPrice('scarecrow'), 'poor'],
+    ]);
   });
 });

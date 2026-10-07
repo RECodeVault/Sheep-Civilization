@@ -3,6 +3,7 @@
 import { formatMoney } from '../core/format';
 import type { DeathCause } from '../sim/events';
 import type { Hunger, Stage } from '../sim/selectors';
+import type { ShopItemId } from '../sim/state';
 
 const STAGE: Readonly<Record<Stage, string>> = Object.freeze({ lamb: 'Lamb', adult: 'Adult', elder: 'Elder' });
 const HUNGER: Readonly<Record<Hunger, string>> = Object.freeze({ fed: 'Fed', hungry: 'Hungry', starving: 'Starving' });
@@ -21,6 +22,24 @@ const DEATH_TOAST: Readonly<Record<DeathCause, string>> = Object.freeze({
   oldAge: 'died of old age. A long, full nine minutes.',
   virus: 'caught the carcass sickness.',
   abomination: 'just… fell over.',
+});
+
+// Shop rows (UX-DR24; mockups/hud.html, GDD Upgrade Trees): the name, and the one-line effect. The
+// capacities mirror Story 3.3's land tiers (10 → 25 → 50 → 100); keep them in step if 3.3 or 3.6 retunes
+// them (or build them from TUNING then).
+const SHOP_NAME: Readonly<Record<ShopItemId, string>> = Object.freeze({
+  land1: 'Land I',
+  land2: 'Land II',
+  land3: 'Land III',
+  flowerPatch: 'Flower Patch',
+  scarecrow: 'Scarecrow',
+});
+const SHOP_EFFECT: Readonly<Record<ShopItemId, string>> = Object.freeze({
+  land1: 'Capacity 10 → 25',
+  land2: 'Capacity 25 → 50',
+  land3: 'Capacity 50 → 100',
+  flowerPatch: 'Cosmetic',
+  scarecrow: 'Cosmetic',
 });
 
 export const STRINGS = Object.freeze({
@@ -107,4 +126,12 @@ export const STRINGS = Object.freeze({
   // [ASSUMPTION] Not in the Voice table: the top-left Pause button (added 2026-10-06, Rylan).
   pauseLabel: 'Pause',
   pauseTooltip: 'Pause (Esc)',
+  // The Shop toggle and panel (UX-DR40, UX-DR23, UX-DR95): the toggle's label, the panel header, a
+  // bought one-time item's price slot, and a locked Land tier's effect line, e.g. "Needs Land I".
+  shopLabel: 'Shop',
+  shopHeader: 'Shop',
+  shopOwned: 'Owned',
+  shopNeeds: (name: string): string => `Needs ${name}`,
+  shopName: SHOP_NAME,
+  shopEffect: SHOP_EFFECT,
 } as const);

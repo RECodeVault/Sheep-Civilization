@@ -47,6 +47,11 @@ export const TUNING = Object.freeze({
   // elder. Lambs cannot be sold (selectors.ts salePrice gives them 0).
   sellPriceAdult: 10,
   sellPriceElder: 5,
+  // FR22 / FR23 / GDD Upgrade Trees: shop prices. Land I, II and III ($50 / $150 / $400; each needs the
+  // one before, selectors.ts shopRequires) and the two decorations. Epic 4 adds its own items' prices.
+  landPrices: Object.freeze([50, 150, 400] as const),
+  flowerPatchPrice: 40,
+  scarecrowPrice: 80,
   // FR10 / GDD Breeding: "each adult can breed once every 60 s (tune)", starting at breeding.
   breedCooldownMs: 60_000,
   // FR9 / GDD Breeding: "a lamb is born beside them 10 s later".

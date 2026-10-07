@@ -13,6 +13,7 @@ const hud = (): HudView => ({
   breedingPipsPerFood: 0,
   breedBlock: null,
   boostRemainingMs: 0,
+  money: 0,
   threats: { starving: 0, infected: 0, carcasses: 0 },
 });
 

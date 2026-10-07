@@ -13,8 +13,8 @@ const GLOW_BANDS: readonly (readonly [number, number])[] = [
   [3, 1],
 ];
 const GLOW_OUT = GLOW_BANDS[0][0];
-// mockups/hud.html `.boost-badge`: 26 px tall, 8 px side padding, 18 px Pixelify 600, a 2 px halo
-// border, poking out 12 px above and 10 px right of the button.
+// mockups/hud.html `.boost-badge`: 26 px tall, 8 px side padding, the `numeric` face at 18 px (Nunito 800
+// since 2026-10-07; the mockup's Pixelify 600 digits were hard to read), a 2 px halo border, poking out 12 px above and 10 px right of the button.
 const BADGE_H = 26;
 const BADGE_PAD = 8;
 const BADGE_FONT_PX = 18;

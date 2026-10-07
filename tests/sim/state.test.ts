@@ -10,7 +10,7 @@ const START_FLOCK = TUNING.startFlockAdults + TUNING.startFlockLambs;
 describe('createNewGame', () => {
   it('has exactly the GameState fields', () => {
     expect(Object.keys(newGame()).sort()).toEqual(
-      ['boostUntil', 'breedingPieces', 'breedingProgress', 'carcasses', 'farmProgress', 'foodPieces', 'lastEra', 'money', 'nextId', 'pregnancies', 'rng', 'sheep', 'stats', 'time'].sort(),
+      ['boostUntil', 'breedingPieces', 'breedingProgress', 'carcasses', 'farmProgress', 'foodPieces', 'lastEra', 'money', 'nextId', 'owned', 'pregnancies', 'rng', 'sheep', 'stats', 'time'].sort(),
     );
   });
 
@@ -77,6 +77,10 @@ describe('createNewGame', () => {
 
   it('starts with no money (FR21)', () => {
     expect(newGame().money).toBe(0);
+  });
+
+  it('starts owning nothing from the shop (FR22, FR23)', () => {
+    expect(newGame().owned).toEqual([]);
   });
 
   it('starts with no boost (boostUntil 0)', () => {

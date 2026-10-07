@@ -5,7 +5,7 @@
 // the canvas or the gameplay InputController, and a real button click is the user gesture the
 // Clipboard API needs. Backtick toggles it.
 //
-// Later stories add their buttons here: Add money (3.2), Reveal Abomination (4.1). src/debug/ is the
+// Later stories add their buttons here: Reveal Abomination (4.1), … src/debug/ is the
 // only non-sim code allowed to read isAbomination.
 import Phaser from 'phaser';
 import { COLORS, RADIUS, SPACING } from '../config/constants';
@@ -27,6 +27,7 @@ const SPEEDS = [1, 4, 16] as const;
 const REFRESH_MS = 250;
 const ADD_FOOD = 5;
 const ADD_SHEEP = 10;
+const ADD_MONEY = 100;
 
 export function installDebugOverlay(game: Phaser.Game): void {
   let visible = false;
@@ -186,6 +187,15 @@ export function installDebugOverlay(game: Phaser.Game): void {
     refreshSim();
   });
 
+  // Story 3.2: money for trying the shop. Adds to the balance only, not stats.moneyEarned (it was
+  // never earned; validation allows that on purpose).
+  const moneyButton = button(row2, `+${formatMoney(ADD_MONEY)}`, () => {
+    activeScene()?.debugMutate((s) => {
+      s.money += ADD_MONEY;
+    });
+    refreshSim();
+  });
+
   const row3 = buttonRow(panel);
   const dumpButton = button(row3, 'Dump state', () => {
     const scene = activeScene();
@@ -226,6 +236,7 @@ export function installDebugOverlay(game: Phaser.Game): void {
     starveButton,
     infectButton,
     boostButton,
+    moneyButton,
     dumpButton,
     copyButton,
     loadButton,
@@ -293,8 +304,8 @@ export function installDebugOverlay(game: Phaser.Game): void {
     const s = scene.simState;
     const speed = scene.simClock.speed;
     timeLine.textContent = `time   ${formatGameTime(s.time)} (${s.time} ms) · ${speed === 0 ? 'paused' : `×${speed}`}`;
-    // Story 3.1: the balance and sales, before 3.2's money counter shows them on the HUD.
-    sheepLine.textContent = `sheep  ${s.sheep.length} · carcasses ${s.carcasses.length} · infected ${countInfected(s)} · ${formatMoney(s.money)} · sold ${s.stats.sold}`;
+    // Story 3.1: the balance and sales; 3.2: how many shop items are owned.
+    sheepLine.textContent = `sheep  ${s.sheep.length} · carcasses ${s.carcasses.length} · infected ${countInfected(s)} · ${formatMoney(s.money)} · sold ${s.stats.sold} · owned ${s.owned.length}`;
     foodLine.textContent = `food   pieces ${s.foodPieces.length} · bar ${s.farmProgress}/${TUNING.farmPipsPerFood} · boost ${formatGameTime(boostRemainingMs(s))}`;
     pauseButton.textContent = speed === 0 ? 'Resume' : 'Pause';
     stepButton.disabled = speed !== 0;

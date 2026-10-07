@@ -55,6 +55,10 @@ export const FRAME = Object.freeze({
   iconStarving: 'icon-starving',
   iconInfected: 'icon-infected',
   iconCarcass: 'icon-carcass',
+  // The shop rows' icons (UX-DR24; Land I–III share one).
+  iconLand: 'icon-land',
+  iconFlowerPatch: 'icon-flower-patch',
+  iconScarecrow: 'icon-scarecrow',
 } as const);
 
 /** Relative URLs (no leading slash) so the build works under any subpath. */

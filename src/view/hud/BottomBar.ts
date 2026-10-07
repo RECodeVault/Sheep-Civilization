@@ -2,13 +2,14 @@ import type Phaser from 'phaser';
 import { COMPONENTS, LAYOUT, RADIUS, SPACING } from '../../config/constants';
 import { invariant } from '../../core/invariant';
 import { STRINGS } from '../strings';
-import { Button } from '../widgets/Button';
+import { Button, type ButtonSpec } from '../widgets/Button';
 import { OUTLINE_PX } from '../widgets/box';
 import { Panel } from '../widgets/Panel';
 import { FRAME } from '../assetKeys';
 import { BOOST_TIMER_W, BoostTimer } from './BoostTimer';
 import { FarmBoost } from './FarmBoost';
 import { FARM_PROGRESS_W, FarmProgress } from './FarmProgress';
+import { MONEY_COUNTER_W, MoneyCounter } from './MoneyCounter';
 import { THREAT_SUMMARY_W, ThreatSummary } from './ThreatSummary';
 
 // Bar layout in canvas px (DESIGN.md Layout & Spacing; UX-DR25, UX-DR101). The mockup centres the
@@ -31,29 +32,44 @@ const BREED_FOOD_W = 200;
 // `.btn-breed`), top-aligned with the Farm buttons at their height (Rylan, 2026-10-07).
 const BREED_X = BREED_FOOD_X + Math.max(BREED_FOOD_W, FARM_PROGRESS_W) + GROUP_GAP;
 const BREED_W = 104;
-// The threat summary (UX-DR39), in the mockup's order: Breed · Medicine (4.5) · money (3.2) · flock
-// (3.3) · **threat summary** · boost timer (2.8) · Shop (3.2). [ASSUMPTION, browser-checked] Its left
-// edge leaves room for the three read-outs before it, and it ends by THREAT_MAX_RIGHT so the boost
-// timer and the Shop toggle fit at the right end.
-const THREAT_X = 858;
-const THREAT_MAX_RIGHT = 1_080;
-invariant(THREAT_X + THREAT_SUMMARY_W <= THREAT_MAX_RIGHT, 'BottomBar: the threat summary overruns its slot');
-// The boost timer (UX-DR38, Story 2.8): one group gap right of the threat summary. What is left to the
-// safe edge is for the Shop toggle (3.2; mockups/hud.html `.shop-toggle` is about 80 px), which may have
-// to re-space the bar (deferred-work.md). [ASSUMPTION, browser-checked]
-const BOOST_X = THREAT_MAX_RIGHT + GROUP_GAP;
-const SHOP_RESERVE = 64;
+// The right end, in the mockup's order (Story 3.2 re-spaced it, deferred-work "A crowded bottom bar"):
+// … threat summary (UX-DR39) · boost timer (UX-DR38) · Shop toggle (UX-DR40), packed one group gap
+// apart from the 16 px safe edge. The Shop toggle is 80 px (mockups/hud.html `.shop-toggle`: "Shop" plus
+// SPACING[4] each side). [ASSUMPTION, browser-checked]
+const SHOP_W = 80;
+const SHOP_X = LAYOUT.canvasWidth - LAYOUT.safeMargin - SHOP_W;
+const SHOP_Y = BAR_TOP + (LAYOUT.hudBarHeight - COMPONENTS.shopToggle.height) / 2;
+const BOOST_X = SHOP_X - GROUP_GAP - BOOST_TIMER_W;
+const THREAT_X = BOOST_X - GROUP_GAP - THREAT_SUMMARY_W;
+// The read-outs between Breed and the threat summary: money (UX-DR34, Story 3.2; "$n" with no coin)
+// right after Breed, then
+// room for 3.3's flock counter (mockup `.readout`: a 32 px sheep, 6 px gap, 62 px count). The Medicine
+// slot (4.5) has no room reserved yet; it only shows while doses are owned, and 4.5 re-spaces the
+// read-outs (deferred-work).
+const MONEY_X = BREED_X + BREED_W + GROUP_GAP;
+const FLOCK_RESERVE = 100;
 invariant(
-  BOOST_X + BOOST_TIMER_W <= LAYOUT.canvasWidth - LAYOUT.safeMargin - SHOP_RESERVE,
-  'BottomBar: the boost timer leaves no room for the Shop toggle',
+  MONEY_X + MONEY_COUNTER_W + GROUP_GAP + FLOCK_RESERVE <= THREAT_X - GROUP_GAP,
+  'BottomBar: the money counter and the flock reserve overrun the threat summary',
 );
+// The toggle's look from DESIGN.md `shop-toggle`: its open look is the Button's toggled one.
+const SHOP_SPEC: ButtonSpec = {
+  backgroundColor: COMPONENTS.shopToggle.backgroundColor,
+  borderColor: COMPONENTS.shopToggle.borderColor,
+  textColor: COMPONENTS.shopToggle.textColor,
+  activeBackgroundColor: COMPONENTS.shopToggle.openBackgroundColor,
+  activeTextColor: COMPONENTS.shopToggle.openTextColor,
+  typography: COMPONENTS.shopToggle.typography,
+  rounded: COMPONENTS.shopToggle.rounded,
+  height: COMPONENTS.shopToggle.height,
+};
 
 /**
  * The HUD bottom bar: a full-width wool surface with actions on the left (UX-DR25). Story 1.6 builds
  * the Farm button with the Farm progress bar and its count beneath it (1.7), 2.2 the Farm Breeding
  * Food button with the breeding bar, 2.3 the Breed tool, 2.6 the threat summary on the right, 2.8 the
- * Farm button's boosted glow and badge and the boost timer; later stories add their widgets between
- * them and at the right end.
+ * Farm button's boosted glow and badge and the boost timer, 3.2 the money counter and the Shop toggle;
+ * later stories add their widgets between them (3.3 the flock counter, 4.5 the Medicine slot).
  */
 export class BottomBar {
   readonly farmButton: Button;
@@ -64,8 +80,16 @@ export class BottomBar {
   readonly threats: ThreatSummary;
   readonly farmBoost: FarmBoost;
   readonly boostTimer: BoostTimer;
+  readonly money: MoneyCounter;
+  readonly shopButton: Button;
 
-  constructor(scene: Phaser.Scene, onFarm: () => void, onFarmBreeding: () => void, onBreed: () => void) {
+  constructor(
+    scene: Phaser.Scene,
+    onFarm: () => void,
+    onFarmBreeding: () => void,
+    onBreed: () => void,
+    onShop: () => void,
+  ) {
     // The bar is a square Panel whose outline runs off the left, right and bottom canvas edges, so
     // only its 2 px bark top rule shows (mockups/hud.html `.hud` border-top).
     new Panel(scene, { radius: 0, drop: false }).setBounds(
@@ -111,7 +135,20 @@ export class BottomBar {
       activateOn: 'press',
       onActivate: onBreed,
     });
-    this.threats = new ThreatSummary(scene, THREAT_X, BAR_TOP + LAYOUT.hudBarHeight / 2);
-    this.boostTimer = new BoostTimer(scene, BOOST_X, BAR_TOP + LAYOUT.hudBarHeight / 2);
+    const midY = BAR_TOP + LAYOUT.hudBarHeight / 2;
+    this.money = new MoneyCounter(scene, MONEY_X, midY);
+    this.threats = new ThreatSummary(scene, THREAT_X, midY);
+    this.boostTimer = new BoostTimer(scene, BOOST_X, midY);
+    // No key hint (UX-DR72 has no shop key) and no tooltip: its label says it all (Story 3.2 Open
+    // Question 7). Opens and closes the panel; Esc also closes it.
+    this.shopButton = new Button(scene, SHOP_SPEC, {
+      x: SHOP_X,
+      y: SHOP_Y,
+      width: SHOP_W,
+      label: STRINGS.shopLabel,
+      labelAlign: 'center',
+      activateOn: 'release',
+      onActivate: onShop,
+    });
   }
 }

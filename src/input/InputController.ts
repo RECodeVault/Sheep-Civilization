@@ -13,7 +13,7 @@ export interface InputHooks {
   /**
    * The Esc chain (UX-DR73, agreed 2026-10-05), in order; each step returns true when it consumed
    * the press: close start-over confirm → close sub-panel → cancel drag (`cancelDrag`) → exit breed
-   * mode (`exitBreedMode`) → close shop (3.2) → open/close pause.
+   * mode (`exitBreedMode`) → close shop → open/close pause.
    */
   readonly esc: readonly (() => boolean)[];
   /** Pans the field camera by a screen-space drag (PenCamera clamps it to the pen). */
@@ -44,7 +44,10 @@ export interface InputHooks {
   cancelDrag(): void;
   /** False once the dragged sheep is gone (it died mid-drag): the drag ends with no command. */
   dragAlive(): boolean;
-  /** True while the pointer is on a HUD control (the Pause button can sit over the panned field). */
+  /**
+   * True while the pointer is on a HUD control (the Pause button can sit over the panned field) or on
+   * the open shop panel (Story 3.2): no field press, pan or sheep hover there.
+   */
   pointerOnHud(): boolean;
 }
 
@@ -130,6 +133,11 @@ export class InputController {
   /** True while a sheep is being dragged. */
   get dragging(): boolean {
     return this.mode === 'dragging';
+  }
+
+  /** True while a right-drag is panning the field camera. */
+  get panningField(): boolean {
+    return this.panning;
   }
 
   /** True while in breed mode. */
@@ -397,7 +405,8 @@ export class InputController {
     try {
       // The left button holds the sheep: no new click, pan or right-click until it is put down.
       if (this.hooks.modalOpen() || this.mode === 'dragging') return;
-      const onField = pointer.y < FIELD_BOTTOM;
+      // The open shop panel and HUD controls over the field are not field either (Story 3.2).
+      const onField = pointer.y < FIELD_BOTTOM && !this.hooks.pointerOnHud();
       if (pointer.rightButtonDown()) {
         // A left press is under way (it may become a drag): no pan on top of it.
         if (pointer.leftButtonDown()) return;
@@ -409,7 +418,7 @@ export class InputController {
         this.panDownY = this.panLastY = pointer.y;
         return;
       }
-      if (pointer.leftButtonDown() && onField && !this.hooks.pointerOnHud()) {
+      if (pointer.leftButtonDown() && onField) {
         this.clickArmed = true;
         this.clickMode = this.mode;
         this.clickDownX = pointer.x;

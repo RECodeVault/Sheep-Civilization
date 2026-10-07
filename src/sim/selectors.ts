@@ -1,6 +1,7 @@
 // Read-only views of GameState. The view layer reads state only through these.
 import { TUNING, type Rect } from '../config/tuning';
-import type { BreedingPiece, Carcass, FoodPiece, GameState, Pregnancy, Sheep } from './state';
+import { assertNever } from '../core/types';
+import type { BreedingPiece, Carcass, FoodPiece, GameState, Pregnancy, Sheep, ShopItemId } from './state';
 
 /** The fenced area sheep live in. Epic 3 makes it depend on the land tier. */
 export function fenceBounds(_state: GameState): Rect {
@@ -59,6 +60,80 @@ export function salePrice(stage: Stage): number {
   if (stage === 'adult') return TUNING.sellPriceAdult;
   if (stage === 'elder') return TUNING.sellPriceElder;
   return 0;
+}
+
+/** The shop's rows, in display order (GDD Upgrade Trees; Epic 4 appends its items). */
+export const SHOP_ITEMS: readonly ShopItemId[] = Object.freeze(['land1', 'land2', 'land3', 'flowerPatch', 'scarecrow']);
+
+/** What `item` costs, from TUNING (FR22, FR23). */
+export function shopPrice(item: ShopItemId): number {
+  switch (item) {
+    case 'land1':
+      return TUNING.landPrices[0];
+    case 'land2':
+      return TUNING.landPrices[1];
+    case 'land3':
+      return TUNING.landPrices[2];
+    case 'flowerPatch':
+      return TUNING.flowerPatchPrice;
+    case 'scarecrow':
+      return TUNING.scarecrowPrice;
+    default:
+      return assertNever(item);
+  }
+}
+
+/**
+ * The item `item` needs first, or null (GDD Upgrade Trees: "each Land tier needs the previous one.
+ * Everything else is available from the start").
+ */
+export function shopRequires(item: ShopItemId): ShopItemId | null {
+  if (item === 'land2') return 'land1';
+  if (item === 'land3') return 'land2';
+  return null;
+}
+
+export function isOwned(state: GameState, item: ShopItemId): boolean {
+  return state.owned.includes(item);
+}
+
+/** Why `item` cannot be bought now, or null when it can. */
+export type BuyBlock = 'owned' | 'locked' | 'poor' | null;
+
+/**
+ * UX-DR24: the one purchase rule, for the sim's Buy (economy.ts) and the shop rows alike. Owned wins
+ * over locked, and locked over poor, so a row always shows its most telling reason.
+ */
+export function buyBlock(state: GameState, item: ShopItemId): BuyBlock {
+  if (isOwned(state, item)) return 'owned';
+  const req = shopRequires(item);
+  if (req !== null && !isOwned(state, req)) return 'locked';
+  if (state.money < shopPrice(item)) return 'poor';
+  return null;
+}
+
+/** One shop row as the panel shows it. */
+export interface ShopRowView {
+  item: ShopItemId;
+  price: number;
+  block: BuyBlock;
+}
+
+/**
+ * Fills `out` in place with one row per SHOP_ITEMS entry, reusing its entries (no allocation once it
+ * holds them all), and returns it.
+ */
+export function selectShopView(state: GameState, out: ShopRowView[]): ShopRowView[] {
+  for (let i = 0; i < SHOP_ITEMS.length; i++) {
+    const item = SHOP_ITEMS[i];
+    let row = out[i];
+    if (row === undefined) out[i] = row = { item, price: 0, block: null };
+    row.item = item;
+    row.price = shopPrice(item);
+    row.block = buyBlock(state, item);
+  }
+  out.length = SHOP_ITEMS.length;
+  return out;
 }
 
 /** FR10: true until the tick time reaches cooldownUntil. Derived, never stored. */
@@ -293,6 +368,8 @@ export interface HudView {
   breedBlock: BreedBlock;
   /** Game-ms left of the food boost, 0 when none (FR19): the Farm glow and the boost timer. */
   boostRemainingMs: number;
+  /** Whole dollars to spend (FR21): the money counter (UX-DR34). */
+  money: number;
   /** The threat summary (UX-DR39), filled in place. */
   threats: ThreatCounts;
 }
@@ -305,6 +382,7 @@ export function selectHudView(state: GameState, out: HudView): HudView {
   out.breedingPipsPerFood = TUNING.breedingPipsPerFood;
   out.breedBlock = breedBlock(state);
   out.boostRemainingMs = boostRemainingMs(state);
+  out.money = state.money;
   const t = out.threats;
   let starving = 0;
   let infected = 0;

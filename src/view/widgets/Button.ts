@@ -53,7 +53,8 @@ export interface ButtonOptions {
 
 type Visual = 'normal' | 'hover' | 'pressed' | 'disabled' | 'toggled';
 
-// mockups/hud.html `.key`: 26×26 wool box, 2 px bark border, rounded.sm, Pixelify 18/600.
+// mockups/hud.html `.key`: 26×26 wool box, 2 px bark border, rounded.sm, Pixelify 18/600 (the `title`
+// face at 18 px: a key is a letter, so it kept the pixel font when numbers moved to Nunito).
 const KEY_SIZE = 26;
 const KEY_FONT_PX = 18;
 // Squash juice (UX-DR77): a quick flatten from the bottom edge. Visual only.
@@ -137,7 +138,7 @@ export class Button implements TooltipSource {
         .image(kx, ky, boxTexture(scene, KEY_SIZE, KEY_SIZE, { fill: 'wool', border: 'bark', radius: RADIUS.sm, drop: false }))
         .setOrigin(0, 0);
       const keyText = scene.add
-        .text(kx + KEY_SIZE / 2, ky + KEY_SIZE / 2, options.keyHint, textStyle('numeric', 'bark', KEY_FONT_PX))
+        .text(kx + KEY_SIZE / 2, ky + KEY_SIZE / 2, options.keyHint, textStyle('title', 'bark', KEY_FONT_PX))
         .setOrigin(0.5, 0.5);
       this.root.add([key, keyText]);
     }

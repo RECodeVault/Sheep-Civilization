@@ -1,7 +1,9 @@
 // Sim → view events. The sim appends to a per-tick queue that lives outside GameState (events are
 // never saved); after each tick GameScene drains it onto the EventBus. Variants: SheepDied,
 // CarcassSpawned, CarcassCleared, CarcassEaten, Infected, Farmed, FoodDropped, FoodEaten,
-// BreedingFoodDropped, BreedingFoodEaten, Bred, LambBorn, Sacrificed, BoostStarted, Sold, Lost.
+// BreedingFoodDropped, BreedingFoodEaten, Bred, LambBorn, Sacrificed, BoostStarted, Sold, Bought,
+// Lost.
+import type { ShopItemId } from './state';
 
 export type DeathCause = 'starved' | 'oldAge' | 'virus' | 'abomination';
 
@@ -46,6 +48,9 @@ export type SimEvent =
   // Sheep `id` was sold for `price` dollars (FR17; market.ts), before any Lost it caused. Story 5.3 adds
   // `name`.
   | { type: 'Sold'; id: number; price: number }
+  // A Buy spent `price` on `item` (economy.ts). Story 3.3 grows the fence from it; 5.6 can add a
+  // purchase sound.
+  | { type: 'Bought'; item: ShopItemId; price: number }
   // The flock reached 0 (checkLastSheepAndLoss). Emitted once per game, after the last SheepDied.
   // survivedMs is state.lostAt; peakFlock is stats.peakFlock.
   | { type: 'Lost'; survivedMs: number; peakFlock: number };

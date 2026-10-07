@@ -96,9 +96,81 @@
         "y": 0.5
       }
     },
-    "pip-breeding": {
+    "icon-flower-patch": {
       "frame": {
         "x": 71,
+        "y": 3,
+        "w": 14,
+        "h": 14
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 14,
+        "h": 14
+      },
+      "sourceSize": {
+        "w": 14,
+        "h": 14
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "icon-land": {
+      "frame": {
+        "x": 91,
+        "y": 3,
+        "w": 14,
+        "h": 14
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 14,
+        "h": 14
+      },
+      "sourceSize": {
+        "w": 14,
+        "h": 14
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "icon-scarecrow": {
+      "frame": {
+        "x": 111,
+        "y": 3,
+        "w": 14,
+        "h": 14
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 14,
+        "h": 14
+      },
+      "sourceSize": {
+        "w": 14,
+        "h": 14
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "pip-breeding": {
+      "frame": {
+        "x": 131,
         "y": 3,
         "w": 7,
         "h": 14
@@ -122,7 +194,7 @@
     },
     "pip-empty": {
       "frame": {
-        "x": 84,
+        "x": 144,
         "y": 3,
         "w": 7,
         "h": 14
@@ -146,7 +218,7 @@
     },
     "pip-food": {
       "frame": {
-        "x": 97,
+        "x": 157,
         "y": 3,
         "w": 7,
         "h": 14
@@ -175,7 +247,7 @@
     "image": "ui.png",
     "format": "RGBA8888",
     "size": {
-      "w": 107,
+      "w": 167,
       "h": 20
     },
     "scale": 1

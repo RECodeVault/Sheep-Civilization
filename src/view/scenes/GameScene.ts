@@ -17,8 +17,10 @@ import {
   selectLoseView,
   selectPregnancies,
   selectPublicSheep,
+  selectShopView,
   type PublicPregnancy,
   type PublicSheep,
+  type ShopRowView,
 } from '../../sim/selectors';
 import { createNewGame, type BreedingPiece, type Carcass, type FoodPiece, type GameState } from '../../sim/state';
 import { step } from '../../sim/step';
@@ -39,6 +41,7 @@ import { spriteIndexAt } from '../field/hitTest';
 import { SheepDrag } from '../field/SheepDrag';
 import { SheepHover } from '../field/SheepHover';
 import { SheepSprite } from '../field/SheepSprite';
+import { SHOP_PANEL_RIGHT, ShopPanel } from '../hud/ShopPanel';
 import { FloatPopups } from '../juice/FloatPopups';
 import { clearAnnouncements, markGameStarted, reportError, setForceSave, showToast } from '../safetyNet';
 import { STRINGS } from '../strings';
@@ -148,6 +151,15 @@ export class GameScene extends Phaser.Scene {
   private sparkle!: Phaser.GameObjects.Particles.ParticleEmitter;
   private betterPlace!: BetterPlace;
   private market!: Market;
+  /**
+   * The shop panel (Story 3.2), drawn here so the world overlays draw above it (ShopPanel). Open or
+   * closed is view state, never saved: every game starts with it closed.
+   */
+  private shopPanel!: ShopPanel;
+  private shopOpen = false;
+  private readonly shopRows: ShopRowView[] = [];
+  // Whether a modal was up last frame, to clear stale row hover once when one opens.
+  private wasModal = false;
   /** The sale's "$10"/"$5" coin popups, in world space over the stall (UX-DR82). */
   private worldPopups!: FloatPopups;
   private sheepDrag!: SheepDrag;
@@ -197,6 +209,8 @@ export class GameScene extends Phaser.Scene {
     const hud = this.scene.get('HudScene') as HudScene;
     const b = hud.sys.isActive() ? hud.hoveredButton : null;
     if (b !== null) manager.canvas.style.cursor = b.isEnabled ? 'pointer' : 'default';
+    // The same for a buyable shop row under the pointer (Story 3.2 review).
+    else if (this.shopPanel.hoveringBuyable) manager.canvas.style.cursor = 'pointer';
   };
 
   constructor() {
@@ -253,6 +267,11 @@ export class GameScene extends Phaser.Scene {
       .setDepth(FIELD_DEPTH.particles);
     // Above the particles, below the pings: a coin popup over the stall.
     this.worldPopups = new FloatPopups(this, FIELD_DEPTH.particles);
+    this.shopOpen = false;
+    this.wasModal = false;
+    this.shopRows.length = 0;
+    // A rare event, so the command object is fine; the sim checks the purchase again (economy.ts).
+    this.shopPanel = new ShopPanel(this, (item) => this.dispatch({ type: 'Buy', item }));
     this.ghosts.length = 0;
     this.nextGhost = 0;
     for (let i = 0; i < SUCTION.ghosts; i++) {
@@ -275,11 +294,11 @@ export class GameScene extends Phaser.Scene {
         () => overlay().closeConfirm(),
         () => overlay().closeSubPanel(),
         (): boolean => input.cancelDrag(),
-        // 3.2's close shop slots in after breed mode.
         (): boolean => input.exitBreedMode(),
+        () => this.closeShop(),
         () => overlay().togglePause(),
       ],
-      panBy: (dx, dy) => this.penCamera.panBy(dx, dy, this.playArea),
+      panBy: (dx, dy) => this.penCamera.panBy(dx, dy, this.playArea, this.panLeftInset()),
       // World point as SheepHover takes it: the pointer plus this frame's scroll (zoom 1).
       sheepAt: (sx, sy) => {
         const i = spriteIndexAt(this.publicSheep, this.sheepLayer, sx + camera.scrollX, sy + camera.scrollY);
@@ -364,6 +383,48 @@ export class GameScene extends Phaser.Scene {
   /** True while a sheep is dragged (HudScene turns its hover off meanwhile). */
   get dragging(): boolean {
     return this.inputController.dragging;
+  }
+
+  /** True while the shop panel is open (Story 3.2). */
+  get shopIsOpen(): boolean {
+    return this.shopOpen;
+  }
+
+  /** The Shop toggle (UX-DR40): opens or closes the panel. Not under a modal. */
+  toggleShop(): void {
+    if (this.modalOpen) return;
+    this.setShopOpen(!this.shopOpen);
+  }
+
+  /**
+   * The Esc chain's close-shop step (UX-DR73): true if the panel was open. Under a modal it passes, so
+   * Esc reaches the pause step and resumes, and the shop is still open after (AC 4).
+   */
+  closeShop(): boolean {
+    if (!this.shopOpen || this.modalOpen) return false;
+    this.setShopOpen(false);
+    return true;
+  }
+
+  private setShopOpen(open: boolean): void {
+    if (open === this.shopOpen) return;
+    this.shopOpen = open;
+    this.shopPanel.setOpen(open);
+    if (open) {
+      this.refreshShop();
+      // Keep the play area right of the panel (AC 7): a view panned under it moves at once.
+      this.penCamera.reclamp(this.playArea, this.panLeftInset());
+    }
+    bus.emit('shop:toggled', { open });
+  }
+
+  /** The screen x the play area's left edge must keep right of: the safe edge, or past the open shop. */
+  private panLeftInset(): number {
+    return this.shopOpen ? SHOP_PANEL_RIGHT + LAYOUT.safeMargin : LAYOUT.safeMargin;
+  }
+
+  private refreshShop(): void {
+    this.shopPanel.update(selectShopView(this.state, this.shopRows));
   }
 
   /** True while any modal is up, the lose screen included: shortcuts, Farm and tooltips are off. */
@@ -462,6 +523,11 @@ export class GameScene extends Phaser.Scene {
       // The remaining ticks of this frame are dropped, so a bad state throws once per frame at most.
       reportError('sim', err);
     }
+    try {
+      this.updateShop();
+    } catch (err) {
+      reportError('ui', err);
+    }
     // The sheep tooltip reads the sprites just rendered; guarded like the input above.
     try {
       // SheepHover reads the raw pointer, not hit objects, so it would show under any modal's scrim
@@ -522,11 +588,16 @@ export class GameScene extends Phaser.Scene {
    * sacrifice (AC 6).
    */
   private hudControlAt(sx: number, sy: number): boolean {
+    // The open shop panel counts as a HUD control (Story 3.2): a release over it is a plain drop.
+    if (this.shopPanel.contains(sx, sy)) return true;
     const hud = this.scene.get('HudScene') as HudScene;
     return hud.sys.isActive() && hud.controlAt(sx, sy);
   }
 
   private pointerOnHudControl(): boolean {
+    // The open shop panel is no field: no field press, pan or sheep hover through it (Story 3.2).
+    const p = this.input.activePointer;
+    if (this.shopPanel.contains(p.x, p.y)) return true;
     // Launched after this scene and replaced on every restart: look it up, and only trust it live.
     const hud = this.scene.get('HudScene') as HudScene;
     return hud.sys.isActive() && hud.pointerOverControl;
@@ -575,6 +646,20 @@ export class GameScene extends Phaser.Scene {
     this.market.update(this.game.loop.time);
     this.pregnancyLayer.sync(this.drawnPregnancies(), this.clock.alpha, this.state.time);
     this.syncBreedMarkers();
+  }
+
+  /**
+   * The shop panel's per-frame work, outside render(): a bug here is a UI error, which must not count
+   * as a sim error and stop saving (Story 3.2 review). Allocates nothing.
+   */
+  private updateShop(): void {
+    // No row hover or press while a sheep is carried or the field is panned (like the HUD buttons).
+    this.shopPanel.setLive(!this.inputController.dragging && !this.inputController.panningField);
+    if (this.shopOpen) this.refreshShop();
+    // The scrim takes the pointer without a pointer-out: drop the rows' stale hover once.
+    const modal = this.modalOpen;
+    if (modal && !this.wasModal) this.shopPanel.clearHover();
+    this.wasModal = modal;
   }
 
   /**

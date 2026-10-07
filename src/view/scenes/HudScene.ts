@@ -49,6 +49,7 @@ export class HudScene extends Phaser.Scene {
     breedingPipsPerFood: 0,
     breedBlock: 'notReady',
     boostRemainingMs: 0,
+    money: 0,
     threats: { starving: 0, infected: 0, carcasses: 0 },
   };
   // Deaths since the last frame, by cause: one toast per cause per frame (UX-DR41/UX-DR92), so a wipe
@@ -70,7 +71,7 @@ export class HudScene extends Phaser.Scene {
     this.wasModal = false;
     this.wasDragging = false;
     for (const k in this.deaths) this.deaths[k as DeathCause] = 0;
-    this.bar = new BottomBar(this, this.farm, this.farmBreeding, this.breedTool);
+    this.bar = new BottomBar(this, this.farm, this.farmBreeding, this.breedTool, this.shopTool);
     this.pauseButton = new Button(this, PAUSE, {
       x: LAYOUT.safeMargin,
       y: LAYOUT.safeMargin,
@@ -81,7 +82,9 @@ export class HudScene extends Phaser.Scene {
       activateOn: 'release',
       onActivate: this.pause,
     });
-    this.tooltipButtons = [this.pauseButton, this.bar.farmButton, this.bar.breedFoodButton, this.bar.breedButton];
+    // The Shop toggle has no tooltip, but is listed so its hover clears under modals and drags and
+    // controlAt covers it.
+    this.tooltipButtons = [this.pauseButton, this.bar.farmButton, this.bar.breedFoodButton, this.bar.breedButton, this.bar.shopButton];
     this.tooltipSources = [...this.tooltipButtons, ...this.bar.threats.sources];
     this.popups = new FloatPopups(this, POPUP_DEPTH);
     this.tooltip = new Tooltip(this, TOOLTIP_DEPTH);
@@ -90,6 +93,7 @@ export class HudScene extends Phaser.Scene {
     bus.on('farm:pressed', this.farm, this);
     bus.on('farmBreeding:pressed', this.farmBreeding, this);
     bus.on('breedMode:changed', this.onBreedMode, this);
+    bus.on('shop:toggled', this.onShopToggled, this);
     this.input.on(Phaser.Input.Events.POINTER_DOWN, this.onPointerDown, this);
     // Phaser updates scenes in REVERSE array order (SceneManager.update), so HudScene's update()
     // would run before GameScene ticks and show last frame's food. PRE_RENDER fires after every
@@ -101,6 +105,7 @@ export class HudScene extends Phaser.Scene {
       bus.off('farm:pressed', this.farm, this);
       bus.off('farmBreeding:pressed', this.farmBreeding, this);
       bus.off('breedMode:changed', this.onBreedMode, this);
+      bus.off('shop:toggled', this.onShopToggled, this);
       this.input.off(Phaser.Input.Events.POINTER_DOWN, this.onPointerDown, this);
       this.events.off(Phaser.Scenes.Events.PRE_RENDER, this.refresh, this);
     });
@@ -124,6 +129,8 @@ export class HudScene extends Phaser.Scene {
       // FR19 / UX-DR27 / UX-DR38: the boosted Farm look and the countdown, both no-ops without a change.
       this.bar.farmBoost.setBoosted(v.boostRemainingMs > 0);
       this.bar.boostTimer.set(v.boostRemainingMs);
+      // UX-DR34: rolls to a new balance; no work while it shows the current one.
+      this.bar.money.set(v.money, this.game.loop.time);
       const modal = this.gameScene.modalOpen;
       // The boost's time stops under a modal, so its glow stops pulsing too.
       this.bar.farmBoost.setFrozen(modal);
@@ -213,6 +220,25 @@ export class HudScene extends Phaser.Scene {
     for (let i = 0; i < buttons.length; i++) if (buttons[i].isHovered) return buttons[i];
     return null;
   }
+
+  /**
+   * The Shop toggle (UX-DR40): GameScene owns the panel and its open state, and answers with
+   * `shop:toggled`. Guarded like pause.
+   */
+  private readonly shopTool = (): void => {
+    try {
+      if (this.gameScene.modalOpen) return;
+      this.bar.shopButton.suppressTooltip();
+      this.gameScene.toggleShop();
+    } catch (err) {
+      reportError('ui', err);
+    }
+  };
+
+  /** The toggle's open look (`hay` fill, `bark` label) follows the panel. */
+  private readonly onShopToggled = (e: { open: boolean }): void => {
+    this.bar.shopButton.setToggled(e.open);
+  };
 
   /** The tool's active look follows breed mode (heart-deep fill, wool label). */
   private readonly onBreedMode = (e: { active: boolean }): void => {

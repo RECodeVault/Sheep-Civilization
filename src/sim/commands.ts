@@ -4,15 +4,16 @@ import { assertNever } from '../core/types';
 import { emit } from './events';
 import { rngRange } from './rng';
 import { farmPipsPerClick, innerFence } from './selectors';
-import type { GameState } from './state';
+import type { GameState, ShopItemId } from './state';
 import { sacrifice } from './systems/betterPlace';
 import { breed } from './systems/breeding';
 import { clearCarcass } from './systems/carcass';
 import { drop, pickUp } from './systems/drag';
+import { buy } from './systems/economy';
 import { createBreedingPiece, createFoodPiece } from './systems/feeding';
 import { sell } from './systems/market';
 
-// Later stories append Buy (3.2), …
+// Later stories append ApplyMedicine (4.5), …
 export type Command =
   | { type: 'Farm' }
   | { type: 'FarmBreeding' }
@@ -29,7 +30,10 @@ export type Command =
   | { type: 'Sacrifice'; id: number }
   // FR17: sheep `id` was dropped on the Market stall (market.ts). A lamb or an id that is gone sells
   // nothing.
-  | { type: 'Sell'; id: number };
+  | { type: 'Sell'; id: number }
+  // UX-DR24: a shop row was clicked (economy.ts). Owned, locked or unaffordable when it applies →
+  // nothing.
+  | { type: 'Buy'; item: ShopItemId };
 
 export function applyCommand(state: GameState, cmd: Command): void {
   // FR38: a lost game takes no more commands. The sim is the authority; view guards are for feel.
@@ -58,6 +62,9 @@ export function applyCommand(state: GameState, cmd: Command): void {
       return;
     case 'Sell':
       sell(state, cmd.id);
+      return;
+    case 'Buy':
+      buy(state, cmd.item);
       return;
     default:
       assertNever(cmd);

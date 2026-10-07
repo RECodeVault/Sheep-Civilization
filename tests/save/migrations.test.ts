@@ -4,9 +4,16 @@ import { MIGRATIONS, migrate, type Migration } from '../../src/save/migrations';
 import { validateState } from '../../src/save/validate';
 import { newGame } from '../sim/helpers';
 
+/** A JSON copy of a current-version state in the version-7 shape (before Story 3.2's shop). */
+function toVersion7(state: object): Record<string, unknown> {
+  const v7 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+  delete v7.owned;
+  return v7;
+}
+
 /** A JSON copy of a current-version state in the version-6 shape (before Story 3.1's money). */
 function toVersion6(state: object): Record<string, unknown> {
-  const v6 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+  const v6 = toVersion7(state);
   delete v6.money;
   return v6;
 }
@@ -91,6 +98,15 @@ describe('migrate', () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.state).toStrictEqual({ ...state, money: 0 });
+    expect(validateState(r.state).ok).toBe(true);
+  });
+
+  it('migrates a version-7 state (before the shop) owning nothing', () => {
+    const state = newGame(3);
+    const r = migrate(7, toVersion7(state));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.state).toStrictEqual({ ...state, owned: [] });
     expect(validateState(r.state).ok).toBe(true);
   });
 

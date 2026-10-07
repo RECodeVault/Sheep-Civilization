@@ -80,6 +80,12 @@ export interface Carcass {
   createdAt: number;
 }
 
+/**
+ * A one-time shop item (FR22, FR23; Story 3.2). Epic 4 appends 'hoe1' | 'hoe2' | 'autoFeeder'. Medicine
+ * is a consumable with its own dose count (Story 4.5), never in `owned`.
+ */
+export type ShopItemId = 'land1' | 'land2' | 'land3' | 'flowerPatch' | 'scarecrow';
+
 /** Era ids double as background texture keys. */
 export type Era = 'pasture' | 'village' | 'town' | 'wool-empire';
 
@@ -114,6 +120,11 @@ export interface GameState {
    * No cap. `stats.moneyEarned` counts every dollar ever earned.
    */
   money: number;
+  /**
+   * One-time shop purchases (FR22, FR23), in purchase order (economy.ts). The land tier and the
+   * decorations shown are derived from it (Stories 3.3, 3.4), never stored.
+   */
+  owned: ShopItemId[];
   pregnancies: Pregnancy[];
   carcasses: Carcass[];
   stats: Stats;
@@ -161,6 +172,7 @@ export function createNewGame(seed: number): GameState {
     breedingPieces: [],
     boostUntil: 0,
     money: 0,
+    owned: [],
     pregnancies: [],
     carcasses: [],
     stats: { died: 0, sold: 0, sacrificed: 0, moneyEarned: 0, peakFlock: 0 },

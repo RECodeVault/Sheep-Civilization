@@ -1,5 +1,5 @@
 # generated: 2026-10-05T14:42:07-07:00
-# last_updated: 2026-10-07T16:00:00-07:00
+# last_updated: 2026-10-07T19:00:00-07:00
 # project: sheep-civilization
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: '2026-10-05T14:42:07-07:00'
-last_updated: '2026-10-07T16:00:00-07:00'
+last_updated: '2026-10-07T19:00:00-07:00'
 project: sheep-civilization
 project_key: NOKEY
 tracking_system: file-system
@@ -69,7 +69,7 @@ development_status:
   # Epic 3: Economy & Eras
   epic-3: in-progress
   3-1-sell-sheep-at-the-market: done
-  3-2-money-and-the-shop-panel: backlog
+  3-2-money-and-the-shop-panel: done
   3-3-buy-land-and-grow-the-fence: backlog
   3-4-decorations: backlog
   3-5-eras-and-their-transitions: backlog
