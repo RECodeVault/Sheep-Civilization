@@ -37,7 +37,7 @@ import { Fence } from '../field/Fence';
 import { FoodSprite } from '../field/FoodSprite';
 import { Market, MARKET, MARKET_BOUNDS } from '../field/Market';
 import { ObjectPool } from '../field/ObjectPool';
-import { fitsView, PenCamera } from '../field/PenCamera';
+import { fitsView, fitsWithInset, PenCamera } from '../field/PenCamera';
 import { PregnancyHeart } from '../field/PregnancyHeart';
 import { spriteIndexAt } from '../field/hitTest';
 import { SheepDrag } from '../field/SheepDrag';
@@ -155,6 +155,8 @@ export class GameScene extends Phaser.Scene {
   private market!: Market;
   /** The pasture fence, rebuilt in place when land is bought (Story 3.3). */
   private fence!: Fence;
+  /** A land purchase was applied this frame: the fence grows once, after the ticks (growLand). */
+  private landBought = false;
   /**
    * The shop panel (Story 3.2), drawn here so the world overlays draw above it (ShopPanel). Open or
    * closed is view state, never saved: every game starts with it closed.
@@ -203,7 +205,8 @@ export class GameScene extends Phaser.Scene {
       else if (e.type === 'CarcassCleared') this.dust.explode(DUST_CLEAR_PUFFS, e.x, e.y);
       else if (e.type === 'Sacrificed') this.suck(e.id);
       else if (e.type === 'Sold') this.sold(e.id, e.price);
-      else if (e.type === 'Bought' && isLand(e.item)) this.growLand();
+      // Grown once per frame in update, however many tiers were bought in the frame's ticks.
+      else if (e.type === 'Bought' && isLand(e.item)) this.landBought = true;
     } catch (err) {
       reportError('ui', err);
     }
@@ -275,6 +278,7 @@ export class GameScene extends Phaser.Scene {
     // Above the particles, below the pings: a coin popup over the stall.
     this.worldPopups = new FloatPopups(this, FIELD_DEPTH.particles);
     this.shopOpen = false;
+    this.landBought = false;
     this.wasModal = false;
     this.shopRows.length = 0;
     // A rare event, so the command object is fine; the sim checks the purchase again (economy.ts).
@@ -419,7 +423,8 @@ export class GameScene extends Phaser.Scene {
     this.shopPanel.setOpen(open);
     if (open) {
       this.refreshShop();
-      // Keep the play area right of the panel (AC 7): a view panned under it moves at once.
+      // Keep the play area right of the panel, or at least the Better Place when the area is too wide
+      // (Land II/III, Story 3.3): a view panned under it moves at once.
       this.penCamera.reclamp(this.playArea, this.panLeftInset());
     }
     bus.emit('shop:toggled', { open });
@@ -434,11 +439,16 @@ export class GameScene extends Phaser.Scene {
   /**
    * Land was bought (Story 3.3, UX-DR49): the fence grows in place, with a dust burst along its new rails,
    * and the camera keeps the larger play area in view, moving only as far as its new limits require (no
-   * re-centre). Runs inside the tick's drain, guarded by onSim. A rare event: allocation is fine.
+   * re-centre). Runs once per frame after the ticks (two tiers bought in one frame grow once), as UI work.
+   * A rare event: allocation is fine.
    */
   private growLand(): void {
     const f = fenceBounds(this.state);
     this.fence.setBounds(f);
+    this.buildPlayArea();
+    this.penCamera.reclamp(this.playArea, this.panLeftInset());
+    // Dust only where it is seen: a burst under the open shop panel would draw over its rows.
+    const cam = this.cameras.main;
     const right = f.x + f.width;
     const bottom = f.y + f.height;
     const midX = f.x + f.width / 2;
@@ -453,13 +463,14 @@ export class GameScene extends Phaser.Scene {
       [f.x, bottom],
       [f.x, midY],
     ]) {
-      this.dust.explode(DUST_SPAWN_PUFFS, x, y);
+      if (!this.shopPanel.contains(x - cam.scrollX, y - cam.scrollY)) this.dust.explode(DUST_SPAWN_PUFFS, x, y);
     }
-    this.buildPlayArea();
-    this.penCamera.reclamp(this.playArea, this.panLeftInset());
   }
 
-  /** The screen x the play area's left edge must keep right of: the safe edge, or past the open shop. */
+  /**
+   * The screen x the play area keeps right of (only the Better Place, when the area is too wide;
+   * PenCamera): the safe edge, or past the open shop.
+   */
   private panLeftInset(): number {
     return this.shopOpen ? SHOP_PANEL_RIGHT + LAYOUT.safeMargin : LAYOUT.safeMargin;
   }
@@ -563,6 +574,14 @@ export class GameScene extends Phaser.Scene {
     } catch (err) {
       // The remaining ticks of this frame are dropped, so a bad state throws once per frame at most.
       reportError('sim', err);
+    }
+    try {
+      if (this.landBought) {
+        this.landBought = false;
+        this.growLand();
+      }
+    } catch (err) {
+      reportError('ui', err);
     }
     try {
       this.updateShop();
@@ -697,10 +716,34 @@ export class GameScene extends Phaser.Scene {
     // No row hover or press while a sheep is carried or the field is panned (like the HUD buttons).
     this.shopPanel.setLive(!this.inputController.dragging && !this.inputController.panningField);
     if (this.shopOpen) this.refreshShop();
+    this.syncUnderShop();
     // The scrim takes the pointer without a pointer-out: drop the rows' stale hover once.
     const modal = this.modalOpen;
     if (modal && !this.wasModal) this.shopPanel.clearHover();
     this.wasModal = modal;
+  }
+
+  /**
+   * Story 3.3 review: the hearts and markers of sheep and pending lambs under the open panel draw below
+   * it, so the panel hides them with their sheep (alert pings stay above). A sheep in the hand is above
+   * the panel, and so are its overlays. Plain loops: no allocation.
+   */
+  private syncUnderShop(): void {
+    const panel = this.shopPanel;
+    const open = this.shopOpen;
+    const cam = this.cameras.main;
+    const sheep = this.publicSheep;
+    for (let i = 0; i < sheep.length; i++) {
+      const spr = this.sheepLayer.spriteFor(sheep[i].id);
+      if (spr === undefined) continue;
+      const lifted = spr.depth === FIELD_DEPTH.dragged;
+      spr.setUnderShop(open && !lifted && panel.contains(spr.x - cam.scrollX, spr.y - cam.scrollY));
+    }
+    const pregs = this.publicPregnancies;
+    for (let i = 0; i < pregs.length; i++) {
+      const heart = this.pregnancyLayer.spriteFor(pregs[i].id);
+      if (heart !== undefined) heart.setUnderShop(open && panel.contains(heart.x - cam.scrollX, heart.y - cam.scrollY));
+    }
   }
 
   /**
@@ -825,12 +868,16 @@ function union(a: Rect, b: Rect): Rect {
 }
 
 // Story 3.3: at every land tier the whole play area fits one screen (GDD Camera), so the Market and the
-// Better Place are always in view; the fence stays clear of the stall and under the hole (the 2 px
-// overlap with its label is the mockup's).
+// Better Place are always in view, also with the shop open (the hole right of the panel); the fence stays
+// clear of the stall and under the hole (the 2 px overlap with its label is the mockup's).
 if (import.meta.env.DEV) {
   for (const f of TUNING.landFences) {
     const area = union(union(f, BETTER_PLACE_BOUNDS), MARKET_BOUNDS);
     invariant(fitsView(area), "GameScene: a land tier's play area does not fit the field");
+    invariant(
+      fitsWithInset(area, BETTER_PLACE_BOUNDS, SHOP_PANEL_RIGHT + LAYOUT.safeMargin),
+      "GameScene: a land tier's play area cannot keep the Better Place right of the open shop",
+    );
     invariant(f.x + f.width < MARKET_BOUNDS.x, "GameScene: a land tier's fence reaches the Market");
     invariant(
       f.y >= BETTER_PLACE_BOUNDS.y + BETTER_PLACE_BOUNDS.height - 2,

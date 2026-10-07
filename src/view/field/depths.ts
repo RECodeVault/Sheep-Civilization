@@ -11,6 +11,11 @@ export const FIELD_DEPTH = Object.freeze({
    * world-overlay band, which must draw over it (UX-DR10, UX-DR63). Its parts use shop and shop + 1–2.
    */
   shop: 9_000,
+  /**
+   * Hearts and markers of a sheep (or pregnancy) standing under the open shop panel (Story 3.3 review):
+   * above every world y, below the panel, so the panel hides them with their sheep. Pings stay above.
+   */
+  underShop: 8_999,
   /** A sheep being dragged (Story 2.7): above every world y, under its own hearts and markers. */
   dragged: 9_996,
   /** Ready, pinned and pregnancy hearts, the infection marker and the Market's price tag (3.1). */

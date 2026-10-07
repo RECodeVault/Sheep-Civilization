@@ -25,6 +25,7 @@ Real issues found in reviews that are not actionable in the story where they wer
   - **Resolved in Story 2.7 (no interface change):** the suction plays on a pooled ghost image in `GameScene` (`suck`), started from `Sacrificed` while the real sprite is still bound; the sprite leaves through the normal sweep and `playExit()` stays synchronous. 3.1 can reuse the ghost for the sale.
   - **Done in Story 3.1:** the sale hops a ghost into the stall from `Sold`; both exits share `GameScene.ghostOf`.
 - **Fence growth (Story 3.3):** `Fence.setBounds` destroys and re-creates its images, and `GameScene` keeps no reference to the `Fence`. Growing the fence during play must reuse or pool the parts (project rule: never `destroy()` during play) and keep the instance.
+  - **Resolved in Story 3.3 (code review):** `GameScene` keeps the `Fence`, and `Fence.setBounds` reuses its rail and post images, adding only the extra parts a larger fence needs; nothing is destroyed during play.
 - **Failed asset load (Story 1.4):** `PreloadScene` logs `FILE_LOAD_ERROR` and still starts `GameScene`, so a missing atlas renders the sheep and fence as Phaser missing-texture boxes with no message. Decision 2026-10-05: keep log-and-continue; the Story 1.4 error safety net should show the player a message when an atlas fails to load.
   - **Resolved in Story 1.4:** after loading, `PreloadScene` checks that both atlas textures exist. If one is missing it logs a warn and shows "Some of the pasture didn't load. Try reloading the page." once; the game still starts.
 
@@ -250,3 +251,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Pieces under the open shop (Story 3.6 / 5.x):** at Land II/III the open panel covers the left of the pen, and food or breeding pieces can drop there (pings still draw above the panel). Harmless, since sheep reach them and the panel is transient; revisit if playtests show players missing them.
 - **Audio (Story 5.6):** a cue when land is bought (the fence grows; `Bought` with a land item).
 - **Reduced motion (Story 5.7):** the dust burst along the new fence (`GameScene.growLand`) is juice; the grown fence is information and stays.
+
+## Deferred from: code review of 3-3-buy-land-and-grow-the-fence (2026-10-07)
+
+- **Camera fit has no `npm test` coverage (Story 3.6):** the guarantee that every land tier's play area fits one screen (and stays clear of the Market and the Better Place) is a DEV-only invariant at `GameScene` module load, which Vitest never imports. The slack is 4 px wide at Land III and 0 px tall at Land II/III. A 3.6 retune of `TUNING.landFences` must re-run the DEV build, or add a config-level fit test with the view rects as plain numbers.

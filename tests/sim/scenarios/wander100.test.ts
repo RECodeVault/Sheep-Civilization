@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { TUNING } from '../../../src/config/tuning';
+import { fenceBounds } from '../../../src/sim/selectors';
 import type { GameState, ShopItemId } from '../../../src/sim/state';
 import { step } from '../../../src/sim/step';
 import { fillFlock, innerFence, newGame, runFor } from '../helpers';
@@ -20,6 +22,12 @@ describe('scenario: 100 sheep wander for 600 ticks', () => {
   ])('keeps every sheep inside %s on every tick, with finite coordinates', (_name, land) => {
     const state = flockOf100(2026, land);
     const r = innerFence(state);
+    // Not vacuous: the tier is the one asked for, and at Land III the flock is spread beyond the start pen.
+    expect(fenceBounds(state)).toBe(TUNING.landFences[land.length]);
+    const start = TUNING.landFences[0];
+    const outside = (s: { x: number; y: number }): boolean =>
+      s.x < start.x || s.x > start.x + start.width || s.y < start.y || s.y > start.y + start.height;
+    expect(state.sheep.some(outside)).toBe(land.length > 0);
     for (let t = 0; t < 600; t++) {
       step(state);
       for (const s of state.sheep) {

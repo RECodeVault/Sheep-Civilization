@@ -1,5 +1,6 @@
 import type Phaser from 'phaser';
 import { COMPONENTS, SPACING } from '../../config/constants';
+import { TUNING } from '../../config/tuning';
 import { invariant } from '../../core/invariant';
 import { ATLAS, FRAME } from '../assetKeys';
 import { STRINGS } from '../strings';
@@ -10,10 +11,13 @@ const SPEC = COMPONENTS.flockCounter;
 const ICON_SCALE = 2;
 const ICON_W = 28;
 const ICON_GAP = SPACING[1];
-// The count's box fits "100/100" in `numeric` (Nunito 800): the largest flock at the largest land, so
-// the slot never grows into the threat summary (UX-DR5). Left-aligned against its icon, like the money
+// The count's box fits the largest flock at the largest land ("100/100" in `numeric`, Nunito 800), so the
+// slot never grows into the threat summary (UX-DR5). Left-aligned against its icon, like the money
 // counter. [ASSUMPTION, browser-checked]
 const BOX_W = 88;
+// The widest count the box must hold: full at the largest capacity, read from the land table so a 3.6
+// retune is measured too.
+const MAX_CAPACITY = TUNING.landCapacities[TUNING.landCapacities.length - 1];
 /** The counter's width in canvas px, for the bar's layout. */
 export const FLOCK_COUNTER_W = ICON_W + ICON_GAP + BOX_W;
 
@@ -32,9 +36,14 @@ export class FlockCounter {
   constructor(scene: Phaser.Scene, x: number, centreY: number) {
     scene.add.image(x + ICON_W / 2, centreY, ATLAS.ui, FRAME.iconSheep).setScale(ICON_SCALE);
     this.text = scene.add
-      .text(x + ICON_W + ICON_GAP, centreY, STRINGS.flockCount(100, 100), textStyle(SPEC.typography, SPEC.textColor))
+      .text(
+        x + ICON_W + ICON_GAP,
+        centreY,
+        STRINGS.flockCount(MAX_CAPACITY, MAX_CAPACITY),
+        textStyle(SPEC.typography, SPEC.textColor),
+      )
       .setOrigin(0, 0.5);
-    invariant(this.text.width <= BOX_W, 'FlockCounter: "100/100" does not fit its box');
+    invariant(this.text.width <= BOX_W, 'FlockCounter: a full flock at the largest capacity does not fit its box');
   }
 
   /** Shows `alive` over `capacity`; no work unless one of them changed. */

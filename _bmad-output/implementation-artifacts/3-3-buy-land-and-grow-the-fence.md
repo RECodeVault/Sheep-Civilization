@@ -4,7 +4,7 @@ baseline_commit: a903488
 
 # Story 3.3: Buy Land and Grow the Fence
 
-Status: review
+Status: done
 
 <!-- Created 2026-10-07 by create-story. Builds on 3.2 (`owned`, `Buy`/`Bought`, `buyBlock`, shop rows, FLOCK_RESERVE, PenCamera shop inset), 3.1 (Market geometry, playArea ∪ MARKET_BOUNDS), 2.7 (Better Place geometry, SheepDrag, playArea), 2.3 (capacity, breedBlock) and 1.3 (fence, movement containment). No save schema bump: land is derived from `owned`. -->
 
@@ -81,6 +81,25 @@ so that my flock can grow.
 - [x] **Task 9: Wrap-up**
   - [x] 9.1 `deferred-work.md`: add the crowded flock-counter style (4.6); "No room. Buy land." at Land III when no land is left (see Open Question 3); the denser Land III pen (3.6 tuning); food dropped under the open shop panel. Mark the resolved 3.1/3.2/2.7 land notes ("Fence growth vs the hole", "Stale camera play area", "Land tiers vs the stall", "Land's effect", "The open shop vs a wide play area") as **Resolved in Story 3.3** with one line each.
   - [x] 9.2 Fill in the Dev Agent Record (plan, debug log with browser evidence and FPS, completion notes, file list, change log), as in 3.2.
+
+### Review Findings
+
+- [x] [Review][Patch] Hide the world overlays of sprites under the open shop panel (hearts, breed markers, infection markers, pregnancy hearts); pings stay above it. Decision (Rylan, 2026-10-07): option 2 for sheep and pieces under the open shop at Land II/III [src/view/scenes/GameScene.ts]
+- [x] [Review][Patch] `Fence.setBounds` destroys and re-creates about 80 images during play, against the project rule and the open deferred-work entry "Fence growth (Story 3.3)", which asked to reuse or pool the parts. Reuse the existing images and mark the entry resolved [src/view/field/Fence.ts:27]
+- [x] [Review][Patch] With the shop open at Land I, the fence sits 4 px from the panel instead of the margin. Keep the whole play area right of the panel when it fits (tiers 0/I, as in 3.2), and protect only the Better Place when it does not (II/III) [src/view/field/PenCamera.ts:85]
+- [x] [Review][Patch] The dust burst lands on the open shop panel at Land II/III (left-edge points at screen x 186–224 and 16–20). Skip burst points that are under the open panel [src/view/scenes/GameScene.ts:446]
+- [x] [Review][Patch] Two land purchases applied in one tick each run `growLand` (a double rebuild and 16 bursts, both on the final fence). Mark the land as changed in `onSim` and grow once per frame [src/view/scenes/GameScene.ts:504]
+- [x] [Review][Patch] The DEV invariant does not check the shop-open limits, so a retune could silently hit the "too big → centre" branch with the shop open. Also assert that `minX(area)` is at most the Better Place's shop-open limit at every tier [src/view/scenes/GameScene.ts:830]
+- [x] [Review][Patch] Stale comments that still describe the old camera rules:
+  - GameScene "Keep the play area right of the panel (AC 7)" (line 422);
+  - the `panLeftInset` doc (line 462);
+  - the PenCamera class doc ("opens centred"; opening the shop moves nothing only from the opening view) [src/view/scenes/GameScene.ts:422]
+- [x] [Review][Patch] FlockCounter's width check hard-codes "100/100". Measure with the largest capacity in `TUNING.landCapacities` [src/view/hud/FlockCounter.ts:36]
+- [x] [Review][Patch] The Land III case in wander100 would pass even if the tier were ignored. Assert that the flock spreads beyond the start fence and that the inner fence is Land III's [tests/sim/scenarios/wander100.test.ts:38]
+- [x] [Review][Patch] validate.test runs `busyGame()` twice at collection time, and the no-land case only asserts "sheep" in the reason. Build the busy game once, and assert the moved sheep is the one rejected [tests/save/validate.test.ts:130]
+- [x] [Review][Patch] The FPS check ran 150 s per pen, not the 5 minutes AC 11 / Task 8.8 asks for. Re-measure 5 minutes at Land III [story Debug Log]
+- [x] [Review][Patch] Task 8.2/8.3 browser evidence is partial. Add pans with the shop open and closed at tiers 0 and II, a land purchase mid-pan, and a screenshot for each tier [story Debug Log]
+- [x] [Review][Defer] The camera-fit guarantee is only checked by a DEV runtime invariant in GameScene, never under `npm test`, with 0–4 px slack at Land II/III. A 3.6 retune of `landFences` needs a config-level fit test (or must re-run the DEV build) [src/view/scenes/GameScene.ts:830] — deferred, forward risk for the 3.6 tuning pass
 
 ## Dev Notes
 
@@ -339,6 +358,27 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
     - About 2 FPS apart, inside the load noise; 3.2's loaded-machine figure was 30–41. A quiet-machine re-measure stays with 3.6/5.11 (deferred-work).
   - 8.9: no console errors or page errors in any probe run.
 
+- **Code review fixes (2026-10-07)** — all 12 patches applied:
+  - `Fence.setBounds` now reuses its images. It adds only the extra parts a larger fence needs and hides the rest, so nothing is destroyed during play; the deferred-work entry is marked resolved.
+  - **Camera:** while the whole play area fits right of the open panel (no land, Land I), all of it stays right of the panel, as in 3.2. At Land II/III only the Better Place does. Land I with the shop open now opens at scroll 38, not 50, which puts the fence at screen x ≥ 392.
+  - **New DEV invariant:** `fitsWithInset` (the shop-open limits are not crossed) is checked for every tier.
+  - **Land growth:** at most once per frame, after the ticks (the `landBought` flag), and dust points under the open panel are skipped.
+  - **Under the open panel (Rylan's decision: option 2):** the hearts, breed markers, infection markers and pregnancy hearts of sprites under it drop to `FIELD_DEPTH.underShop` (8 999, below the panel). Alert pings stay above it. A sheep in the hand keeps its markers above.
+  - **Other fixes:**
+    - stale camera comments updated;
+    - FlockCounter measures the largest capacity in `TUNING`;
+    - the Land III case in wander100 now asserts the tier and the spread;
+    - validate.test builds the busy game once and asserts `sheep[0]` is the rejected sheep.
+  - **Browser (probe p7):**
+    - tier 0: pans with the shop closed (all four directions) and open; the play area always stays in view, and the hole stays right of the panel when it is open.
+    - Land I bought with the shop open after a pan: the fence's left edge is at the panel's margin.
+    - Land II: dust lands only off the panel, and pans at Land II (left, right, up) with the shop closed keep the area in view.
+    - Land III: dust off the panel.
+    - On a planted Land II save with a ready and an infected sheep under the panel's footprint, opening the shop hides their hearts and bubbles; only the infected sheep's ping shows above the panel. Closing the shop restores them.
+    - No console errors.
+  - **FPS, now the full 5 minutes:** 103 sheep at Land III, ×1, sampled every 5 s (60 samples): median 31, min 25, max 35. The load average rose from 1.9 to 7.7 during the run. That matches the 150 s run.
+  - Tests 559 passed; typecheck and lint clean.
+
 ### Completion Notes List
 
 - 2026-10-07: Story created. Ultimate context engine analysis completed - comprehensive developer guide created.
@@ -372,6 +412,9 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
   - `src/view/field/BetterPlace.ts`
   - `src/view/field/Fence.ts`
   - `src/view/field/PenCamera.ts`
+  - `src/view/field/PregnancyHeart.ts` (code review)
+  - `src/view/field/SheepSprite.ts` (code review)
+  - `src/view/field/depths.ts` (code review)
   - `src/view/hud/BottomBar.ts`
   - `src/view/scenes/GameScene.ts`
   - `src/view/scenes/HudScene.ts`
@@ -385,6 +428,7 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
   - `tests/sim/scenarios/market.test.ts`
   - `tests/sim/scenarios/sacrifice.test.ts`
   - `tests/sim/scenarios/wander100.test.ts`
+  - `src/view/hud/FlockCounter.ts` (code review)
   - `_bmad-output/implementation-artifacts/deferred-work.md`
   - `_bmad-output/implementation-artifacts/sprint-status.yaml`
 - Regenerated:
@@ -399,3 +443,4 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
   - The camera's play area is rebuilt on purchase; the open shop protects only the Better Place.
   - Hunger test given its own timeout.
   - Status set to review.
+- 2026-10-07: Code review. 1 decision (sprites under the open shop: hide their overlays), 12 patches applied, 1 deferred (camera fit has no `npm test` coverage, for 3.6), 4 dismissed. Status set to done.

@@ -99,6 +99,8 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
   private readonly wobble = { angle: 0 };
   /** True while shake() owns the angle; the wobble waits for it. */
   private shaking = false;
+  /** True while this sheep stands under the open shop panel: its hearts and marker draw below the panel. */
+  private underShop = false;
   /** UX-DR54 alert ping, owned and pooled like the hearts; shown while Starving or infected. */
   private readonly ping: AlertPing;
   /** The threats the ping last saw, so each new one (false → true) pops it again. */
@@ -401,12 +403,27 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
     this.marker = 'none';
   }
 
+  /**
+   * Story 3.3 review: at Land II/III the open shop panel covers part of the pen. A sheep under it is hidden
+   * by the panel, and so are its hearts and infection marker (they drop to FIELD_DEPTH.underShop); its
+   * alert ping stays above the panel (UX-DR63). GameScene calls this each frame; work only on change.
+   */
+  setUnderShop(under: boolean): void {
+    if (under === this.underShop) return;
+    this.underShop = under;
+    const depth = under ? FIELD_DEPTH.underShop : FIELD_DEPTH.overlay;
+    this.readyHeart.setDepth(depth);
+    this.pinnedHeart.setDepth(depth);
+    this.infectionMarker.setDepth(depth);
+  }
+
   playExit(): void {
     this.reset();
   }
 
   reset(): void {
     this.boundId = 0;
+    this.setUnderShop(false);
     this.fresh = true;
     this.shownStage = null;
     this.shownHunger = null;

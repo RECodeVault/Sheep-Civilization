@@ -9,15 +9,17 @@ const POST_HALF_WIDTH = 3; // fence-post frame is 6 px wide
 const POST_RISE = 4; // posts stand a little taller than the rails
 
 /**
- * The pasture fence, built once from atlas frames and rebuilt only when the bounds change: when land is
- * bought (Story 3.3), at most three times a game. A rebuild destroys and re-adds its rail and post
- * images; that is fine for so rare an event (pooling is for per-entity sprites).
+ * The pasture fence, built from atlas frames and laid out again only when the bounds change: when land
+ * is bought (Story 3.3), at most three times a game. A re-layout reuses its rail and post images and
+ * adds only the extra ones a larger fence needs; nothing is destroyed during play (project rule).
  * The back (top) rails and side rails sit at depth 0; the front (bottom) rails and posts use their
  * y as depth, the same rule as sheep, so they draw in front of anything standing behind them.
  */
 export class Fence {
   private readonly scene: Phaser.Scene;
   private readonly parts: Phaser.GameObjects.Image[] = [];
+  /** How many of `parts` the current layout uses; the rest are hidden for a later, larger fence. */
+  private used = 0;
 
   constructor(scene: Phaser.Scene, bounds: Rect) {
     this.scene = scene;
@@ -25,8 +27,7 @@ export class Fence {
   }
 
   setBounds({ x, y, width, height }: Rect): void {
-    for (const p of this.parts) p.destroy();
-    this.parts.length = 0;
+    this.used = 0;
 
     const frontY = y + height - RAIL_GAP - RAIL_THICKNESS;
     for (const dy of [0, RAIL_GAP]) {
@@ -53,15 +54,27 @@ export class Fence {
       this.post(x + RAIL_THICKNESS / 2, py, 0);
       this.post(x + width - RAIL_THICKNESS / 2, py, 0);
     }
+    for (let i = this.used; i < this.parts.length; i++) this.parts[i].setVisible(false);
   }
 
   private rail(frame: string, x: number, y: number, w: number, h: number, depth: number): void {
-    const img = this.scene.add.image(x, y, ATLAS.sheepWorld, frame).setOrigin(0, 0).setDisplaySize(w, h);
-    this.parts.push(img.setDepth(depth));
+    this.next(frame).setPosition(x, y).setOrigin(0, 0).setDisplaySize(w, h).setDepth(depth);
   }
 
   private post(cx: number, railTop: number, depth: number): void {
-    const img = this.scene.add.image(cx, railTop - POST_RISE, ATLAS.sheepWorld, FRAME.fencePost).setOrigin(0.5, 0);
-    this.parts.push(img.setDepth(depth));
+    this.next(FRAME.fencePost).setPosition(cx, railTop - POST_RISE).setOrigin(0.5, 0).setScale(1).setDepth(depth);
+  }
+
+  /** The next part image showing `frame`: a reused one, or a new one only when the fence has grown. */
+  private next(frame: string): Phaser.GameObjects.Image {
+    let img = this.parts[this.used];
+    if (img === undefined) {
+      img = this.scene.add.image(0, 0, ATLAS.sheepWorld, frame);
+      this.parts.push(img);
+    } else {
+      img.setFrame(frame).setVisible(true);
+    }
+    this.used++;
+    return img;
   }
 }

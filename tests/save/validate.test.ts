@@ -138,9 +138,22 @@ describe('validateState', () => {
       return r;
     };
     expect(validateState(withLand(['land1', 'land2'])).ok).toBe(true);
-    const none = validateState(withLand([]));
+    // With no land, only the moved sheep is out: the rest are put back in the start pen first.
+    const r0 = withLand([]);
+    const start = TUNING.landFences[0];
+    for (let i = 1; i < r0.sheep.length; i++) {
+      r0.sheep[i].x = start.x + start.width / 2;
+      r0.sheep[i].y = start.y + start.height / 2;
+    }
+    for (const list of [r0.foodPieces, r0.breedingPieces, r0.carcasses, r0.pregnancies]) {
+      for (const o of list) {
+        o.x = start.x + start.width / 2;
+        o.y = start.y + start.height / 2;
+      }
+    }
+    const none = validateState(r0);
     expect(none.ok).toBe(false);
-    if (!none.ok) expect(none.reason).toContain('sheep');
+    if (!none.ok) expect(none.reason).toContain('sheep[0]');
     const land1 = validateState(withLand(['land1']));
     expect(land1.ok).toBe(false);
     if (!land1.ok) expect(land1.reason).toContain('sheep[0]');
@@ -158,9 +171,10 @@ describe('validateState', () => {
     expect(good).toStrictEqual(goodBefore);
   });
 
-  // The busy game's tier (Land I): positions are checked against the owned land's fence.
-  const f = fenceBounds(busyGame());
-  const inner = innerFence(busyGame());
+  // The busy game's tier (Land I): positions are checked against the owned land's fence. Built once.
+  const busy = busyGame();
+  const f = fenceBounds(busy);
+  const inner = innerFence(busy);
 
   const cases: [string, (r: Raw) => void, string][] = [
     ['state that is null', (r) => Object.assign(r, { __replace: null }), 'state is not an object'],

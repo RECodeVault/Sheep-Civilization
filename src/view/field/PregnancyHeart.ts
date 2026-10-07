@@ -19,6 +19,7 @@ const BOB = { px: 4, durationMs: 500 } as const;
  */
 export class PregnancyHeart extends Phaser.GameObjects.Image implements PooledEntitySprite<PublicPregnancy> {
   private fresh = true;
+  private underShop = false;
   private readonly bob = { y: 0 };
 
   constructor(scene: Phaser.Scene) {
@@ -47,6 +48,13 @@ export class PregnancyHeart extends Phaser.GameObjects.Image implements PooledEn
     if (this.x !== x || this.y !== y) this.setPosition(x, y);
   }
 
+  /** Story 3.3 review: under the open shop panel, the heart draws below it (see SheepSprite.setUnderShop). */
+  setUnderShop(under: boolean): void {
+    if (under === this.underShop) return;
+    this.underShop = under;
+    this.setDepth(under ? FIELD_DEPTH.underShop : FIELD_DEPTH.overlay);
+  }
+
   playExit(): void {
     this.reset();
   }
@@ -56,6 +64,7 @@ export class PregnancyHeart extends Phaser.GameObjects.Image implements PooledEn
     this.scene.tweens.killTweensOf(this.bob);
     this.bob.y = 0;
     this.fresh = true;
+    this.setUnderShop(false);
     this.setScale(SCALE);
     this.setActive(false).setVisible(false);
   }
