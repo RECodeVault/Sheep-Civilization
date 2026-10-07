@@ -129,28 +129,53 @@ export function guarded<A extends unknown[]>(fn: (...args: A) => void): (...args
 }
 
 /**
- * Shows a short top-centre toast that never blocks clicks. Up to 3 stack, newest on top. By default,
- * showing a text that is already up moves it to the top and restarts its timer instead of
- * duplicating it; `merge: false` always adds a new toast (announcements: every death gets its own).
+ * Shows a short top-centre toast that never blocks clicks. Up to 3 stack, newest on top. A message
+ * toast (errors, notices) that is already up moves to the top and restarts its timer instead of
+ * duplicating. An `announcement` (a death) always adds a new toast, and a full stack drops its oldest
+ * announcement first, so a burst of deaths never pushes an error off before it can be read.
  */
-export function showToast(text: string, { merge = true }: { merge?: boolean } = {}): void {
+export function showToast(text: string, { announcement = false }: { announcement?: boolean } = {}): void {
   const stack = toastStack ?? createStack();
   placeStack(stack);
   let el: HTMLDivElement | null = null;
-  if (merge) {
+  if (!announcement) {
     for (const child of Array.from(stack.children)) {
       if (child.textContent === text) el = child as HTMLDivElement;
     }
   }
   if (el === null) {
     el = createToast(text);
-    while (stack.children.length >= MAX_TOASTS) stack.lastElementChild?.remove();
+    if (announcement) el.dataset.announcement = '1';
+    while (stack.children.length >= MAX_TOASTS) removeToast(oldestToEvict(stack));
   }
   stack.prepend(el);
   const timer = Number(el.dataset.timer);
   if (timer) clearTimeout(timer);
   const toast = el;
   el.dataset.timer = String(setTimeout(() => toast.remove(), TOAST_MS));
+}
+
+/** Removes every announcement toast (a new game starts: the last game's deaths are not news). */
+export function clearAnnouncements(): void {
+  if (toastStack === null) return;
+  for (const child of Array.from(toastStack.children)) {
+    if ((child as HTMLElement).dataset.announcement === '1') removeToast(child as HTMLDivElement);
+  }
+}
+
+/** The oldest announcement, or the oldest toast when there is none. The stack is newest-first. */
+function oldestToEvict(stack: HTMLDivElement): HTMLDivElement {
+  for (let i = stack.children.length - 1; i >= 0; i--) {
+    const child = stack.children[i] as HTMLDivElement;
+    if (child.dataset.announcement === '1') return child;
+  }
+  return stack.lastElementChild as HTMLDivElement;
+}
+
+function removeToast(el: HTMLDivElement): void {
+  const timer = Number(el.dataset.timer);
+  if (timer) clearTimeout(timer);
+  el.remove();
 }
 
 function onWindowError(event: Event): void {

@@ -4,7 +4,7 @@ baseline_commit: e72bdb8e251c198ccb5f852395a2236a95e79e9b
 
 # Story 2.4: Carcasses and Death Announcements
 
-Status: review
+Status: done
 
 <!-- Created 2026-10-07 by create-story. Builds on 1.8 (killSheep / loss), 2.1 (old age) and 2.3 (breed-mode clicks). -->
 
@@ -138,6 +138,19 @@ so that I notice deaths and can keep the pasture clean.
     - **960 × 540:** toasts and carcasses legible.
     - No console errors or warnings.
 
+### Review Findings
+
+- [x] [Review][Decision] More than 3 deaths on one tick show only 3 toasts — resolved (Rylan): group same-frame deaths of one cause into one toast ("3 sheep starved."); one death keeps "A sheep …". Now a patch below.
+- [x] [Review][Patch] Group same-frame deaths by cause into one toast ("{n} sheep starved."), flushed once per frame in HudScene [src/view/scenes/HudScene.ts:230]
+- [x] [Review][Patch] Death toasts evict a visible error toast (its 10 s cooldown means it never comes back); evict the oldest announcement, never an error toast [src/view/safetyNet.ts:145]
+- [x] [Review][Patch] Death toasts carry into the next game (Lose → Restart within 4 s, debug Load): clear announcement toasts when GameScene starts [src/view/scenes/GameScene.ts:135]
+- [x] [Review][Patch] A fast double click on two stacked carcasses clears only one: the second press re-hits the same front-most carcass before the tick removes it; skip carcasses already dispatched for clearing [src/view/scenes/GameScene.ts:215]
+- [x] [Review][Patch] killSheep emits SheepDied before creating the carcass; the spec's N1 order is carcass → SheepDied → CarcassSpawned (event order unchanged) [src/sim/systems/carcass.ts:29]
+- [x] [Review][Patch] Lifecycle tests take the expected carcass id from the state under test; capture `nextId` before the death, as carcass.test.ts does [tests/sim/systems/lifecycle.test.ts:52]
+- [x] [Review][Patch] Debug "Starve one" can silently fail when the picked sheep eats a food piece on the next tick (feeding runs before hunger); also drop its target and set it to wander [src/debug/DebugOverlay.ts:154]
+- [x] [Review][Patch] Task 7.1 is checked but the art shows two legs and one wool X eye (side view) instead of four legs and two bark X eyes; record the deviation in the Dev Agent Record [assets/art/world/carcass.png]
+- [x] [Review][Defer] The old-age toast's "nine minutes" is copy tied to `TUNING.oldAgeMs` (540 s) by a comment only; a retune leaves it wrong [src/view/strings.ts:12] — deferred, pre-existing (Voice-table copy; revisit in the 3.6 tuning pass)
+
 ## Dev Notes
 
 ### Current code to build on (read these first)
@@ -265,9 +278,9 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
   - Selectors: `carcassIndex`, plus `selectCarcasses` (returns the live array).
 - **Save:** carcass x/y must lie inside the fence, and `createdAt` must be an integer in [0, time]. No schema bump.
 - **Toasts:**
-  - `showToast(text, { merge })` reuses the DOM stack; `merge: false` always adds a new toast.
-  - `STRINGS.deathToast` is a `Record<DeathCause, string>`.
-  - `HudScene.onSim` toasts every `SheepDied`.
+  - `showToast(text, { announcement })` reuses the DOM stack. An announcement never merges, and a full stack evicts the oldest announcement before any error toast. `clearAnnouncements()` runs when a game starts.
+  - `STRINGS.deathToast(cause, n)` gives "A sheep starved." for one death or "3 sheep starved." for several.
+  - `HudScene` counts `SheepDied` per cause and shows one toast per cause per frame (code review decision).
 - **Input:**
   - The 2.3 click now arms in both modes. It records the press mode and the target hit-tested at the press: a carcass in `idle`, a sheep in `breeding`.
   - It disarms if the mode changes before release, and resolves through a `switch` ending in `assertNever`.
@@ -320,6 +333,29 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
   - "Pointer input" and the 2.4 half of "Field camera" are resolved;
   - "Exit animations" is moved to 2.7/3.1.
 - Task 9.3: the architecture was left unchanged (nobody asked for an update).
+- **Art (Task 7.1 deviation):** the placeholder carcass is the adult art flipped onto its back. Seen side-on, it shows two legs and one X eye, drawn in `wool` on the dark face so it reads. The task asked for four legs and two `bark` X eyes. The tone rules hold: no red, no `alert`, no `infection`.
+- **Code review (2026-10-07):** 3 layers (Blind Hunter, Edge Case Hunter, Acceptance Auditor).
+  - Totals: 1 decision, 8 patches applied, 1 deferred, 5 dismissed.
+  - **Decision (Rylan):** same-frame deaths of one cause are grouped into one toast ("3 sheep starved."). This replaces AC 5's "every death gets its own toast", which the 3-toast stack could not honour beyond 3 deaths.
+  - **Patches:**
+    - death toasts no longer push out an error toast;
+    - toasts are cleared when a game starts;
+    - a fast double click clears two stacked carcasses (`carcassAt` skips carcasses already queued for clearing);
+    - `killSheep` creates the carcass before `SheepDied` (event order unchanged);
+    - the lifecycle tests capture `nextId` before the death;
+    - debug Starve one also stops walking to food;
+    - the art deviation is noted above.
+  - **Dismissed:**
+    - a stale sprite on in-place state replacement (loads always restart the scene);
+    - the flop-time hit-box offset (covered by the 40 px minimum);
+    - the rng identity test (rng is a number);
+    - an integer `createdAt` (time is whole ticks);
+    - one comment finding, folded into the decision.
+  - **Deferred:** the old-age copy is tied to `oldAgeMs` only by a comment (3.6).
+  - **Verification:** tests (377), typecheck and lint are clean. Re-checked in the browser:
+    - an unfed flock of 13 shows "10 sheep starved." and "3 sheep starved.";
+    - Lose → Restart clears the toasts;
+    - a double click on two stacked carcasses clears both.
 
 ### File List
 
@@ -351,3 +387,4 @@ Claude Opus 5.5 (1M context), `claude-opus-5-5[1m]`
   - the debug Spawn carcass and Starve one buttons.
   
   Status → review.
+- 2026-10-07: Code review: grouped same-frame death toasts (Rylan's decision) and 8 patches applied. Status → done.

@@ -33,7 +33,7 @@ import { PregnancyHeart } from '../field/PregnancyHeart';
 import { spriteIndexAt } from '../field/hitTest';
 import { SheepHover } from '../field/SheepHover';
 import { SheepSprite } from '../field/SheepSprite';
-import { markGameStarted, reportError, setForceSave, showToast } from '../safetyNet';
+import { clearAnnouncements, markGameStarted, reportError, setForceSave, showToast } from '../safetyNet';
 import { STRINGS } from '../strings';
 import type { TitleSceneData } from './TitleScene';
 import { Tooltip } from '../widgets/Tooltip';
@@ -124,6 +124,16 @@ export class GameScene extends Phaser.Scene {
   private munch!: Phaser.GameObjects.Particles.ParticleEmitter;
   private poof!: Phaser.GameObjects.Particles.ParticleEmitter;
   private dust!: Phaser.GameObjects.Particles.ParticleEmitter;
+  // A carcass already clicked (its ClearCarcass is queued for the next tick) is skipped by carcassAt,
+  // so a fast second click reaches the carcass under it. Bound once: no closure per click.
+  private readonly clearQueued = (id: number): boolean => {
+    const cmds = this.pendingCommands;
+    for (let i = 0; i < cmds.length; i++) {
+      const c = cmds[i];
+      if (c.type === 'ClearCarcass' && c.id === id) return true;
+    }
+    return false;
+  };
   // Bound once so the per-tick drain allocates no closure.
   private readonly forwardEvent = (e: SimEvent): void => {
     bus.emit('sim', e);
@@ -156,6 +166,8 @@ export class GameScene extends Phaser.Scene {
 
   create(data?: GameSceneData): void {
     markGameStarted();
+    // The previous game's death toasts are not news in this one (Restart, debug Load).
+    clearAnnouncements();
     // Clear first, so events emitted while a game is built or loaded reach the first drain.
     clearEvents();
     // Math.random is fine in view code. A resumed save restores its own rng state.
@@ -214,7 +226,14 @@ export class GameScene extends Phaser.Scene {
       // UX-DR90: a carcass is at least hit-min square, beyond its bounds plus the pad.
       carcassAt: (sx, sy) => {
         const list = selectCarcasses(this.state);
-        const i = spriteIndexAt(list, this.carcassLayer, sx + camera.scrollX, sy + camera.scrollY, LAYOUT.hitMin / 2);
+        const i = spriteIndexAt(
+          list,
+          this.carcassLayer,
+          sx + camera.scrollX,
+          sy + camera.scrollY,
+          LAYOUT.hitMin / 2,
+          this.clearQueued,
+        );
         return i < 0 ? 0 : list[i].id;
       },
       canBreed: (id) => {

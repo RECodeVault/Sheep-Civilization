@@ -153,3 +153,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Long dev runs end by ~7 min (Story 2.3):** every sheep now dies of old age by 420 s, and "+10 sheep" gives all ten the same `bornAt`, so they die on one tick 360 s after the click. With no births until Story 2.3, the NFR1 100-sheep, 5-minute run above must start within ~1 min of adding sheep (or re-add them), and nothing can soak longer than ~6 min. Once births exist, or if needed earlier, give the debug overlay a way to keep sheep young (for example a "rejuvenate" button that resets `bornAt`).
   - **Resolved in Story 2.3:** births exist, and the debug overlay's **Ready adults** button makes every adult pickable, so a long run can breed its way on.
   - **Update 2026-10-07:** adulthood was lengthened (Rylan): sheep now die of old age at 540 s, and "+10 sheep" all die 480 s after the click.
+
+## Deferred from: code review of 2-4-carcasses-and-death-announcements (2026-10-07)
+
+- **Old-age toast vs tuning (Story 3.6):** "A sheep died of old age. A long, full nine minutes." is Voice-table copy that matches `TUNING.oldAgeMs` (540 s) only by a comment in `strings.ts`. If 3.6 retunes the lifespan, update the copy (or build the minutes from `TUNING.oldAgeMs`).

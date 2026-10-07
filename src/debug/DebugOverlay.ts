@@ -152,11 +152,16 @@ export function installDebugOverlay(game: Phaser.Game): void {
     refreshSim();
   });
   // Empties one random sheep, so the next tick starves it through the real pipeline: toast, carcass
-  // and dust (and the loss, if it was the last).
+  // and dust (and the loss, if it was the last). It also stops walking to food: a seeker that reached
+  // its piece next tick would eat (feeding runs before hunger) and live. A new claim cannot eat until
+  // the tick after, so the sheep is gone first.
   const starveButton = button(row2, 'Starve one', () => {
     activeScene()?.debugMutate((s) => {
       if (s.sheep.length === 0) return;
-      s.sheep[Math.floor(Math.random() * s.sheep.length)].fullness = 0;
+      const sheep = s.sheep[Math.floor(Math.random() * s.sheep.length)];
+      sheep.fullness = 0;
+      sheep.activity = 'wander';
+      delete sheep.targetId;
     });
     refreshSim();
   });

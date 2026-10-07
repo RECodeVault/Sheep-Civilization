@@ -21,7 +21,7 @@ export interface SpriteLookup {
 /**
  * Index in `items` of the front-most entity whose sprite contains (x, y), or -1. The box is the
  * sprite bounds plus HIT_PAD_PX, and at least `minHalf` from the centre on each axis. Lower sprites
- * draw in front (depth = y), so the largest y wins.
+ * draw in front (depth = y), so the largest y wins. Entities for which `skip` returns true are ignored.
  */
 export function spriteIndexAt(
   items: readonly { readonly id: number }[],
@@ -29,10 +29,12 @@ export function spriteIndexAt(
   x: number,
   y: number,
   minHalf = 0,
+  skip?: (id: number) => boolean,
 ): number {
   let best = -1;
   let bestY = -Infinity;
   for (let i = 0; i < items.length; i++) {
+    if (skip !== undefined && skip(items[i].id)) continue;
     const spr = layer.spriteFor(items[i].id);
     if (spr === undefined) continue;
     const halfW = Math.max(spr.displayWidth / 2 + HIT_PAD_PX, minHalf);

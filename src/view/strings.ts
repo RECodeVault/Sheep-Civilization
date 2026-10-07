@@ -5,13 +5,15 @@ import type { Hunger, Stage } from '../sim/selectors';
 
 const STAGE: Readonly<Record<Stage, string>> = Object.freeze({ lamb: 'Lamb', adult: 'Adult', elder: 'Elder' });
 const HUNGER: Readonly<Record<Hunger, string>> = Object.freeze({ fed: 'Fed', hungry: 'Hungry', starving: 'Starving' });
-// Death toasts (UX-DR92, UX-DR97): "A sheep" until names arrive; Story 5.3 puts the name there, in
-// `halo`. The Abomination's victims never get a cause (UX-DR64). Old age is 540 s: nine minutes.
+// Death toasts (UX-DR92, UX-DR97), after the subject: "A sheep starved.", or "3 sheep starved." for
+// deaths of one cause in the same frame (code review decision, Rylan 2026-10-07). Story 5.3 puts the
+// name in place of "A sheep", in `halo`. The Abomination's victims never get a cause (UX-DR64). Old
+// age is 540 s: nine minutes.
 const DEATH_TOAST: Readonly<Record<DeathCause, string>> = Object.freeze({
-  starved: 'A sheep starved.',
-  oldAge: 'A sheep died of old age. A long, full nine minutes.',
-  virus: 'A sheep caught the carcass sickness.',
-  abomination: 'A sheep just… fell over.',
+  starved: 'starved.',
+  oldAge: 'died of old age. A long, full nine minutes.',
+  virus: 'caught the carcass sickness.',
+  abomination: 'just… fell over.',
 });
 
 export const STRINGS = Object.freeze({
@@ -25,7 +27,7 @@ export const STRINGS = Object.freeze({
   assetLoadFailed: "Some of the pasture didn't load. Try reloading the page.",
   stage: STAGE,
   hunger: HUNGER,
-  deathToast: DEATH_TOAST,
+  deathToast: (cause: DeathCause, n: number): string => `${n === 1 ? 'A sheep' : `${n} sheep`} ${DEATH_TOAST[cause]}`,
   // Sheep tooltip (UX-DR43, UX-DR96), e.g. "Adult · Hungry". Story 5.3 adds the name line above it.
   sheepTooltip: (stage: Stage, hunger: Hunger): string => `${STAGE[stage]} · ${HUNGER[hunger]}`,
   // Farm button (UX-DR26, UX-DR75, UX-DR96). The tooltip does not depend on Better Hoe (2026-10-06).

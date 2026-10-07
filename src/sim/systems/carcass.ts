@@ -26,12 +26,10 @@ export function killSheep(state: GameState, id: number, cause: DeathCause): void
   // Allocates, which is fine: a death is a rare event, not per-tick work.
   state.sheep = state.sheep.filter((x) => x.id !== id);
   state.stats.died += 1;
-  emit({ type: 'SheepDied', id, cause, x: s.x, y: s.y });
   // FR12: the carcass lies where the sheep stood. Its event follows the death it came from.
-  if (TUNING.carcassesEnabled) {
-    const c = createCarcass(state, s.x, s.y);
-    emit({ type: 'CarcassSpawned', id: c.id, x: c.x, y: c.y });
-  }
+  const c = TUNING.carcassesEnabled ? createCarcass(state, s.x, s.y) : undefined;
+  emit({ type: 'SheepDied', id, cause, x: s.x, y: s.y });
+  if (c !== undefined) emit({ type: 'CarcassSpawned', id: c.id, x: c.x, y: c.y });
   // Last, so Lost follows the SheepDied that caused it.
   checkLastSheepAndLoss(state);
 }

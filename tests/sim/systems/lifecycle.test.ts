@@ -48,11 +48,13 @@ describe('updateLifecycle', () => {
     expect(state.sheep.map((s) => s.id)).toEqual([elder.id, other.id]);
     expect(stageOf(elder, state)).toBe('elder');
 
+    const carcassId = state.nextId;
     const events = runFed(state, 1);
     expect(state.time - elder.bornAt).toBe(TUNING.oldAgeMs);
+    expect(state.carcasses.map((c) => c.id)).toEqual([carcassId]);
     expect(events).toEqual([
       { type: 'SheepDied', id: elder.id, cause: 'oldAge', x: elder.x, y: elder.y },
-      { type: 'CarcassSpawned', id: state.carcasses[0].id, x: elder.x, y: elder.y },
+      { type: 'CarcassSpawned', id: carcassId, x: elder.x, y: elder.y },
     ]);
     expect(state.sheep.map((s) => s.id)).toEqual([other.id]);
     expect(state.stats.died).toBe(1);
@@ -101,10 +103,11 @@ describe('updateLifecycle', () => {
   it('the last sheep dying of old age loses the game, Lost after SheepDied', () => {
     const state = gameWithAges([TUNING.oldAgeMs - TICK_MS]);
     const s = state.sheep[0];
+    const carcassId = state.nextId;
     const events = runFed(state, 1);
     expect(events).toEqual([
       { type: 'SheepDied', id: s.id, cause: 'oldAge', x: s.x, y: s.y },
-      { type: 'CarcassSpawned', id: state.carcasses[0].id, x: s.x, y: s.y },
+      { type: 'CarcassSpawned', id: carcassId, x: s.x, y: s.y },
       { type: 'Lost', survivedMs: TICK_MS, peakFlock: 1 },
     ]);
     expect(state.lostAt).toBe(TICK_MS);
@@ -179,13 +182,15 @@ describe('updateLifecycle', () => {
   it('a whole flock of elders dying on one tick: every SheepDied and its carcass, then one Lost', () => {
     const state = gameWithAges([TUNING.oldAgeMs - TICK_MS, TUNING.oldAgeMs - TICK_MS]);
     const [a, b] = state.sheep;
+    // Each death takes the next id for its carcass, in array order.
+    const first = state.nextId;
     const events = runFed(state, 1);
-    const [ca, cb] = state.carcasses;
+    expect(state.carcasses.map((c) => c.id)).toEqual([first, first + 1]);
     expect(events).toEqual([
       { type: 'SheepDied', id: a.id, cause: 'oldAge', x: a.x, y: a.y },
-      { type: 'CarcassSpawned', id: ca.id, x: a.x, y: a.y },
+      { type: 'CarcassSpawned', id: first, x: a.x, y: a.y },
       { type: 'SheepDied', id: b.id, cause: 'oldAge', x: b.x, y: b.y },
-      { type: 'CarcassSpawned', id: cb.id, x: b.x, y: b.y },
+      { type: 'CarcassSpawned', id: first + 1, x: b.x, y: b.y },
       { type: 'Lost', survivedMs: TICK_MS, peakFlock: 2 },
     ]);
     expect(state.sheep).toEqual([]);

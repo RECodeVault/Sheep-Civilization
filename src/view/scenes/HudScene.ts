@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Command } from '../../sim/commands';
-import type { SimEvent } from '../../sim/events';
+import type { DeathCause, SimEvent } from '../../sim/events';
 import { COMPONENTS, LAYOUT } from '../../config/constants';
 import { selectHudView, type HudView } from '../../sim/selectors';
 import { bus } from '../bus';
@@ -47,6 +47,9 @@ export class HudScene extends Phaser.Scene {
     breedingPipsPerFood: 0,
     breedBlock: 'notReady',
   };
+  // Deaths since the last frame, by cause: one toast per cause per frame (UX-DR41/UX-DR92), so a wipe
+  // of many sheep on one tick reads "5 sheep starved." instead of overflowing the 3-toast stack.
+  private readonly deaths: Record<DeathCause, number> = { starved: 0, oldAge: 0, virus: 0, abomination: 0 };
   // The buttons that can show a tooltip; built once, so updateTooltip allocates nothing per frame.
   private tooltipButtons: readonly Button[] = [];
 
@@ -59,6 +62,7 @@ export class HudScene extends Phaser.Scene {
     this.tooltipFor = null;
     this.tooltipText = undefined;
     this.wasModal = false;
+    for (const k in this.deaths) this.deaths[k as DeathCause] = 0;
     this.bar = new BottomBar(this, this.farm, this.farmBreeding, this.breedTool);
     this.pauseButton = new Button(this, PAUSE, {
       x: LAYOUT.safeMargin,
@@ -96,6 +100,7 @@ export class HudScene extends Phaser.Scene {
 
   private readonly refresh = (): void => {
     try {
+      this.flushDeathToasts();
       const state = this.gameScene.simState;
       const v = selectHudView(state, this.view);
       this.bar.farmProgress.set(v.farmProgress, v.farmPipsPerFood);
@@ -224,13 +229,25 @@ export class HudScene extends Phaser.Scene {
         const b = this.bar.breedFoodButton;
         this.popups.spawn(b.x + b.width / 2, b.y - POPUP_LIFT_PX, STRINGS.farmPopup(e.added));
       } else if (e.type === 'SheepDied') {
-        // UX-DR41/UX-DR92: every death gets its own toast, so a flock starving on one tick shows each.
-        showToast(STRINGS.deathToast[e.cause], { merge: false });
+        // Counted here, toasted once per frame in refresh (flushDeathToasts).
+        this.deaths[e.cause]++;
       }
     } catch (err) {
       reportError('ui', err);
     }
   };
+
+  /** One announcement per cause for the frame's deaths, in the deaths map's order. */
+  private flushDeathToasts(): void {
+    const d = this.deaths;
+    for (const k in d) {
+      const cause = k as DeathCause;
+      const n = d[cause];
+      if (n === 0) continue;
+      d[cause] = 0;
+      showToast(STRINGS.deathToast(cause, n), { announcement: true });
+    }
+  }
 
   private updateTooltip(now: number, modalOpen: boolean): void {
     // At most one button is hovered, so one tooltip serves them all.
