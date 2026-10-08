@@ -1,6 +1,7 @@
 // Advances the sim by one fixed tick. The only place systems are called from.
 import { TICK_MS } from '../config/constants';
 import type { GameState } from './state';
+import { updateAbomination } from './systems/abomination';
 import { updateCarcassEating } from './systems/carcass';
 import { updateEras } from './systems/eras';
 import { updateFeeding } from './systems/feeding';
@@ -14,7 +15,9 @@ import { updateVirus } from './systems/virus';
  *   movement → feeding → carcassEating → hunger → lifecycle → virus → abomination → overcrowding →
  *   autoFeeder → eras
  * Carcass eating follows feeding, so food claims win first (FR14), and precedes hunger, so a sheep that
- * eats on the tick it would starve lives.
+ * eats on the tick it would starve lives. The Abomination (Story 4.3) follows movement, so contact is
+ * tested on the tick's moved positions, and feeding, so a hungry Abomination is claimed for food before
+ * a visit can start.
  * Systems never call each other; they share data only through GameState.
  */
 export type System = (state: GameState) => void;
@@ -26,6 +29,7 @@ const SYSTEMS: readonly System[] = [
   updateHunger,
   updateLifecycle,
   updateVirus,
+  updateAbomination,
   // Always last: it sees the tick's births, deaths and the commands applied before it (pattern N4).
   updateEras,
 ];

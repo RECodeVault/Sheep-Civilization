@@ -3,8 +3,8 @@
 // a life (gestation and birth, FR9) and ends one: an elder dies of old age, through the single death
 // pipeline, on the tick its age reaches oldAgeMs. Each birth goes through abomination.ts onBirth, which
 // may make the lamb the Abomination (FR29; a helper owned by that concept, like killSheep). The
-// Abomination stays a lamb and never dies of old age (FR30). Story 4.3 adds the Abomination victim's
-// delayed death (doomedAt).
+// Abomination stays a lamb and never dies of old age (FR30). Its victims' delayed death (doomedAt) is
+// not here: abomination.ts owns the whole kill cycle (Story 4.3).
 import { TUNING } from '../../config/tuning';
 import { emit } from '../events';
 import { innerFence, pregnancySpot, stageOf } from '../selectors';

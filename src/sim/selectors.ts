@@ -1,7 +1,7 @@
 // Read-only views of GameState. The view layer reads state only through these.
 import { TUNING, type Rect } from '../config/tuning';
 import { assertNever } from '../core/types';
-import type { BreedingPiece, Carcass, Era, FoodPiece, GameState, Pregnancy, Sheep, ShopItemId } from './state';
+import type { BreedingPiece, Carcass, Era, FoodPiece, GameState, Pregnancy, Sheep, SheepActivity, ShopItemId } from './state';
 
 /** A land tier: 0 before any land, then 1–3 for Land I–III (FR22). Indexes TUNING's land table. */
 export type LandTier = 0 | 1 | 2 | 3;
@@ -220,9 +220,15 @@ export function breedBlock(state: GameState): BreedBlock {
 export type Gait = 'normal' | 'offstep';
 
 /**
+ * What the view may know a sheep is doing: `stalking` (the Abomination's visit, Story 4.3) is reported as
+ * `wander`, so the view can never learn of a visit from it (AR18).
+ */
+export type PublicActivity = Exclude<SheepActivity, 'stalking'>;
+
+/**
  * The only sheep shape the view may consume (AR18). It never carries the Abomination's secret: no
- * `isAbomination` and no kill-cycle state, and the Abomination is a lamb here at any age. Later
- * stories add name (5.3) and activity (4.3).
+ * `isAbomination` and no kill-cycle state (`stalk`, `doomedAt`), and the Abomination is a lamb here at
+ * any age. Story 5.3 adds name.
  */
 export interface PublicSheep {
   id: number;
@@ -240,6 +246,13 @@ export interface PublicSheep {
   infected: boolean;
   /** The walk (FR32): `offstep` for the Abomination, else `normal`. */
   gait: Gait;
+  /** What it is doing; a visit reads as `wander` (Story 4.3). No view code reads it yet. */
+  activity: PublicActivity;
+}
+
+/** `stalking` → `wander` (AR18); every other activity as it is. */
+function publicActivity(a: SheepActivity): PublicActivity {
+  return a === 'stalking' ? 'wander' : a;
 }
 
 export function publicSheep(s: Sheep, state: GameState): PublicSheep {
@@ -254,6 +267,7 @@ export function publicSheep(s: Sheep, state: GameState): PublicSheep {
     canBreed: canBreed(s, state),
     infected: s.infectedAt !== undefined,
     gait: s.isAbomination ? 'offstep' : 'normal',
+    activity: publicActivity(s.activity),
   };
 }
 
@@ -278,6 +292,7 @@ export function selectPublicSheep(state: GameState, out: PublicSheep[]): PublicS
         canBreed: false,
         infected: false,
         gait: 'normal',
+        activity: 'wander',
       };
       out[i] = p;
     }
@@ -291,6 +306,7 @@ export function selectPublicSheep(state: GameState, out: PublicSheep[]): PublicS
     p.canBreed = canBreed(s, state);
     p.infected = s.infectedAt !== undefined;
     p.gait = s.isAbomination ? 'offstep' : 'normal';
+    p.activity = publicActivity(s.activity);
   }
   out.length = sheep.length;
   return out;

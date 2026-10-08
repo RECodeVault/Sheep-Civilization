@@ -6,7 +6,8 @@
 // Clipboard API needs. Backtick toggles it.
 //
 // Later stories add their buttons here. src/debug/ is the only non-sim code allowed to read
-// isAbomination: Reveal Abomination (Story 4.1) rings it on the field, and the readout names it.
+// isAbomination: Reveal Abomination (Story 4.1) rings it on the field, and the readout names it. Story
+// 4.3's Kill now starts its visit at once, and the readout follows the visit and the doomed victim.
 import Phaser from 'phaser';
 import { COLOR_INT, COLORS, RADIUS, SPACING } from '../config/constants';
 import { TUNING } from '../config/tuning';
@@ -17,7 +18,7 @@ import { decodeSave, encodeSave } from '../save/saveFile';
 import { rngRange } from '../sim/rng';
 import { boostRemainingMs, currentEra, fenceBounds, innerFence, stageOf } from '../sim/selectors';
 import { createSheep, type GameState, type Sheep } from '../sim/state';
-import { abominationAlive } from '../sim/systems/abomination';
+import { abominationAlive, makeAbomination } from '../sim/systems/abomination';
 import { createCarcass } from '../sim/systems/carcass';
 import { createBreedingPiece, createFoodPiece } from '../sim/systems/feeding';
 import { infectSheep } from '../sim/systems/virus';
@@ -218,6 +219,8 @@ export function installDebugOverlay(game: Phaser.Game): void {
       sheep.fullness = 0;
       sheep.activity = 'wander';
       delete sheep.targetId;
+      // Story 4.3: a stalk exists only while stalking.
+      delete sheep.stalk;
     });
     refreshSim();
   });
@@ -280,9 +283,30 @@ export function installDebugOverlay(game: Phaser.Game): void {
         y: Math.round(r.top + Math.random() * (r.bottom - r.top)),
         bornAt: s.time,
       });
-      lamb.isAbomination = true;
+      // The one spawn path (Story 4.3): it also schedules the first visit, 45–60 s from now.
+      makeAbomination(s, lamb);
     });
     setStatus('made an Abomination');
+    refreshSim();
+  });
+  // Story 4.3: makes the living Abomination's next visit due now, so the cycle can be watched without
+  // waiting 45–60 s. It starts on the first tick the Abomination is free (wandering).
+  const killNowButton = button(abomRow, 'Kill now', () => {
+    const scene = activeScene();
+    if (scene === null) return;
+    if (!abominationAlive(scene.simState)) {
+      setStatus('no Abomination is alive');
+      return;
+    }
+    // Mid-visit the next leave would overwrite it, so say so instead of claiming it is due.
+    if (findAbomination(scene.simState)?.stalk !== undefined) {
+      setStatus('a visit is already under way');
+      return;
+    }
+    scene.debugMutate((s) => {
+      s.abomination.nextKillAt = s.time;
+    });
+    setStatus('next visit is due now');
     refreshSim();
   });
 
@@ -339,6 +363,7 @@ export function installDebugOverlay(game: Phaser.Game): void {
     moneyButton,
     revealButton,
     makeButton,
+    killNowButton,
     dumpButton,
     copyButton,
     loadButton,
@@ -448,8 +473,12 @@ export function installDebugOverlay(game: Phaser.Game): void {
     // Story 3.1: the balance and sales; 3.2: how many shop items are owned.
     sheepLine.textContent = `sheep  ${s.sheep.length} · carcasses ${s.carcasses.length} · infected ${countInfected(s)} · ${formatMoney(s.money)} · sold ${s.stats.sold} · owned ${s.owned.length} · era ${currentEra(s)}`;
     // Story 4.1: which sheep is the Abomination, and the birth count against the guaranteed birth.
+    // Story 4.3: its visit (phase → victim, time left in the phase), the next visit and the doomed sheep.
     const abom = findAbomination(s);
-    abomLine.textContent = `abom   ${abom === null ? 'none' : `#${abom.id}`} · births ${s.abomination.birthsSeen}/${s.abomination.guaranteedAtBirth}`;
+    const st = abom?.stalk;
+    const visit = st === undefined ? 'idle' : `stalk ${st.phase}→#${st.victimId} ${seconds(st.until - s.time)}`;
+    const next = abom === null ? '' : ` · ${visit} · next kill ${seconds(s.abomination.nextKillAt - s.time)}`;
+    abomLine.textContent = `abom   ${abom === null ? 'none' : `#${abom.id}`}${next} · births ${s.abomination.birthsSeen}/${s.abomination.guaranteedAtBirth}${doomedText(s)}`;
     foodLine.textContent = `food   pieces ${s.foodPieces.length} · bar ${s.farmProgress}/${TUNING.farmPipsPerFood} · boost ${formatGameTime(boostRemainingMs(s))}`;
     // Story 3.6: the latest window's sim tick times (NFR1 budget 2 ms) and the page's worst.
     tickLine.textContent = `tick   ${windowTick.meanMs.toFixed(2)} ms avg · ${windowTick.maxMs.toFixed(2)} max · worst ${tickMax.toFixed(2)}`;
@@ -625,6 +654,18 @@ function preventFocus(e: MouseEvent): void {
 function highlight(b: HTMLButtonElement, on: boolean): void {
   b.style.backgroundColor = on ? COLORS.hay : COLORS.dusk;
   b.style.color = on ? COLORS.bark : COLORS.wool;
+}
+
+/** Game-ms as "12.3s" (negative when past due). */
+function seconds(ms: number): string {
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
+/** " · doomed #5 in 6.2s" for each doomed sheep (Story 4.3), or "". */
+function doomedText(s: Readonly<GameState>): string {
+  let out = '';
+  for (const sheep of s.sheep) if (sheep.doomedAt !== undefined) out += ` · doomed #${sheep.id} in ${seconds(sheep.doomedAt - s.time)}`;
+  return out;
 }
 
 /** The living Abomination, or null (at most one is alive). */

@@ -586,7 +586,13 @@ export function killSheep(state: GameState, id: number, cause: DeathCause): void
 **Data Flow:**
 1. **Spawn:** on each birth, `lifecycle.ts` `births()` calls `abomination.ts` `onBirth(state, lamb)` (a helper owned by the concept, like `killSheep`; systems never consume `SimEvent`s, and `LambBorn` looks the same either way). It counts the birth, then sets `isAbomination` when none is alive and `birthsSeen === guaranteedAtBirth` (rolled 8–15 at new game) or, past that birth, RNG < 5% (Story 4.1).
 2. **Kill cycle:** at `nextKillAt` (45–60 s window) pick a random victim ≠ self → `stalk.phase = 'approach'` (seek victim) → on contact `'linger'` for 1 s → set victim `doomedAt` → `'leave'` → schedule next.
-3. **Delayed death:** the lifecycle check calls `killSheep(state, victimId, 'abomination')` when `state.time >= doomedAt`.
+   - (Story 4.3) `updateAbomination` in `abomination.ts` runs after the virus. `makeAbomination` (births and DEV alike) sets the first `nextKillAt`; each leave sets the next. The visit starts only while the Abomination is `wander`: a busy one (seeking, eating, dragged) makes it wait, so hunger always gets its turn. Feeding and carcass eating never claim a `stalking` sheep.
+   - **Contact** is a centre distance ≤ `TUNING.abominationContactPx` (30), between `personalSpacePx` (24) and `abominationSpacePx` (36). Inside 36 px the victim is pushed away by the 4.2 spacing; at 30 px it eases off at 15 px/s, so the Abomination reaches it without a chase, and during the linger the victim visibly steps away a little.
+   - Victims: any living sheep but the Abomination, a dragged one or an already doomed one (one draw over them; none → idle with no draw, the visit stays due). A victim gone or lifted before contact is re-picked on that tick; one lost during the linger just gets no doom.
+   - Interruptions: `pickUp` deletes the stalk, so lifting the Abomination before the doom spares the victim from that visit (the next visit is due at once and may pick it again). A victim held in the air when the linger ends is not doomed. An approach keeps its first deadline across re-picks; with no contact by `abominationApproachMaxMs` (20 s) it is given up and rescheduled. (Story 4.3 review, Rylan.)
+   - **Loss:** the game is lost when no sheep but the Abomination is alive (`checkLastSheepAndLoss`; Story 4.3 review, Rylan): a lone Abomination can never breed or be sold.
+   - `stalk` exists exactly while the activity is `stalking`; `pickUp` and the leave's end remove it.
+3. **Delayed death:** `updateAbomination` (not lifecycle; Story 4.3 follows the System Location Mapping) calls `killSheep(state, victimId, 'abomination')` on the first tick with `state.time >= doomedAt`. The doom stands even if the Abomination is sacrificed, starves or is lifted afterwards. Already-doomed sheep are never picked again.
 4. **Reveal:** sacrifice emits `Sacrificed { wasAbomination: true }` → view plays true-form flash, screech, "Good riddance."; innocent → "…that was just {name}."
 
 **Rules and edge cases:**
@@ -597,6 +603,7 @@ export function killSheep(state: GameState, id: number, cause: DeathCause): void
   - (Story 4.2) The off-step is a **rhythm on the shared lamb frames**: every sheep walks by alternating its pose frame with a `-walk` step frame, evenly; the Abomination's beats alternate long and short with a one-art-pixel dip on the short one (`src/view/field/gait.ts`). There are no `lamb-offstep-*` frames, so its art is exactly a lamb's.
   - (Story 4.2) The avoidance is **asymmetric**: every other sheep separates from it over `TUNING.abominationSpacePx` (36), while the Abomination feels only `personalSpacePx` (24) from them, so the flock gives it room and it does not shy away (`movement.ts`). With no Abomination alive the steering path is unchanged.
 - Death toast for `cause: 'abomination'` uses the vague UX string.
+- (Story 4.3) Nothing is emitted for a visit: no event at its start, contact, doom or leave. `PublicSheep.activity` reports `stalking` as `wander`, and `PublicSheep` carries no `stalk` or `doomedAt`. The ESLint secrecy rule blocks `isAbomination`, `stalk`, `doomedAt`, `nextKillAt` and member reads of `.abomination` outside `src/sim/`, `src/debug/` and `src/save/` (not the `abomination` property key, which `DeathCause` maps use).
 
 **Implementation Guide:**
 
@@ -608,7 +615,7 @@ export interface PublicSheep {
   infected: boolean; onCooldown: boolean;
   ready: boolean;            // breedReady; not secret: the Abomination never grows past a lamb, so it is never ready
   gait: 'normal' | 'offstep';
-  activity: SheepActivity;   // 'stalking' reported as 'wander'
+  activity: PublicActivity;  // Exclude<SheepActivity, 'stalking'>: 'stalking' reported as 'wander'
 }
 
 export function publicSheep(s: Sheep, state: GameState): PublicSheep {
@@ -710,7 +717,7 @@ export function createSheep(state: GameState, o: { stage: Stage; x: number; y: n
 ```typescript
 function nextActivity(s: Sheep, state: GameState): SheepActivity {
   if (s.activity === 'dragged') return 'dragged';
-  if (s.isAbomination && s.stalk) return 'stalking';
+  if (s.isAbomination && s.stalk) return 'stalking'; // feeding/carcass eating never claim it (Story 4.3)
   if (s.fullness < TUNING.seekThreshold && state.foodPieces.length) return 'seekFood';
   if (canEatBreedingFood(s, state) && state.breedingPieces.length) return 'seekBreedingFood'; // adult, !breedReady, not on cooldown
   if (hungerOf(s) === 'starving' && !state.foodPieces.length && state.carcasses.length) return 'seekCarcass';

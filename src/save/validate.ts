@@ -7,14 +7,20 @@
 // Unknown extra keys are tolerated and kept: a field a later build added is harmless to this one.
 import { TUNING } from '../config/tuning';
 import { ERAS, fenceBounds, innerFence, SHOP_ITEMS, shopRequires } from '../sim/selectors';
-import type { Era, GameState, SheepActivity, ShopItemId } from '../sim/state';
+import type { Era, GameState, SheepActivity, ShopItemId, StalkPhase } from '../sim/state';
 
 export type ValidationResult = { ok: true; state: GameState } | { ok: false; reason: string };
 
 type Obj = Record<string, unknown>;
 
 // `dragged` is never saved (encodeSave writes it as `wander`), so a save holding it is rejected.
-const ACTIVITIES: readonly SheepActivity[] = ['wander', 'seekFood', 'seekBreedingFood', 'seekCarcass', 'eating'];
+const ACTIVITIES: readonly SheepActivity[] = ['wander', 'seekFood', 'seekBreedingFood', 'seekCarcass', 'eating', 'stalking'];
+// Story 4.3: how far ahead each phase of the Abomination's visit can end.
+const STALK_LENGTH: Readonly<Record<StalkPhase, number>> = {
+  approach: TUNING.abominationApproachMaxMs,
+  linger: TUNING.abominationLingerMs,
+  leave: TUNING.abominationLeaveMs,
+};
 const STAT_COUNTS = ['died', 'sold', 'sacrificed', 'peakFlock'] as const;
 const RNG_MAX = 0xffffffff;
 // Ceiling for time, ids and counters: 2^48 ms is about 8 900 years of play, and the headroom up to
@@ -102,6 +108,9 @@ function check(x: unknown): void {
   if (!isObj(s.abomination)) fail('state.abomination is not an object');
   int(s.abomination, 'birthsSeen', 'abomination', 0);
   int(s.abomination, 'guaranteedAtBirth', 'abomination', 1);
+  // FR31 (Story 4.3): set at most a full interval ahead. A due one (≤ time) is fine: the visit waits
+  // for a busy Abomination. 0 while none was ever alive.
+  int(s.abomination, 'nextKillAt', 'abomination', 0, time + TUNING.abominationKillMaxMs);
 
   const sheep = array(s, 'sheep');
   const pieces = array(s, 'foodPieces');
@@ -123,6 +132,9 @@ function check(x: unknown): void {
   } else if (sheep.length === 0) {
     // An empty pen that is not lost would run for ever (1.8 review).
     fail('sheep is empty but the game is not lost');
+  } else if (sheep.every((o) => o.isAbomination === true)) {
+    // Nor would a pen holding only the Abomination: that is a loss too (Story 4.3 review).
+    fail('sheep holds only the Abomination but the game is not lost');
   }
 
   // The fence is derived from the owned land tier (selectors.ts landTier), validated above; the state is
@@ -156,6 +168,26 @@ function check(x: unknown): void {
     // FR29: at most one Abomination is ever alive.
     if (typeof o.isAbomination !== 'boolean') fail(`${p}.isAbomination is not a boolean`);
     if (o.isAbomination && ++abominations > 1) fail(`${p} is a second Abomination`);
+    // FR31 (Story 4.3): the visit is the Abomination's only, present exactly while it is stalking, and
+    // each phase ends after `time` (the tick that reaches `until` moves it on) within its length. The
+    // victim id may name a sheep that is gone, as targetId may: the visit picks another.
+    if (o.activity === 'stalking' || 'stalk' in o) {
+      if (!o.isAbomination) fail(`${p}.stalk is on a sheep that is not the Abomination`);
+      if (o.activity !== 'stalking') fail(`${p}.stalk is set but the activity is not stalking`);
+      const st = o.stalk;
+      if (!isObj(st)) fail(`${p}.stalk is not an object`);
+      // Never its own id (it never visits itself); that the id was issued is checked after nextId below.
+      if (int(st, 'victimId', `${p}.stalk`, 1) === o.id) fail(`${p}.stalk.victimId is the Abomination itself`);
+      const phase = st.phase as StalkPhase;
+      // An own key only: `in` would also accept inherited names such as "constructor".
+      if (typeof phase !== 'string' || !Object.hasOwn(STALK_LENGTH, phase)) fail(`${p}.stalk.phase is not a known phase`);
+      int(st, 'until', `${p}.stalk`, time + 1, time + STALK_LENGTH[phase]);
+    }
+    // A victim's delayed death, still ahead (the tick that reaches it kills), at most doomMax away.
+    if ('doomedAt' in o) {
+      if (o.isAbomination) fail(`${p}.doomedAt is on the Abomination`);
+      int(o, 'doomedAt', p, time + 1, time + TUNING.abominationDoomMaxMs);
+    }
     // A deadline Breed set at most breedCooldownMs ago, or 0 for never bred.
     const cool = finite(o, 'cooldownUntil', p);
     if (cool < 0 || cool > time + TUNING.breedCooldownMs) fail(`${p}.cooldownUntil is outside [0, time + breedCooldownMs]`);
@@ -216,6 +248,13 @@ function check(x: unknown): void {
 
   // After the entities, so a bad entity field is reported rather than the id it happens to use.
   if (nextId <= maxId) fail(`state.nextId ${nextId} is not above every id (max ${maxId})`);
+  // A visit's victim id at or above nextId was never issued: the next sheep created would be doomed by it.
+  for (let i = 0; i < sheep.length; i++) {
+    const st = sheep[i].stalk;
+    if (isObj(st) && (st.victimId as number) >= nextId) {
+      fail(`sheep[${i}].stalk.victimId ${String(st.victimId)} was never issued (nextId ${nextId})`);
+    }
+  }
   // A parent id at or above nextId was never issued: the next sheep created would inherit the pregnancy.
   for (let i = 0; i < pregnancies.length; i++) {
     const o = pregnancies[i];

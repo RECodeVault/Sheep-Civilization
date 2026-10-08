@@ -46,6 +46,20 @@ describe('pickUp (PickUp command)', () => {
     expect(drained()).toEqual([]);
   });
 
+  it('ends the Abomination’s visit; the drop lands it wandering with no visit (Story 4.3)', () => {
+    const { state, s } = oneSheep();
+    s.isAbomination = true;
+    s.activity = 'stalking';
+    s.stalk = { victimId: 42, phase: 'linger', until: state.time + TUNING.abominationLingerMs };
+    applyCommand(state, { type: 'PickUp', id: s.id });
+    expect(s.activity).toBe('dragged');
+    expect(s.stalk).toBeUndefined();
+    drop(state, s.id, s.x, s.y);
+    expect(s.activity).toBe('wander');
+    expect(s.stalk).toBeUndefined();
+    expect(drained()).toEqual([]);
+  });
+
   it('ignores an unknown id or a sheep already dragged, and draws no rng', () => {
     const { state, s } = oneSheep();
     const rng = state.rng;

@@ -23,6 +23,11 @@ interface Pile {
   breeding: number;
   /** Story 4.2: one of the 100 is the Abomination, so every other sheep also takes its 36 px push. */
   abomination?: boolean;
+  /**
+   * Story 4.3: the Abomination (full, so it is free) on a visit from the first tick, with ten other sheep
+   * already doomed, so the kill cycle and the doomed deaths both run.
+   */
+  visit?: boolean;
 }
 
 /** 100 adults at Land III with a pile of pieces, every sheep hungry (half fed enough to want breeding food). */
@@ -38,7 +43,12 @@ function pileGame(pile: Pile): GameState {
     s.breedReady = false;
     s.cooldownUntil = 0;
   });
-  if (pile.abomination === true) state.sheep[0].isAbomination = true;
+  if (pile.abomination === true || pile.visit === true) state.sheep[0].isAbomination = true;
+  if (pile.visit === true) {
+    state.sheep[0].fullness = TUNING.fullnessMax;
+    state.abomination.nextKillAt = state.time;
+    for (let i = 1; i <= 10; i++) state.sheep[i].doomedAt = state.time + TUNING.abominationDoomMinMs + i * 1_000;
+  }
   const r = innerFence(state);
   for (let i = 0; i < pile.food; i++) {
     createFoodPiece(state, rngRange(state, r.left, r.right), rngRange(state, r.top, r.bottom));
@@ -102,4 +112,5 @@ describe('sim tick, 100 sheep at Land III', () => {
   steadyBench('300 food · steady 600 ticks', { food: 300, breeding: 0 });
   steadyBench('150 food + 150 breeding · steady 600 ticks', { food: 150, breeding: 150 });
   steadyBench('300 food + Abomination · steady 600 ticks', { food: 300, breeding: 0, abomination: true });
+  steadyBench('Abomination visiting + 10 doomed · steady 600 ticks', { food: 0, breeding: 0, visit: true });
 });

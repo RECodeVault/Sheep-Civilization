@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { TICK_MS } from '../../src/config/constants';
 import { TUNING, type Rect } from '../../src/config/tuning';
 
 // A placeholder sheep is 64×52 (SheepSprite); a fence must hold one inside its inset.
@@ -85,5 +86,31 @@ describe('Abomination spacing (FR32, Story 4.2)', () => {
     const holdOff = (space: number): number => space * (1 - 1 / TUNING.separationWeight);
     expect(TUNING.eatReachPx).toBeGreaterThan(holdOff(TUNING.personalSpacePx));
     expect(TUNING.eatReachPx).toBeGreaterThan(holdOff(TUNING.abominationSpacePx));
+  });
+});
+
+describe('Abomination kill cycle (FR31, Story 4.3)', () => {
+  it('puts contact inside the flock’s gap: past the Abomination’s own space, inside the space others keep', () => {
+    expect(TUNING.abominationContactPx).toBeGreaterThan(TUNING.personalSpacePx);
+    expect(TUNING.abominationContactPx).toBeLessThan(TUNING.abominationSpacePx);
+  });
+
+  it('has ordered ranges', () => {
+    expect(TUNING.abominationKillMinMs).toBeLessThanOrEqual(TUNING.abominationKillMaxMs);
+    expect(TUNING.abominationDoomMinMs).toBeLessThanOrEqual(TUNING.abominationDoomMaxMs);
+  });
+
+  it('rolls its random delays between whole-ms bounds (rngInt needs integers)', () => {
+    for (const ms of [TUNING.abominationKillMinMs, TUNING.abominationKillMaxMs, TUNING.abominationDoomMinMs, TUNING.abominationDoomMaxMs]) {
+      expect(Number.isInteger(ms)).toBe(true);
+      expect(ms).toBeGreaterThan(0);
+    }
+  });
+
+  it('gives each visit phase a whole number of ticks (contact, linger end and leave end land on ticks)', () => {
+    for (const ms of [TUNING.abominationLingerMs, TUNING.abominationLeaveMs, TUNING.abominationApproachMaxMs]) {
+      expect(ms % TICK_MS).toBe(0);
+      expect(ms).toBeGreaterThan(0);
+    }
   });
 });

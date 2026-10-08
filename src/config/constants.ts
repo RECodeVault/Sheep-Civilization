@@ -31,7 +31,7 @@ export const AUTOSAVE_MS = 10_000;
 // 8 since Story 3.2: `owned`, the one-time shop purchases (a version-7 save gets []).
 // 9 since Story 4.1: sheep `isAbomination` and `abomination` (birthsSeen, guaranteedAtBirth); a
 // version-8 save gets no Abomination, births counted from 0 and a guaranteed birth rolled from its rng.
-export const SAVE_SCHEMA_VERSION = 9;
+export const SAVE_SCHEMA_VERSION = 10;
 
 /*
  * Colour-usage rules (DESIGN.md Colors, Do's and Don'ts — UX-DR2):

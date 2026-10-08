@@ -6,10 +6,31 @@ import { fenceBounds } from './selectors';
 
 /**
  * The sheep's explicit state machine; feeding.ts owns the seekFood/seekBreedingFood/eating
- * transitions, carcass.ts owns seekCarcass (FR14) and drag.ts owns dragged (FR16, 2.7). A later story
- * adds stalking (4.3).
+ * transitions, carcass.ts owns seekCarcass (FR14), drag.ts owns dragged (FR16, 2.7) and abomination.ts
+ * owns stalking (the Abomination's visit, FR31, Story 4.3). PublicSheep reports stalking as wander.
  */
-export type SheepActivity = 'wander' | 'seekFood' | 'seekBreedingFood' | 'seekCarcass' | 'eating' | 'dragged';
+export type SheepActivity =
+  | 'wander'
+  | 'seekFood'
+  | 'seekBreedingFood'
+  | 'seekCarcass'
+  | 'eating'
+  | 'dragged'
+  | 'stalking';
+
+/** The three steps of the Abomination's visit (FR31): walk up to the victim, stand by it, walk away. */
+export type StalkPhase = 'approach' | 'linger' | 'leave';
+
+/**
+ * SECRET (AR18, pattern N2): the Abomination's visit in progress (Story 4.3). `until` is a game-ms
+ * deadline whose meaning depends on the phase: approach, when the hunt is given up; linger, when it ends
+ * (and the victim is doomed); leave, when the Abomination wanders again.
+ */
+export interface Stalk {
+  victimId: number;
+  phase: StalkPhase;
+  until: number;
+}
 
 export interface Sheep {
   id: number;
@@ -46,6 +67,16 @@ export interface Sheep {
    * other except for `gait`. Set at birth by abomination.ts onBirth, never cleared.
    */
   isAbomination: boolean;
+  /**
+   * SECRET (AR18): the Abomination's visit (Story 4.3). Only on the Abomination, and present exactly
+   * while its activity is `stalking`. Omitted otherwise.
+   */
+  stalk?: Stalk;
+  /**
+   * SECRET (AR18): game-ms of this victim's delayed death after the Abomination's visit (FR31, Story 4.3;
+   * abomination.ts). Never on the Abomination. Omitted otherwise.
+   */
+  doomedAt?: number;
 }
 
 export interface FoodPiece {
@@ -104,8 +135,8 @@ export interface Stats {
 }
 
 /**
- * The Abomination's spawn bookkeeping (FR29, pattern N2). SECRET like `Sheep.isAbomination`: the view
- * never reads it. Story 4.3 adds `nextKillAt`.
+ * The Abomination's spawn and kill bookkeeping (FR29, FR31, pattern N2). SECRET like
+ * `Sheep.isAbomination`: the view never reads it.
  */
 export interface AbominationState {
   /** Lambs born from pregnancies so far in this save (the founding lamb is not a birth). */
@@ -116,6 +147,12 @@ export interface AbominationState {
    * abominationBirthChance.
    */
   guaranteedAtBirth: number;
+  /**
+   * Game-ms deadline of the living Abomination's next visit (FR31, Story 4.3): set when a sheep becomes
+   * the Abomination and at the start of each leave. It may be past due while the Abomination is busy
+   * (eating, seeking, dragged). Meaningless while none is alive; 0 at new game.
+   */
+  nextKillAt: number;
 }
 
 export interface GameState {
@@ -201,7 +238,7 @@ export function createNewGame(seed: number): GameState {
     stats: { died: 0, sold: 0, sacrificed: 0, moneyEarned: 0, peakFlock: 0 },
     // Rolled below, after the founders, so their positions and headings keep the draws they had
     // before Story 4.1.
-    abomination: { birthsSeen: 0, guaranteedAtBirth: 0 },
+    abomination: { birthsSeen: 0, guaranteedAtBirth: 0, nextKillAt: 0 },
     lastEra: 'pasture',
   };
   const f = fenceBounds(state);

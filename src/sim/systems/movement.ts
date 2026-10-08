@@ -4,30 +4,25 @@
 // Separation keeps personalSpacePx (24) between ordinary sheep. Every other sheep keeps the wider
 // abominationSpacePx (36) from the living Abomination (FR32, its designed tell, Story 4.2), while the
 // Abomination itself feels only the normal 24: the flock gives it room; it does not shy away. That shows
-// only as spacing: nothing here reaches PublicSheep or emits an event.
+// only as spacing: nothing here reaches PublicSheep or emits an event. The Abomination's visit
+// (`stalking`, Story 4.3) steers here too: approach (seek the victim), linger (stand), leave (walk away).
 import { TICK_MS } from '../../config/constants';
 import { TUNING } from '../../config/tuning';
+import { invariant } from '../../core/invariant';
 import { assertNever } from '../../core/types';
+import { wrapAngle } from '../angle';
 import { queryNeighbours, rebuildGrid } from '../grid';
 import { rng, rngRange } from '../rng';
-import { breedingPieceIndex, carcassIndex, fenceBounds, pieceIndex } from '../selectors';
+import { breedingPieceIndex, carcassIndex, fenceBounds, pieceIndex, sheepIndex } from '../selectors';
 import type { GameState } from '../state';
 import { abominationIndex } from './abomination';
 
-const TAU = 2 * Math.PI;
 const DT = TICK_MS / 1000;
 
 // Module-scope scratch, grown on demand, so a tick allocates nothing.
 let vx = new Float64Array(128);
 let vy = new Float64Array(128);
 const neighbours: number[] = [];
-
-/** Wraps to [0, 2π). A tiny negative input can round up to exactly 2π, and `+ 0` turns -0 into 0. */
-function wrapAngle(a: number): number {
-  a %= TAU;
-  if (a < 0) a += TAU;
-  return a >= TAU ? 0 : a + 0;
-}
 
 /** The piece or carcass a seeker walks to, or undefined if it is gone. No allocation. */
 function seekTarget(
@@ -133,6 +128,38 @@ export function updateMovement(state: GameState): void {
       case 'eating':
         // Munching in place; separation below still nudges it like a grazer.
         break;
+      case 'stalking': {
+        // The Abomination's visit (FR31, abomination.ts owns the phases). Approach: straight at the
+        // victim, as a seeker walks to food (a victim that is gone or lifted: no walk; the visit system
+        // picks another after movement). Linger: stands. Leave: walks along the heading set away from
+        // the victim, turning back from the rails as a wanderer does, but without the random turn.
+        const st = s.stalk;
+        if (st === undefined) {
+          invariant(false, 'updateMovement: stalking without a stalk');
+          break;
+        }
+        if (st.phase === 'approach') {
+          const k = sheepIndex(state, st.victimId);
+          if (k < 0 || sheep[k].activity === 'dragged') break;
+          const dx = sheep[k].x - s.x;
+          const dy = sheep[k].y - s.y;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d === 0) break;
+          const v = Math.min(walk, d / DT);
+          wx = (dx / d) * v;
+          wy = (dy / d) * v;
+          s.heading = wrapAngle(Math.atan2(dy, dx));
+        } else if (st.phase === 'leave') {
+          walking = true;
+          let h = s.heading;
+          if ((s.x < left + margin && Math.cos(h) < 0) || (s.x > right - margin && Math.cos(h) > 0)) h = Math.PI - h;
+          if ((s.y < top + margin && Math.sin(h) < 0) || (s.y > bottom - margin && Math.sin(h) > 0)) h = -h;
+          s.heading = wrapAngle(h);
+          wx = Math.cos(s.heading) * walk;
+          wy = Math.sin(s.heading) * walk;
+        }
+        break;
+      }
       case 'dragged':
         // In the air (FR16): no walk and no separation push; pass 2 leaves it where it was picked up.
         vx[i] = 0;

@@ -157,7 +157,10 @@ function claimPieces(state: GameState, pieces: readonly Piece[], food: boolean, 
   }
 }
 
-/** FR5/FR14: a free (or breeding-food- or carcass-bound) sheep below seekBelowFullness may claim food. */
+/**
+ * FR5/FR14: a free (or breeding-food- or carcass-bound) sheep below seekBelowFullness may claim food.
+ * Not `stalking`: the Abomination's visit is not interrupted for food (it eats once it wanders again).
+ */
 function mayEatFood(s: Sheep): boolean {
   return (
     (s.activity === 'wander' || s.activity === 'seekBreedingFood' || s.activity === 'seekCarcass') &&
@@ -169,6 +172,7 @@ function mayEatFood(s: Sheep): boolean {
  * FR8a: a free adult that is not ready and not on breeding cooldown may claim breeding food, unless
  * it is hungry while food lies in the pen (food first) or Starving while a carcass and no food lie
  * there (FR14). The Abomination is never an adult (stageOf keeps it a lamb, FR30), so it never eats one.
+ * Only `wander`, so never a `stalking` sheep either (Story 4.3).
  */
 function mayEatBreedingFood(s: Sheep, state: GameState): boolean {
   return (

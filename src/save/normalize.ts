@@ -44,11 +44,27 @@ export function normalizeTuned(state: unknown): void {
   if (!Number.isInteger(time)) return;
   const t = time as number;
   clampDown(state, 'boostUntil', t + TUNING.boostMs, true);
+  // Story 4.3: a shorter kill interval, doom delay or visit phase brings a saved deadline inside the new
+  // bound (each stays after `time`, since every bound is at least one tick).
+  if (isObj(a)) clampDown(a, 'nextKillAt', t + TUNING.abominationKillMaxMs, true);
   if (Array.isArray(state.sheep)) {
     for (const s of state.sheep) {
       if (!isObj(s)) continue;
       clampDown(s, 'fullness', TUNING.fullnessMax, false);
       clampDown(s, 'cooldownUntil', t + TUNING.breedCooldownMs, false);
+      clampDown(s, 'doomedAt', t + TUNING.abominationDoomMaxMs, true);
+      const st = s.stalk;
+      if (isObj(st)) {
+        const len =
+          st.phase === 'approach'
+            ? TUNING.abominationApproachMaxMs
+            : st.phase === 'linger'
+              ? TUNING.abominationLingerMs
+              : st.phase === 'leave'
+                ? TUNING.abominationLeaveMs
+                : undefined;
+        if (len !== undefined) clampDown(st, 'until', t + len, true);
+      }
       // A shorter virusDeathMs can put a saved infection past its death. Move it forward so the death
       // falls due by the first tick (updateVirus kills at time ≥ infectedAt + virusDeathMs): the sheep
       // still dies of the virus, now, instead of the save being rejected.

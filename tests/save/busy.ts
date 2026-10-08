@@ -2,6 +2,7 @@ import { TUNING, type Rect } from '../../src/config/tuning';
 import { applyCommand } from '../../src/sim/commands';
 import { drainEvents } from '../../src/sim/events';
 import { createSheep, type GameState } from '../../src/sim/state';
+import { makeAbomination } from '../../src/sim/systems/abomination';
 import { createCarcass } from '../../src/sim/systems/carcass';
 import { infectSheep } from '../../src/sim/systems/virus';
 import { fillFlock, innerFence, newGame, runFor } from '../sim/helpers';
@@ -11,7 +12,8 @@ import { fillFlock, innerFence, newGame, runFor } from '../sim/helpers';
  * seekers walking to them, a half-filled Farm bar, breeding pieces with seekers and a part-filled
  * breeding bar, a ready sheep, a pregnancy with its parents on cooldown, a carcass, an infected
  * sheep, an active sacrifice boost, money from sales, three shop purchases (Land I and both decorations),
- * a living Abomination with births counted (Story 4.1) and an advanced rng. Callers assert it is busy.
+ * a living Abomination with births counted (Story 4.1) on a visit beside a doomed victim (Story 4.3), and
+ * an advanced rng. Callers assert it is busy.
  */
 // Seed 31339 since Story 4.1: the new-game Abomination roll shifted the rng, and with 31337 every food
 // piece was eaten inside the 1 s run (no seekFood left). Any seed for which isBusy holds will do.
@@ -55,10 +57,14 @@ export function busyGame(seed = 31339): GameState {
   state.stats.moneyEarned += earned;
   state.stats.sold += 3;
   // The Abomination (Story 4.1): a lamb born at its guaranteed birth. Set directly: births need
-  // pregnancies to come due. Flagged after createSheep, as onBirth flags it.
+  // pregnancies to come due. Made after createSheep, as onBirth makes it.
   const abom = createSheep(state, { x: (r.left + r.right) / 2, y: r.top, bornAt: state.time });
-  abom.isAbomination = true;
+  makeAbomination(state, abom);
   state.abomination.birthsSeen = state.abomination.guaranteedAtBirth;
+  // Its visit (Story 4.3): due now, so it is stalking inside the 1 s run, and an earlier victim still
+  // doomed after it. Set directly: a full visit takes longer than the run.
+  state.abomination.nextKillAt = state.time;
+  state.sheep[6].doomedAt = state.time + TUNING.abominationDoomMaxMs;
   drainEvents(() => {});
   runFor(state, 1_000);
   return state;
@@ -71,7 +77,8 @@ function insideFence(f: Rect, x: number, y: number): boolean {
 /**
  * True when the state exercises both kinds of seeker, targets, pieces, both part-filled bars, a ready
  * sheep, a sheep on cooldown, a pregnancy, a carcass, an infected sheep, an active boost, money, shop purchases and a sheep
- * outside the start fence (the grown Land I pen, Story 3.3).
+ * outside the start fence (the grown Land I pen, Story 3.3), and the Abomination on a visit beside a
+ * doomed sheep (Story 4.3).
  */
 export function isBusy(state: GameState): boolean {
   return (
@@ -91,6 +98,8 @@ export function isBusy(state: GameState): boolean {
     state.owned.length > 0 &&
     state.sheep.some((s) => !insideFence(TUNING.landFences[0], s.x, s.y)) &&
     state.sheep.some((s) => s.isAbomination) &&
-    state.abomination.birthsSeen > 0
+    state.abomination.birthsSeen > 0 &&
+    state.sheep.some((s) => s.activity === 'stalking' && s.stalk !== undefined) &&
+    state.sheep.some((s) => s.doomedAt !== undefined)
   );
 }

@@ -2,14 +2,32 @@ import { describe, expect, it } from 'vitest';
 import { SAVE_SCHEMA_VERSION } from '../../src/config/constants';
 import { MIGRATIONS, migrate, type Migration } from '../../src/save/migrations';
 import { validateState } from '../../src/save/validate';
+import { rngInt } from '../../src/sim/rng';
 import { TUNING } from '../../src/config/tuning';
 import { newGame } from '../sim/helpers';
 import { busyGame } from './busy';
 import { migratedFrom8 } from './fromVersion8';
 
+/** Takes Story 4.3's kill-cycle fields off sheep records in place: no visit and no doom. */
+function stripKillCycle(sheep: Record<string, unknown>[]): void {
+  for (const s of sheep) {
+    if (s.activity === 'stalking') s.activity = 'wander';
+    delete s.stalk;
+    delete s.doomedAt;
+  }
+}
+
+/** A JSON copy of a current-version state in the version-9 shape (before Story 4.3's kill cycle). */
+function toVersion9(state: object): Record<string, unknown> {
+  const v9 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+  delete (v9.abomination as Record<string, unknown>).nextKillAt;
+  stripKillCycle(v9.sheep as Record<string, unknown>[]);
+  return v9;
+}
+
 /** A JSON copy of a current-version state in the version-8 shape (before Story 4.1's Abomination). */
 function toVersion8(state: object): Record<string, unknown> {
-  const v8 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+  const v8 = toVersion9(state);
   delete v8.abomination;
   for (const s of v8.sheep as Record<string, unknown>[]) delete s.isAbomination;
   return v8;
@@ -124,6 +142,8 @@ describe('migrate', () => {
   it('migrates a version-8 state (before the Abomination): nobody is one, births from 0, a roll in the window', () => {
     const state = busyGame();
     for (const s of state.sheep) s.isAbomination = false;
+    // A version-8 save holds no kill cycle either (Story 4.3), so the expected state has none.
+    stripKillCycle(state.sheep as unknown as Record<string, unknown>[]);
     const v8 = toVersion8(state);
     const r = migrate(8, v8);
     expect(r.ok).toBe(true);
@@ -141,6 +161,45 @@ describe('migrate', () => {
     expect(v8).toStrictEqual(toVersion8(state));
   });
 
+  it('migrates a version-9 state with no Abomination alive: nextKillAt 0, no draw (Story 4.3)', () => {
+    const state = newGame(3);
+    const v9 = toVersion9(state);
+    const r = migrate(9, v9);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.state).toStrictEqual(state);
+    expect((r.state as typeof state).abomination.nextKillAt).toBe(0);
+    expect(validateState(r.state).ok).toBe(true);
+  });
+
+  it('migrates a version-9 state with a living Abomination: its next visit is rolled from the save’s rng (Story 4.3)', () => {
+    const state = busyGame();
+    const v9 = toVersion9(state);
+    const r = migrate(9, v9);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const out = r.state as typeof state;
+    const roll = { rng: v9.rng as number };
+    const expected = (v9.time as number) + rngInt(roll, TUNING.abominationKillMinMs, TUNING.abominationKillMaxMs);
+    expect(out.abomination.nextKillAt).toBe(expected);
+    expect(out.rng).toBe(roll.rng);
+    expect(out.abomination.nextKillAt).toBeGreaterThanOrEqual(out.time + TUNING.abominationKillMinMs);
+    expect(out.abomination.nextKillAt).toBeLessThanOrEqual(out.time + TUNING.abominationKillMaxMs);
+    expect(out.sheep.some((s) => s.stalk !== undefined || s.doomedAt !== undefined || s.activity === 'stalking')).toBe(false);
+    expect(validateState(out).ok).toBe(true);
+    // Deterministic, and the input is not mutated.
+    expect(migrate(9, toVersion9(state))).toStrictEqual(r);
+    expect(v9).toStrictEqual(toVersion9(state));
+  });
+
+  it('leaves a malformed version-9 abomination for validation to reject (Story 4.3)', () => {
+    const r = migrate(9, { ...toVersion9(newGame(3)), abomination: 'nope' });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect((r.state as Record<string, unknown>).abomination).toBe('nope');
+    expect(validateState(r.state).ok).toBe(false);
+  });
+
   it('leaves a malformed version-8 rng and sheep list for validation to reject', () => {
     const r = migrate(8, { ...toVersion8(newGame(3)), rng: 'x', sheep: 'nope' });
     expect(r.ok).toBe(true);
@@ -148,7 +207,7 @@ describe('migrate', () => {
     const out = r.state as Record<string, unknown>;
     expect(out.rng).toBe('x');
     expect(out.sheep).toBe('nope');
-    expect(out.abomination).toStrictEqual({ birthsSeen: 0, guaranteedAtBirth: TUNING.abominationGuaranteedBirthMax });
+    expect(out.abomination).toStrictEqual({ birthsSeen: 0, guaranteedAtBirth: TUNING.abominationGuaranteedBirthMax, nextKillAt: 0 });
     expect(validateState(out).ok).toBe(false);
   });
 

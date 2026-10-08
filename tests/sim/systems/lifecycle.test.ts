@@ -55,6 +55,8 @@ describe('updateLifecycle', () => {
     const state = gameWithAges([0, TUNING.lambUntilMs]);
     const [abom, other] = state.sheep;
     abom.isAbomination = true;
+    // Starvation only: no visit (Story 4.3's kill cycle) before it starves.
+    state.abomination.nextKillAt = state.time + TUNING.starveMs + TICK_MS;
     const events: SimEvent[] = [];
     for (let t = 0; t < TUNING.starveMs / TICK_MS; t++) {
       other.fullness = TUNING.fullnessMax;

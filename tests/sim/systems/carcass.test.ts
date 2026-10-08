@@ -145,6 +145,58 @@ describe('checkLastSheepAndLoss', () => {
   });
 });
 
+describe('checkLastSheepAndLoss: only the Abomination left (Rylan, Story 4.3 review)', () => {
+  /** A new game whose lamb (the founders' last sheep) is the Abomination, events cleared. */
+  function withAbomination(): GameState {
+    const state = newGame(4);
+    state.sheep[state.sheep.length - 1].isAbomination = true;
+    state.abomination.nextKillAt = Number.MAX_SAFE_INTEGER;
+    drainEvents(() => {});
+    return state;
+  }
+  const drained = (): SimEvent[] => {
+    const out: SimEvent[] = [];
+    drainEvents((e) => out.push(e));
+    return out;
+  };
+
+  it.each(['sold', 'sacrificed'] as const)('is a loss once the last other sheep is %s', (reason) => {
+    const state = withAbomination();
+    const others = state.sheep.filter((s) => !s.isAbomination);
+    removeSheep(state, others[0].id, reason);
+    expect(state.lostAt).toBeUndefined();
+    removeSheep(state, others[1].id, reason);
+    expect(state.lostAt).toBe(state.time);
+    expect(state.sheep.map((s) => s.isAbomination)).toEqual([true]);
+    expect(drained()).toEqual([{ type: 'Lost', survivedMs: state.time, peakFlock: state.stats.peakFlock }]);
+  });
+
+  it('is a loss once the last other sheep dies, Lost after its SheepDied and carcass', () => {
+    const state = withAbomination();
+    const others = state.sheep.filter((s) => !s.isAbomination);
+    killSheep(state, others[0].id, 'starved');
+    drained();
+    killSheep(state, others[1].id, 'virus');
+    expect(drained().map((e) => e.type)).toEqual(['SheepDied', 'CarcassSpawned', 'Lost']);
+  });
+
+  it('a pending lamb does not keep it going (as for an empty pen)', () => {
+    const state = withAbomination();
+    const [a, b] = state.sheep.filter((s) => !s.isAbomination);
+    state.pregnancies.push({ id: state.nextId++, parentA: a.id, parentB: b.id, dueAt: state.time + TUNING.gestationMs, x: a.x, y: a.y });
+    removeSheep(state, a.id, 'sold');
+    removeSheep(state, b.id, 'sold');
+    expect(state.lostAt).toBeDefined();
+  });
+
+  it('sacrificing the Abomination itself is not a loss while others live', () => {
+    const state = withAbomination();
+    const abom = state.sheep.find((s) => s.isAbomination)!;
+    removeSheep(state, abom.id, 'sacrificed');
+    expect(state.lostAt).toBeUndefined();
+  });
+});
+
 describe('createCarcass', () => {
   it('adds a carcass at (x, y) with the next id and the current time, emitting nothing', () => {
     const state = newGame(7);

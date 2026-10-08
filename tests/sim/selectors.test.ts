@@ -91,7 +91,7 @@ describe('publicSheep / selectPublicSheep', () => {
     const state = newGame();
     const s = state.sheep[0];
     s.fullness = TUNING.starvingBelow - 1;
-    expect(publicSheep(s, state)).toEqual({ id: s.id, x: s.x, y: s.y, stage: 'adult', hunger: 'starving', ready: false, onCooldown: false, canBreed: false, infected: false, gait: 'normal' });
+    expect(publicSheep(s, state)).toEqual({ id: s.id, x: s.x, y: s.y, stage: 'adult', hunger: 'starving', ready: false, onCooldown: false, canBreed: false, infected: false, gait: 'normal', activity: 'wander' });
   });
 
   it('exposes breedReady as ready', () => {
@@ -161,6 +161,45 @@ describe('Abomination secrecy (AR18, UX-DR64; the mandatory secrecy test, Story 
     expect({ ...abom, gait: plain.gait }).toStrictEqual(plain);
   });
 
+  it('a stalking Abomination and a wandering lamb with equal fields differ in PublicSheep only in gait (Story 4.3)', () => {
+    const state = newGame();
+    const lamb = state.sheep[2];
+    lamb.activity = 'wander';
+    const abom = twin(lamb);
+    abom.activity = 'stalking';
+    abom.stalk = { victimId: state.sheep[0].id, phase: 'approach', until: state.time + TUNING.abominationApproachMaxMs };
+    const plain = publicSheep(lamb, state);
+    const p = publicSheep(abom, state);
+    expect(p.activity).toBe('wander');
+    expect({ ...p, gait: plain.gait }).toStrictEqual(plain);
+    for (const phase of ['linger', 'leave'] as const) {
+      abom.stalk.phase = phase;
+      expect({ ...publicSheep(abom, state), gait: plain.gait }).toStrictEqual(plain);
+    }
+    expect(Object.keys(p)).not.toContain('stalk');
+  });
+
+  it('a doomed sheep looks exactly like one that is not (Story 4.3)', () => {
+    const state = newGame();
+    const s = state.sheep[0];
+    const doomed = { ...structuredClone(s), doomedAt: state.time + TUNING.abominationDoomMinMs };
+    expect(publicSheep(doomed, state)).toStrictEqual(publicSheep(s, state));
+    expect(Object.keys(publicSheep(doomed, state))).not.toContain('doomedAt');
+  });
+
+  it('selectPublicSheep matches publicSheep with a stalking Abomination and a doomed sheep (Story 4.3)', () => {
+    const state = newGame();
+    const abom = state.sheep[2];
+    abom.isAbomination = true;
+    abom.activity = 'stalking';
+    abom.stalk = { victimId: state.sheep[0].id, phase: 'linger', until: state.time + TUNING.abominationLingerMs };
+    state.sheep[0].doomedAt = state.time + TUNING.abominationDoomMaxMs;
+    const out: PublicSheep[] = [];
+    selectPublicSheep(state, out);
+    expect(out).toEqual(state.sheep.map((x) => publicSheep(x, state)));
+    expect(out.map((p) => p.activity)).toEqual(['wander', 'wander', 'wander']);
+  });
+
   it('stays a lamb past elderFromMs: never breedable, and no secret key on the output', () => {
     const state = newGame();
     const old = state.sheep[2];
@@ -176,6 +215,7 @@ describe('Abomination secrecy (AR18, UX-DR64; the mandatory secrecy test, Story 
     expect(canBreed({ ...abom, breedReady: true }, state)).toBe(false);
     expect(Object.keys(p)).not.toContain('isAbomination');
     expect(Object.keys(p)).not.toContain('stalk');
+    expect(Object.keys(p)).not.toContain('doomedAt');
     expect(Object.keys(p).sort()).toEqual(Object.keys(publicSheep(old, state)).sort());
   });
 

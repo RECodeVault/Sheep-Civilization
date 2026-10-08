@@ -2,7 +2,7 @@
 // (2.1), virus (2.5) and the Abomination (4.3) all call it, so every death is counted, announced and
 // leaves a carcass (FR12, since Story 2.4). removeSheep is the only other way out of state.sheep: a
 // sacrifice (2.7) or a sale (3.1), with no carcass. Both end with checkLastSheepAndLoss: selling or
-// sacrificing the last sheep is a loss too.
+// sacrificing the last sheep is a loss too, and so is leaving only the Abomination (Story 4.3 review).
 //
 // Carcasses live here too (System Location Mapping): createCarcass, clearCarcass (FR13, the player's
 // click), and updateCarcassEating (FR14): a Starving sheep walks to its nearest carcass and eats it,
@@ -111,6 +111,7 @@ export function updateCarcassEating(state: GameState): void {
     const s = sheep[i];
     // Hunger beats breeding: a Starving adult on its way to a breeding piece turns to the carcass. A
     // seeker whose carcass a sheep later in the array ate this tick picks again now, not a tick late.
+    // Not `stalking`: the Abomination's visit is not interrupted (Story 4.3).
     const free =
       s.activity === 'wander' ||
       s.activity === 'seekBreedingFood' ||
@@ -154,12 +155,16 @@ function eatCarcass(state: GameState, s: Sheep, k: number): void {
 }
 
 /**
- * Pattern N1: runs after every removal (killSheep and removeSheep). Loss = 0 sheep alive
- * (FR38): records the time once and emits Lost; step() and applyCommand() then do nothing.
+ * Pattern N1: runs after every removal (killSheep and removeSheep). Loss = no sheep alive but the
+ * Abomination (FR38; Rylan, Story 4.3 review: a lone Abomination can never breed or be sold, so the
+ * flock is gone): records the time once and emits Lost; step() and applyCommand() then do nothing.
+ * Pending lambs do not count, as before.
  */
 export function checkLastSheepAndLoss(state: GameState): void {
   // Story 5.5: emit LastSheep when the flock drops to 1.
-  if (state.sheep.length > 0 || state.lostAt !== undefined) return;
+  if (state.lostAt !== undefined) return;
+  const sheep = state.sheep;
+  for (let i = 0; i < sheep.length; i++) if (!sheep[i].isAbomination) return;
   state.lostAt = state.time;
   emit({ type: 'Lost', survivedMs: state.lostAt, peakFlock: state.stats.peakFlock });
 }

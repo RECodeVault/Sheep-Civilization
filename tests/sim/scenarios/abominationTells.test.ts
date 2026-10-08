@@ -35,6 +35,8 @@ function meanNearest(seed: number, abomination: boolean): number {
   const r = innerFence(state);
   const lamb = createSheep(state, { x: (r.left + r.right) / 2, y: (r.top + r.bottom) / 2, bornAt: state.time });
   lamb.isAbomination = abomination;
+  // Spacing only: no visit (Story 4.3's kill cycle) during the run, so nobody dies or is approached.
+  state.abomination.nextKillAt = Number.MAX_SAFE_INTEGER;
   feedAll(state);
   runFor(state, SETTLE_MS);
   let sum = 0;
@@ -78,6 +80,8 @@ describe('feeding next to the Abomination (AC 7)', () => {
     const { x: px, y: py } = at(r);
     const abom = createSheep(state, { x: px, y: py, bornAt: state.time });
     abom.isAbomination = true;
+    // Feeding only: no visit (Story 4.3's kill cycle) during the run.
+    state.abomination.nextKillAt = Number.MAX_SAFE_INTEGER;
     abom.fullness = TUNING.fullnessMax;
     abom.restUntil = state.time + restMs;
     const seeker = createSheep(state, { x: px + dx, y: py + dy, bornAt: state.time - TUNING.startAdultAgeMs });

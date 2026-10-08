@@ -51,6 +51,19 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = Object.freeze({
       ...(validRng ? { rng: roll.rng } : {}),
     };
   },
+  // Story 4.3: the kill cycle's deadline arrives. A living Abomination gets its next visit 45–60 s from
+  // the save's time, rolled from the save's own rng (so a reload migrates the same way); with none it is
+  // 0 (unused until one is born). No version-9 save holds `stalking`, `stalk` or `doomedAt`. A malformed
+  // abomination, time or rng is left for validation to reject.
+  9: (s) => {
+    if (!isObj(s.abomination)) return s;
+    const alive = Array.isArray(s.sheep) && s.sheep.some((x: unknown) => isObj(x) && x.isAbomination === true);
+    const validRng = Number.isInteger(s.rng) && (s.rng as number) >= 0 && (s.rng as number) <= 0xffffffff;
+    if (!alive || !validRng || !Number.isInteger(s.time)) return { ...s, abomination: { ...s.abomination, nextKillAt: 0 } };
+    const roll = { rng: s.rng as number };
+    const nextKillAt = (s.time as number) + rngInt(roll, TUNING.abominationKillMinMs, TUNING.abominationKillMaxMs);
+    return { ...s, rng: roll.rng, abomination: { ...s.abomination, nextKillAt } };
+  },
 });
 
 export type MigrationResult = { ok: true; state: unknown } | { ok: false; reason: string };

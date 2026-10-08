@@ -22,6 +22,17 @@ function raw(): Raw {
   return JSON.parse(JSON.stringify(busyGame())) as Raw;
 }
 
+/** The busy fixture's Abomination (on a visit), its stalk, and its doomed sheep (Story 4.3). */
+function abom(r: Raw): Record<string, unknown> {
+  return r.sheep.find((x) => x.isAbomination === true)!;
+}
+function stalk(r: Raw): Record<string, unknown> {
+  return abom(r).stalk as Record<string, unknown>;
+}
+function doomed(r: Raw): Record<string, unknown> {
+  return r.sheep.find((x) => 'doomedAt' in x)!;
+}
+
 function lostGame(): GameState {
   const state = newGame(5);
   runFor(state, TUNING.starveMs);
@@ -81,6 +92,12 @@ describe('validateState', () => {
     r.sheep[3].infectedAt = r.time;
     // The earliest a saved infection can be: one tick earlier would have killed the sheep already.
     r.sheep[4].infectedAt = (r.time as number) - TUNING.virusDeathMs + TICK_MS;
+    // The fixture's kill-cycle deadlines move along with the clock too (Story 4.3).
+    for (const x of r.sheep) {
+      if ('doomedAt' in x) x.doomedAt = (x.doomedAt as number) + TUNING.virusDeathMs;
+      if (x.stalk !== undefined) (x.stalk as Record<string, number>).until += TUNING.virusDeathMs;
+    }
+    (r.abomination as Record<string, number>).nextKillAt += TUNING.virusDeathMs;
     expect(validateState(r).ok).toBe(true);
   });
 
@@ -92,11 +109,38 @@ describe('validateState', () => {
     }
   });
 
+  it('accepts a due nextKillAt, a visit in each phase, and a doom at its full delay (Story 4.3)', () => {
+    const r = raw();
+    // Due: the visit is waiting for a busy Abomination.
+    (r.abomination as Record<string, unknown>).nextKillAt = (r.time as number) - TICK_MS;
+    expect(validateState(r).ok).toBe(true);
+    for (const [phase, len] of [
+      ['approach', TUNING.abominationApproachMaxMs],
+      ['linger', TUNING.abominationLingerMs],
+      ['leave', TUNING.abominationLeaveMs],
+    ] as const) {
+      stalk(r).phase = phase;
+      stalk(r).until = (r.time as number) + len;
+      expect(validateState(r).ok, phase).toBe(true);
+    }
+    doomed(r).doomedAt = (r.time as number) + TUNING.abominationDoomMaxMs;
+    // A victim that is gone (the visit picks another): a stale id is fine, as for targetId. An issued
+    // id that names no sheep (a food piece's).
+    stalk(r).victimId = r.foodPieces[0].id;
+    expect(r.sheep.some((x) => x.id === stalk(r).victimId)).toBe(false);
+    expect(validateState(r).ok).toBe(true);
+  });
+
   it('accepts one living Abomination and none (Story 4.1)', () => {
     const r = raw();
     expect(r.sheep.filter((x) => x.isAbomination === true)).toHaveLength(1);
     expect(validateState(r).ok).toBe(true);
-    for (const x of r.sheep) x.isAbomination = false;
+    // With none, nobody is on a visit either (Story 4.3).
+    for (const x of r.sheep) {
+      x.isAbomination = false;
+      if (x.activity === 'stalking') x.activity = 'wander';
+      delete x.stalk;
+    }
     expect(validateState(r).ok).toBe(true);
   });
 
@@ -351,6 +395,56 @@ describe('validateState', () => {
     ['a fractional birthsSeen', (r) => ((r.abomination as Record<string, unknown>).birthsSeen = 1.5), 'birthsSeen'],
     ['a guaranteedAtBirth of 0', (r) => ((r.abomination as Record<string, unknown>).guaranteedAtBirth = 0), 'guaranteedAtBirth'],
     ['a fractional guaranteedAtBirth', (r) => ((r.abomination as Record<string, unknown>).guaranteedAtBirth = 9.5), 'guaranteedAtBirth'],
+    // Story 4.3: the kill cycle (FR31). The busy fixture's Abomination is on a visit.
+    ['stalking without a stalk', (r) => delete abom(r).stalk, 'stalk'],
+    ['a stalk while wandering', (r) => (abom(r).activity = 'wander'), 'stalk'],
+    [
+      'a stalk on a sheep that is not the Abomination',
+      (r) => {
+        const o = r.sheep.find((x) => x.isAbomination === false && !('doomedAt' in x))!;
+        o.activity = 'stalking';
+        o.stalk = { ...(abom(r).stalk as object) };
+      },
+      'stalk',
+    ],
+    ['a stalk that is not an object', (r) => (abom(r).stalk = 3), 'stalk'],
+    ['a stalk victimId of 0', (r) => (stalk(r).victimId = 0), 'stalk.victimId'],
+    ['an unknown stalk phase', (r) => (stalk(r).phase = 'pounce'), 'stalk.phase'],
+    ['an inherited name as the stalk phase', (r) => (stalk(r).phase = 'constructor'), 'stalk.phase'],
+    ['a non-string stalk phase', (r) => (stalk(r).phase = 3), 'stalk.phase'],
+    ['a stalk on the Abomination itself', (r) => (stalk(r).victimId = abom(r).id), 'stalk.victimId'],
+    ['a stalk victim id never issued', (r) => (stalk(r).victimId = r.nextId), 'stalk.victimId'],
+    [
+      'a pen holding only the Abomination that is not lost',
+      (r) => {
+        const a = abom(r);
+        a.activity = 'wander';
+        delete a.stalk;
+        r.sheep = [a];
+        r.stats.peakFlock = Math.max(r.stats.peakFlock as number, 1);
+      },
+      'only the Abomination',
+    ],
+    ['a stalk until at time', (r) => (stalk(r).until = r.time), 'stalk.until'],
+    [
+      'a linger longer than abominationLingerMs',
+      (r) => {
+        stalk(r).phase = 'linger';
+        stalk(r).until = (r.time as number) + TUNING.abominationLingerMs + TICK_MS;
+      },
+      'stalk.until',
+    ],
+    ['a doomedAt on the Abomination', (r) => (abom(r).doomedAt = (r.time as number) + TICK_MS), 'doomedAt'],
+    ['a doomedAt at time', (r) => (doomed(r).doomedAt = r.time), 'doomedAt'],
+    ['a doomedAt past abominationDoomMaxMs', (r) => (doomed(r).doomedAt = (r.time as number) + TUNING.abominationDoomMaxMs + TICK_MS), 'doomedAt'],
+    ['a fractional doomedAt', (r) => (doomed(r).doomedAt = (r.time as number) + 0.5), 'doomedAt'],
+    ['a missing nextKillAt', (r) => delete (r.abomination as Record<string, unknown>).nextKillAt, 'nextKillAt'],
+    ['a negative nextKillAt', (r) => ((r.abomination as Record<string, unknown>).nextKillAt = -1), 'nextKillAt'],
+    [
+      'a nextKillAt past abominationKillMaxMs',
+      (r) => ((r.abomination as Record<string, unknown>).nextKillAt = (r.time as number) + TUNING.abominationKillMaxMs + TICK_MS),
+      'nextKillAt',
+    ],
   ];
 
   it.each(cases)('rejects %s and names the field', (_name, breakIt, field) => {

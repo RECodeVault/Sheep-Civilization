@@ -372,3 +372,58 @@ describe('updateMovement around the Abomination (FR32, Story 4.2)', () => {
     expect([pathHash(state), state.rng]).toEqual([hash, rngAfter]);
   });
 });
+
+describe('the Abomination\'s visit (stalking, FR31, Story 4.3)', () => {
+  /** The Abomination (a lamb, not resting) at `a` on a visit to a resting adult at `v`, alone. */
+  function visit(phase: 'approach' | 'linger' | 'leave', a: { x: number; y: number }, v: { x: number; y: number }) {
+    const state = gameWith([a, { ...v, restUntil: FAR_FUTURE }]);
+    const [abom, victim] = state.sheep;
+    abom.isAbomination = true;
+    abom.bornAt = state.time;
+    abom.activity = 'stalking';
+    abom.stalk = { victimId: victim.id, phase, until: FAR_FUTURE };
+    if (phase === 'leave') abom.heading = Math.atan2(abom.y - victim.y, abom.x - victim.x);
+    return { state, abom, victim };
+  }
+
+  it('approach: walks straight at the victim at walk speed', () => {
+    const c = centre(gameWith([]));
+    const { state, abom, victim } = visit('approach', { x: c.x - 60, y: c.y }, { x: c.x + 60, y: c.y });
+    const before = dist(abom, victim);
+    updateMovement(state);
+    const step = (TUNING.walkSpeedPxPerS * TICK_MS) / 1000;
+    expect(before - dist(abom, victim)).toBeCloseTo(step, 6);
+    expect(abom.y).toBeCloseTo(c.y, 9);
+  });
+
+  it('approach: does not walk to a victim that is gone or lifted', () => {
+    const c = centre(gameWith([]));
+    const { state, abom, victim } = visit('approach', { x: c.x - 60, y: c.y }, { x: c.x + 60, y: c.y });
+    victim.activity = 'dragged';
+    const at = { x: abom.x, y: abom.y };
+    updateMovement(state);
+    expect({ x: abom.x, y: abom.y }).toEqual(at);
+    abom.stalk!.victimId = 99_999;
+    updateMovement(state);
+    expect({ x: abom.x, y: abom.y }).toEqual(at);
+  });
+
+  it('linger: stands still beside the victim, which eases away inside the flock\'s 36 px', () => {
+    const c = centre(gameWith([]));
+    const { state, abom, victim } = visit('linger', { x: c.x, y: c.y }, { x: c.x + TUNING.abominationContactPx, y: c.y });
+    const at = { x: abom.x, y: abom.y };
+    const before = dist(abom, victim);
+    runFor(state, TUNING.abominationLingerMs);
+    // Outside its own 24 px, so nothing pushes it.
+    expect({ x: abom.x, y: abom.y }).toEqual(at);
+    expect(dist(abom, victim)).toBeGreaterThan(before);
+  });
+
+  it('leave: walks away from the victim along its heading', () => {
+    const c = centre(gameWith([]));
+    const { state, abom, victim } = visit('leave', { x: c.x, y: c.y }, { x: c.x + TUNING.abominationContactPx, y: c.y });
+    const before = dist(abom, victim);
+    for (let k = 0; k < 10; k++) updateMovement(state);
+    expect(dist(abom, victim)).toBeGreaterThan(before + 50);
+  });
+});

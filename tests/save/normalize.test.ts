@@ -76,6 +76,13 @@ describe('normalizeTuned: a retune never loses a save (AC 7)', () => {
     expect(i).toBeGreaterThanOrEqual(0);
     // As if the save was made under a longer virus: the clock is well past this infection's death now.
     const time = (raw.sheep[i].infectedAt as number) + TUNING.virusDeathMs * 2;
+    // The fixture's kill-cycle deadlines (Story 4.3) move along with the clock, so only the infection is late.
+    const shift = time - (raw.time as number);
+    for (const x of raw.sheep) {
+      if ('doomedAt' in x) x.doomedAt = (x.doomedAt as number) + shift;
+      if (x.stalk !== undefined) (x.stalk as Record<string, number>).until += shift;
+    }
+    (raw.abomination as Record<string, number>).nextKillAt += shift;
     raw.time = time;
     const state = load(raw);
     const inf = state.sheep[i].infectedAt as number;
@@ -93,12 +100,41 @@ describe('normalizeTuned: a retune never loses a save (AC 7)', () => {
     expect(r.ok && r.state).toStrictEqual(state);
   });
 
+  it('clamps a next visit further ahead than abominationKillMaxMs (Story 4.3)', () => {
+    const raw = busyRaw();
+    const time = raw.time as number;
+    (raw.abomination as Record<string, unknown>).nextKillAt = time + TUNING.abominationKillMaxMs * 2;
+    expect(load(raw).abomination.nextKillAt).toBe(time + TUNING.abominationKillMaxMs);
+  });
+
+  it('clamps a doom further ahead than abominationDoomMaxMs (Story 4.3)', () => {
+    const raw = busyRaw();
+    const time = raw.time as number;
+    const i = raw.sheep.findIndex((s) => 'doomedAt' in s);
+    raw.sheep[i].doomedAt = time + TUNING.abominationDoomMaxMs * 2;
+    expect(load(raw).sheep[i].doomedAt).toBe(time + TUNING.abominationDoomMaxMs);
+  });
+
+  it('clamps each visit phase to its length (Story 4.3)', () => {
+    for (const [phase, len] of [
+      ['approach', TUNING.abominationApproachMaxMs],
+      ['linger', TUNING.abominationLingerMs],
+      ['leave', TUNING.abominationLeaveMs],
+    ] as const) {
+      const raw = busyRaw();
+      const time = raw.time as number;
+      const i = raw.sheep.findIndex((s) => s.isAbomination === true);
+      raw.sheep[i].stalk = { ...(raw.sheep[i].stalk as object), phase, until: time + len * 3 };
+      expect(load(raw).sheep[i].stalk?.until, phase).toBe(time + len);
+    }
+  });
+
   describe('a retuned Abomination spawn window (Story 4.1, code review)', () => {
     const MIN = TUNING.abominationGuaranteedBirthMin;
     const MAX = TUNING.abominationGuaranteedBirthMax;
     const loadWith = (birthsSeen: number, guaranteedAtBirth: number): number => {
       const raw = busyRaw();
-      raw.abomination = { birthsSeen, guaranteedAtBirth };
+      raw.abomination = { ...(raw.abomination as object), birthsSeen, guaranteedAtBirth };
       return load(raw).abomination.guaranteedAtBirth;
     };
 

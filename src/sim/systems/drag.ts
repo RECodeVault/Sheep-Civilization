@@ -1,7 +1,8 @@
 // Dragging a sheep (FR16, Story 2.7): the player picks a sheep up and puts it down. Pick-up and drop are
 // commands, not a per-tick rule, so this module has no update function (like breeding.ts). It owns the
 // `dragged` activity: movement neither steers nor pushes a dragged sheep, and feeding and carcass eating
-// never claim for it, but hunger, the virus and old age still run on it.
+// never claim for it, but hunger, the virus and old age still run on it. Picking the Abomination up ends
+// its visit (`stalking`, Story 4.3).
 //
 // A dragged sheep keeps its sim position (where it was picked up) until it is dropped; only the view
 // draws it at the pointer. So a sheep that dies mid-drag leaves its carcass at the pickup spot, and a
@@ -19,6 +20,10 @@ export function pickUp(state: GameState, id: number): void {
   s.activity = 'dragged';
   // Any claim (a piece or a carcass) is released; the piece is free for another sheep next tick.
   delete s.targetId;
+  // A lifted Abomination's visit is over (Story 4.3): a drop lands as `wander`, never half-way through
+  // a stalk. Before the linger ends, that spares the victim from this visit; the next visit stays due,
+  // so it starts on the first free tick after the drop and may pick the same sheep.
+  delete s.stalk;
 }
 
 /**

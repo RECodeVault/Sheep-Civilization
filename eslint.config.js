@@ -9,7 +9,7 @@ import tseslint from 'typescript-eslint';
 
 const STORAGE_MSG = 'Only src/save/ touches storage.';
 const PURE_MSG = 'sim/core/config are pure TypeScript: no Phaser, DOM, view, save, input or debug.';
-const SECRET_MSG = 'View code must use PublicSheep; isAbomination is sim/debug only.';
+const SECRET_MSG = 'View code must use PublicSheep; the Abomination\'s state (isAbomination, stalk, doomedAt, state.abomination) is sim/debug/save only.';
 const LOG_MSG =
   'Only core/log.ts may declare `log`: production treeshaking drops `log.info`/`log.debug` calls by name.';
 const TIME_MSG = 'Use state.time (game-ms), not wall-clock time.';
@@ -48,10 +48,18 @@ const PURE_PROPERTIES = [
 
 // --- no-restricted-syntax --------------------------------------------------------------------
 
+// The Abomination's secrets (AR18): its flag, its visit (`stalk`), the victim's `doomedAt`, and the
+// `state.abomination` bookkeeping (Story 4.3). `abomination` is blocked only as a member read: it is also
+// a DeathCause key, which strings.ts and HudScene use as a property key.
+const SECRET_MEMBERS = '/^(isAbomination|stalk|doomedAt|nextKillAt|abomination)$/';
+const SECRET_KEYS = '/^(isAbomination|stalk|doomedAt)$/';
 const SECRECY_SYNTAX = [
-  { selector: "MemberExpression[property.name='isAbomination']", message: SECRET_MSG },
-  { selector: "MemberExpression[property.value='isAbomination']", message: SECRET_MSG },
-  { selector: "Property[key.name='isAbomination']", message: SECRET_MSG },
+  { selector: `MemberExpression[property.name=${SECRET_MEMBERS}]`, message: SECRET_MSG },
+  { selector: `MemberExpression[property.value=${SECRET_MEMBERS}]`, message: SECRET_MSG },
+  { selector: `Property[key.name=${SECRET_KEYS}]`, message: SECRET_MSG },
+  // Destructuring reads by key: `const { abomination } = state` (Story 4.3 review). Object literals with
+  // an `abomination` key stay allowed.
+  { selector: `ObjectPattern > Property[key.name=${SECRET_MEMBERS}]`, message: SECRET_MSG },
 ];
 
 const LOG_GUARD_SYNTAX = [
@@ -131,7 +139,7 @@ export default tseslint.config(
   group(['src/core/log.ts'], { pure: true, logGuard: false }),
   group(['src/config/**/*.ts'], { pure: true }),
   group(['src/debug/**/*.ts'], { secrecy: false }),
-  // secrecy off: save validation and migrations read isAbomination (Story 4.1).
+  // secrecy off: save validation and migrations read the Abomination's state (Stories 4.1, 4.3).
   group(['src/save/**/*.ts'], { storage: false, secrecy: false }),
   group(['src/**/*.ts'], {}, ['src/sim/**', 'src/core/**', 'src/config/**', 'src/debug/**', 'src/save/**']),
 );

@@ -36,7 +36,11 @@ import { newGame } from '../helpers';
 // Free actions, as fast as a player would: breed two ready adults whenever breeding is allowed; once the
 // living flock fills the pen, sell the oldest sheep first (elders, then adults) to raise money for Land I and
 // buy it, but only when those sales can cover the price. The probe stops at Town, so it never needs Land II
-// (the GDD wall: every sale costs era progress). No sacrifices: the boost is a bonus, not the baseline.
+// (the GDD wall: every sale costs era progress). No sacrifices for the boost: it is a bonus, not the
+// baseline. The one sacrifice is the Abomination's (Story 4.3 review, Rylan): an attentive player spots
+// it from its tells, so once SPOT_AFTER_VISITS of its victims have died the bot drags it into the
+// Better Place. The bot reads the secret flag for this; the wait stands in for watching the off-step and
+// the flock's avoidance. Without it, a lone Abomination is a loss and the bot loses around 12 min.
 //
 // Run `npx vitest run tests/sim/scenarios/pacing.test.ts --reporter=verbose` to see the table.
 
@@ -51,6 +55,8 @@ const REFERENCE_CPS = 3;
 const TOWN_CPS = 6;
 const REPORT_CPS = [2, 3, 5, 6] as const;
 const SEED = 3606;
+/** Victims of one Abomination that die before the bot sacrifices it (an attentive player's delay). */
+const SPOT_AFTER_VISITS = 2;
 /** The longest a probe plays, in game-ms (GDD: Town by 15 min, with slack). */
 const LIMIT_MS = 20 * 60_000;
 
@@ -100,7 +106,12 @@ function nextClick(s: GameState): Command | null {
 }
 
 /** Free actions: breed whenever allowed; at a full pen, sell to buy Land I when the sales can pay for it. */
-function freeActions(s: GameState, out: Command[]): void {
+function freeActions(s: GameState, out: Command[], victims: number): void {
+  // Story 4.3 review: the Abomination, once spotted (see the policy above).
+  if (victims >= SPOT_AFTER_VISITS) {
+    const abom = s.sheep.find((sheep) => sheep.isAbomination);
+    if (abom !== undefined) out.push({ type: 'Sacrifice', id: abom.id });
+  }
   if (breedBlock(s) === null) {
     let a = -1;
     for (const sheep of s.sheep) {
@@ -134,11 +145,14 @@ function runProbe(cps: number, seed = SEED): PacingResult {
   const s = newGame(seed);
   const r: PacingResult = { cps, firstBreedingMs: null, villageMs: null, townMs: null, lostMs: null, clicks: 0, peak: 0, died: 0, sold: 0, births: 0 };
   let credit = 0;
+  // Victims of the living Abomination so far; reset when it is gone.
+  let victims = 0;
   const cmds: Command[] = [];
   while (s.time < LIMIT_MS && s.lostAt === undefined && r.townMs === null) {
     credit += (cps * TICK_MS) / 1000;
     cmds.length = 0;
-    freeActions(s, cmds);
+    if (!s.sheep.some((sheep) => sheep.isAbomination)) victims = 0;
+    freeActions(s, cmds, victims);
     for (const c of cmds) applyCommand(s, c);
     while (credit >= 1) {
       const c = nextClick(s);
@@ -153,6 +167,7 @@ function runProbe(cps: number, seed = SEED): PacingResult {
     drainEvents((e) => {
       if (e.type === 'Bred' && r.firstBreedingMs === null) r.firstBreedingMs = s.time;
       if (e.type === 'LambBorn') r.births++;
+      if (e.type === 'SheepDied' && e.cause === 'abomination') victims++;
     });
     const era = eraIndex(currentEra(s));
     if (era >= 1 && r.villageMs === null) r.villageMs = s.time;

@@ -131,6 +131,26 @@ export const TUNING = Object.freeze({
   abominationGuaranteedBirthMin: 8,
   abominationGuaranteedBirthMax: 15,
   abominationBirthChance: 0.05,
+  // GDD The Abomination (Should tier) → Kill cycle: "Every 45–60 s (random) it picks a random victim
+  // (any sheep except itself), walks up to it, pauses for 1 s next to it, then walks away. The victim
+  // dies 5–10 s later (random)" (FR31, Story 4.3). The interval runs from the spawn to the first visit,
+  // then from the start of each leave (or a given-up approach) to the next. Lifting the Abomination
+  // mid-visit reschedules nothing: the next visit is due at once.
+  abominationKillMinMs: 45_000,
+  abominationKillMaxMs: 60_000,
+  abominationLingerMs: 1_000,
+  abominationDoomMinMs: 5_000,
+  abominationDoomMaxMs: 10_000,
+  // [ASSUMPTION] "Next to it": the centre distance at which the approach counts as contact, with sprites
+  // drawn 44–64 px wide. Must stay above personalSpacePx (the Abomination's own push would slow the
+  // approach) and below abominationSpacePx: the victim is pushed away inside 36 px, and only 30 px in it
+  // flees slowly enough (15 px/s) to be reached without a chase across the pen.
+  abominationContactPx: 30,
+  // [ASSUMPTION] How long it walks away after the linger (about 120 px at walk speed).
+  abominationLeaveMs: 2_000,
+  // [ASSUMPTION] A safety valve: an approach that has not made contact by then gives up (no doom) and
+  // schedules the next visit.
+  abominationApproachMaxMs: 20_000,
   // Architecture (Movement and Flock Spacing): 48 px uniform grid for neighbour queries.
   gridCellPx: 48,
   // [ASSUMPTION; kept in 3.6, 2026-10-08] Wander feel: the most a heading turns per tick, the per-tick chance a
