@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { TICK_MS } from '../../../src/config/constants';
 import { TUNING } from '../../../src/config/tuning';
+import { applyCommand } from '../../../src/sim/commands';
 import { drainEvents, type SimEvent } from '../../../src/sim/events';
 import { rng, rngInt } from '../../../src/sim/rng';
 import { createNewGame, createSheep, type GameState, type Sheep } from '../../../src/sim/state';
@@ -226,6 +227,39 @@ describe('makeAbomination (FR31, AC 1)', () => {
       checked++;
     }
     expect(checked).toBe(10);
+  });
+});
+
+describe('after the Abomination is sacrificed (Story 4.4, AC 5)', () => {
+  it('a later birth can spawn another at the chance rate, through the real Sacrifice command', () => {
+    const state = newGame(7);
+    const [abom] = births(state, state.abomination.guaranteedAtBirth);
+    expect(abom?.isAbomination).toBe(true);
+    applyCommand(state, { type: 'Sacrifice', id: abom.id });
+    // The sacrifice's own events (Sacrificed, BoostStarted) are not under test here.
+    drainEvents(() => {});
+    expect(abominationAlive(state)).toBe(false);
+    // The guarantee is spent: every birth from here rolls the chance, and nothing else.
+    expect(state.abomination.birthsSeen).toBe(state.abomination.guaranteedAtBirth);
+    // Later births: past the old schedule's whole window, so a stale nextKillAt cannot pass below.
+    const oldKillAt = state.abomination.nextKillAt;
+    state.time += TUNING.abominationKillMaxMs + TICK_MS;
+    let spawned: Sheep | undefined;
+    for (let i = 0; i < 200 && spawned === undefined; i++) {
+      const s = lamb(state);
+      const roll = { rng: state.rng };
+      const wins = rng(roll) < TUNING.abominationBirthChance;
+      onBirth(state, s);
+      expect(s.isAbomination).toBe(wins);
+      if (!wins) expect(state.rng).toBe(roll.rng);
+      else spawned = s;
+    }
+    expect(spawned).toBeDefined();
+    // A fresh kill schedule for the new one (makeAbomination), and never two alive.
+    expect(state.abomination.nextKillAt).not.toBe(oldKillAt);
+    expect(state.abomination.nextKillAt).toBeGreaterThanOrEqual(state.time + TUNING.abominationKillMinMs);
+    expect(state.abomination.nextKillAt).toBeLessThanOrEqual(state.time + TUNING.abominationKillMaxMs);
+    expect(state.sheep.filter((s) => s.isAbomination)).toHaveLength(1);
   });
 });
 

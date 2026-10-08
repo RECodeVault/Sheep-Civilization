@@ -192,6 +192,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **A victim picked up mid-approach (Story 4.3):** a dragged sheep keeps its sim position (the pickup spot), so the Abomination would walk to where it was picked up. Decide whether a dragged victim is re-picked like a sacrificed one.
   - **Resolved in Story 4.3:** a victim lifted before contact is re-picked on that tick, like one sold or sacrificed, and a dragged sheep is never picked (`abomination.ts` `pickVictim`).
 - **The reveal (Story 4.4):** `Sacrificed.wasAbomination` carries the sheep's real `isAbomination` since Story 4.1, but the view still ignores it: the HUD toast and `GameScene.suck` must branch on it only in 4.4.
+  - **Resolved in Story 4.4:** `GameScene.suck` plays the true-form flash for the Abomination, and HudScene shows "Good riddance." / "…that was just a sheep." when the ghost lands (`sacrifice:landed`).
 - **Audio (Story 5.6):** the `[suction]` caption and SFX on `Sacrificed`.
 - **Reduced motion (Story 5.7):** the suction spiral (`SUCTION`), the ring spin and hole suck (`BP_MOTION` in `BetterPlace.ts`) and the 4 px lift are juice; the lit rim, glow and label are information and stay.
 
@@ -346,9 +347,23 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Stats by cause (Story 5.4):** the Stats panel may count deaths, but never an "Abomination" line (UX-DR64). Count `abomination` deaths with the rest.
 - **Names in the victim toast (Story 5.3):** "{name} just… fell over." once names exist (`DEATH_TOAST.abomination` today reads "A sheep just… fell over.").
 - **A pending doom survives the reveal (Story 4.4):** sacrificing the Abomination does not cancel a victim's doom (FR31: the victim dies 5–10 s after the visit). If 4.4 wants catching it to save the last victim, cancel `doomedAt` there.
+  - **Decided in Story 4.4:** kept. The doom still lands (no payout beyond the boost, FR33); `abomination.test.ts` "still lands after the Abomination is sacrificed".
 - **The visit's feel awaits a playtest (Story 5.10):** `abominationContactPx` 30, `abominationLeaveMs` 2 s and `abominationApproachMaxMs` 20 s are assumptions, checked by the browser probe (contact at 25–28 px, a still 1 s linger, no toast or event until the death) but not by a person watching.
 - **No ring on the doomed sheep (DEV, optional):** the overlay's readout names the doomed sheep and its time left; a Reveal ring on it (Task 6.4, optional) was not added.
 
 ## Deferred from: code review of 4-3-the-kill-cycle (2026-10-08)
 
 - **`stalk` ⇔ `stalking` is a hard validation rule (Stories 4.6+):** validation rejects a stalk without the `stalking` activity (or the reverse). A future system that changes the Abomination's activity without deleting `stalk` (e.g. a forced activity) would autosave fine but then fail to load, while the sim only logs an `invariant`. If that becomes possible, repair it in `normalizeTuned` (drop the stalk / set `wander`) instead of rejecting.
+
+## Deferred from: story 4-4-sacrifice-reveal (2026-10-08)
+
+- **Audio and captions (Story 5.6):** the screech, then the sting, on `Sacrificed { wasAbomination: true }` (UX-DR81), started with the true-form flash (`GameScene.revealTrueForm`), and the `[screech]` caption (UX-DR88). The `[suction]` cue stays on every sacrifice (deferred from 2.7).
+- **Reduced motion (Story 5.7):** the reveal's swell and shake (`REVEAL.swellScale`, `REVEAL.shakePx` in `GameScene.ts`) are juice and go; the flash itself is information (the truth) and stays.
+- **Names in the reveal (Story 5.3):** "…that was just {name}." (and "{name} went to a Better Place."), the name in `halo`.
+- **True-form art (Story 5.8, optional):** the true form is a `void` FILL silhouette of the lamb frame; the GDD art list has no true-form sprite. Art could replace it.
+- **The reveal's feel awaits a playtest (Story 5.10):** `REVEAL` (3 flashes × 110 ms, swell ×1.35, 3 px shake) and the two toasts per sacrifice were checked by a browser probe, not by a person watching.
+- **An early reveal toast on ghost reuse (any time):** there are 3 pooled ghosts. A 4th sacrifice or sale while 3 are still playing reuses the oldest, which sends its reveal toast at once instead of at its landing (the probe's 4-in-one-frame case: "Good riddance." came first). Rare by hand; more ghosts would avoid it.
+
+## Deferred from: code review of 4-4-sacrifice-reveal (2026-10-08)
+
+- **Ghost reuse cuts the reveal short (any time; Story 5.8 polish):** the 3 round-robin ghosts are shared with sales (`GameScene.sold`), so 3 more sacrifices or sales within the Abomination's ~1.06 s reveal reuse its ghost: `killTweensOf` drops the flash and spiral, and "Good riddance." is sent at once. Picking an idle ghost first, or a larger pool, would avoid it. Complements the "early reveal toast on ghost reuse" entry above.

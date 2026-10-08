@@ -95,6 +95,11 @@ export const STRINGS = Object.freeze({
   boostTimer: (time: string): string => `×2 ${time}`,
   // Sacrifice toast (UX-DR93). Story 5.3 puts the name in place of "A sheep", in `halo`.
   sacrificeToast: 'A sheep went to a Better Place.',
+  // Sacrifice reveal toasts (FR33, UX-DR93; EXPERIENCE Voice "Sacrifice reveal"), shown as the sheep
+  // lands in the hole. Story 5.3 puts the name in place of "a sheep" ("…that was just {name}.", the
+  // name in `halo`). "Good riddance." is an [ASSUMPTION] in the Voice table.
+  revealInnocent: '…that was just a sheep.',
+  revealAbomination: 'Good riddance.',
   // The Market's drag tag (UX-DR51, UX-DR96): the sale price, "$10" (adult) or "$5" (elder); "Too
   // young" over the stall with a lamb (UX-DR53).
   marketPrice: (price: number): string => formatMoney(price),

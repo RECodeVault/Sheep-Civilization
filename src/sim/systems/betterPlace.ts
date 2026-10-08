@@ -3,7 +3,8 @@
 // loss. Every sacrifice starts the food boost (FR19, Story 2.8): `boostUntil` is reset to 30 s from
 // now, never stacked, for innocents and the Abomination alike. `Sacrificed.wasAbomination` carries the
 // sheep's isAbomination (Story 4.1): the only channel through which the Abomination's identity reaches
-// the view, which reveals it in Story 4.4.
+// the view, which reveals it (Story 4.4: a true-form flash and "Good riddance.", or "…that was just a
+// sheep."). There is no payout beyond the boost (FR33).
 import { TUNING } from '../../config/tuning';
 import { emit } from '../events';
 import { sheepIndex } from '../selectors';

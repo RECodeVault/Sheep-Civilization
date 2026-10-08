@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLORS, LAYOUT } from '../../config/constants';
+import { COLOR_INT, COLORS, LAYOUT } from '../../config/constants';
 import { FixedStepClock } from '../../core/fixedStep';
 import { invariant } from '../../core/invariant';
 import { log } from '../../core/log';
@@ -118,6 +118,12 @@ const DUST = {
 // stays synchronous). Visual only; Story 5.7's reduced motion revisits it. [ASSUMPTION, tune in the
 // browser] values.
 const SUCTION = { durationMs: 400, spinDeg: 360, ghosts: 3 } as const;
+// UX-DR81 reveal (Story 4.4): before its spiral, the Abomination's ghost flashes its true form, a `void`
+// FILL silhouette (there is no true-form art), swelling and shaking at the hole's rim: "as any
+// sacrificed sheep falls in, the game shows the truth" (GDD Reveal). About flashes × 2 × flashMs
+// (0.66 s) before the spiral. Visual only; Story 5.7's reduced motion drops the swell and shake, never
+// the flash (the truth is information). [ASSUMPTION, tune in the browser] values.
+const REVEAL = { flashes: 3, flashMs: 110, swellScale: 1.35, shakePx: 3 } as const;
 // UX-DR82 sale: the sold sheep's body hops into the stall's counter, shrinking and fading, on the same
 // pooled ghosts as the suction. Visual only; Story 5.7's reduced motion revisits it. [ASSUMPTION, tune
 // in the browser] values; `toY` is the counter's middle (world).
@@ -206,6 +212,11 @@ export class GameScene extends Phaser.Scene {
   private focus!: Rect;
   /** UX-DR80 suction and UX-DR82 sale ghosts, reused round-robin (never created during play). */
   private readonly ghosts: Phaser.GameObjects.Image[] = [];
+  /**
+   * Per ghost, the reveal toast still owed by its sacrifice (sent when the ghost lands), or null. A
+   * ghost reused before it lands sends it first: killTweensOf destroys a tween without onStop.
+   */
+  private readonly ghostLanding: ((() => void) | null)[] = [];
   private nextGhost = 0;
   // A carcass already clicked (its ClearCarcass is queued for the next tick) is skipped by carcassAt,
   // so a fast second click reaches the carcass under it. Bound once: no closure per click.
@@ -231,7 +242,7 @@ export class GameScene extends Phaser.Scene {
       } else if (e.type === 'LambBorn') this.poof.explode(POOF_PUFFS, e.x, e.y);
       else if (e.type === 'CarcassSpawned') this.dust.explode(DUST_SPAWN_PUFFS, e.x, e.y);
       else if (e.type === 'CarcassCleared') this.dust.explode(DUST_CLEAR_PUFFS, e.x, e.y);
-      else if (e.type === 'Sacrificed') this.suck(e.id);
+      else if (e.type === 'Sacrificed') this.suck(e.id, e.wasAbomination);
       else if (e.type === 'Sold') this.sold(e.id, e.price);
       // Grown once per frame in update, however many tiers were bought in the frame's ticks.
       else if (e.type === 'Bought' && isLand(e.item)) this.landBought = true;
@@ -326,9 +337,12 @@ export class GameScene extends Phaser.Scene {
     // A rare event, so the command object is fine; the sim checks the purchase again (economy.ts).
     this.shopPanel = new ShopPanel(this, (item) => this.dispatch({ type: 'Buy', item }));
     this.ghosts.length = 0;
+    // The last game's owed reveal toasts are dropped, never sent into this one (a restart mid-spiral).
+    this.ghostLanding.length = 0;
     this.nextGhost = 0;
     for (let i = 0; i < SUCTION.ghosts; i++) {
       this.ghosts.push(this.add.image(0, 0, ATLAS.sheepWorld, FRAME.adultIdle).setDepth(FIELD_DEPTH.dragged).setVisible(false));
+      this.ghostLanding.push(null);
     }
     // The sheep tooltip is the top of FIELD_DEPTH (above pings). Sheep hover stays in this scene;
     // HudScene draws above it. The panned pen can slide under the Pause button, so the sheep hover
@@ -868,13 +882,70 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * UX-DR80: sheep `id` went into the Better Place. Runs inside the tick's drain, before render()'s sweep,
-   * so its sprite is still bound and drawn where it was dropped: a ghost copies it and spirals in.
+   * UX-DR80 / UX-DR81: sheep `id` went into the Better Place. Runs inside the tick's drain, before
+   * render()'s sweep, so its sprite is still bound and drawn where it was dropped: a ghost copies it and
+   * spirals in. The Abomination's ghost first flashes its true form (FR33). When the ghost lands, the
+   * reveal toast follows (`sacrifice:landed`); with no ghost to play, on the next frame.
    */
-  private suck(id: number): void {
+  private suck(id: number, wasAbomination: boolean): void {
     const ghost = this.ghostOf(id);
-    if (ghost === null) return;
-    // A closure per sacrifice: a rare event.
+    if (ghost === null) {
+      // Next frame, so HudScene's "went to a Better Place" toast (from this same Sacrificed, whose
+      // listener runs after this one) comes first. Visual only: it changes no game state.
+      this.time.delayedCall(0, () => bus.emit('sacrifice:landed', { wasAbomination }));
+      return;
+    }
+    const slot = this.ghosts.indexOf(ghost);
+    // Closures per sacrifice: a rare event.
+    const landed = (): void => {
+      if (this.ghostLanding[slot] !== landed) return;
+      this.ghostLanding[slot] = null;
+      bus.emit('sacrifice:landed', { wasAbomination });
+    };
+    this.ghostLanding[slot] = landed;
+    if (wasAbomination) this.revealTrueForm(ghost, landed);
+    else this.spiral(ghost, landed);
+  }
+
+  /**
+   * UX-DR81: the ghost toggles between a `void` FILL silhouette and its copied look, swelling and
+   * shaking, then goes down the hole as the silhouette.
+   */
+  private revealTrueForm(ghost: Phaser.GameObjects.Image, landed: () => void): void {
+    const tinted = ghost.isTinted;
+    const tint = ghost.tint;
+    const mode = ghost.tintMode;
+    const x = ghost.x;
+    const beats = REVEAL.flashes * 2;
+    let beat = -1;
+    this.tweens.add({
+      targets: ghost,
+      scale: ghost.scale * REVEAL.swellScale,
+      duration: beats * REVEAL.flashMs,
+      ease: 'Quad.easeOut',
+      onUpdate: (tween: Phaser.Tweens.Tween) => {
+        // The TweenData's progress: Tween.progress is only updated after onUpdate (Phaser 4.2.1
+        // Tween.update), so it would lag a frame and a hitch could skip a beat.
+        const p = (tween.data[0] as Phaser.Tweens.TweenData).progress;
+        const b = Math.min(beats - 1, Math.floor(p * beats));
+        if (b === beat) return;
+        beat = b;
+        // Even beats show the true form; the shake swaps sides on each beat.
+        if (b % 2 === 0) ghost.setTint(COLOR_INT.void).setTintMode(Phaser.TintModes.FILL);
+        else if (tinted) ghost.setTint(tint).setTintMode(mode);
+        else ghost.clearTint();
+        ghost.x = x + (b % 2 === 0 ? REVEAL.shakePx : -REVEAL.shakePx);
+      },
+      onComplete: () => {
+        ghost.setTint(COLOR_INT.void).setTintMode(Phaser.TintModes.FILL);
+        ghost.x = x;
+        this.spiral(ghost, landed);
+      },
+    });
+  }
+
+  /** UX-DR80: the ghost spirals into the hole, then `landed`, the halo sparkle and the hole's gulp. */
+  private spiral(ghost: Phaser.GameObjects.Image, landed: () => void): void {
     this.tweens.add({
       targets: ghost,
       x: BETTER_PLACE.x,
@@ -885,6 +956,8 @@ export class GameScene extends Phaser.Scene {
       ease: 'Cubic.easeIn',
       onComplete: () => {
         ghost.setVisible(false);
+        // First, so a throw in the juice below cannot lose the reveal toast.
+        landed();
         this.sparkle.explode(SPARKLE_BURST, BETTER_PLACE.x, BETTER_PLACE.y);
         this.betterPlace.gulp();
       },
@@ -917,13 +990,17 @@ export class GameScene extends Phaser.Scene {
 
   /**
    * The next pooled ghost, made a copy of sheep `id`'s drawn sprite (frame, flip, scale, angle, tint,
-   * position), or null when the sprite is gone. Stops any tween still playing on that ghost.
+   * position), or null when the sprite is gone. Stops any tween still playing on that ghost, first
+   * sending the reveal toast its sacrifice still owes.
    */
   private ghostOf(id: number): Phaser.GameObjects.Image | null {
     const spr = this.sheepLayer.spriteFor(id);
     if (spr === undefined) return null;
-    const ghost = this.ghosts[this.nextGhost];
-    this.nextGhost = (this.nextGhost + 1) % this.ghosts.length;
+    const slot = this.nextGhost;
+    const ghost = this.ghosts[slot];
+    this.nextGhost = (slot + 1) % this.ghosts.length;
+    // A sacrifice whose ghost is reused before it lands still gets its reveal toast (Story 4.4).
+    this.ghostLanding[slot]?.();
     this.tweens.killTweensOf(ghost);
     ghost
       .setFrame(spr.frame.name)

@@ -19,6 +19,9 @@ export type BusEvents = {
   'breedMode:changed': { active: boolean; pickedA: number };
   // GameScene opened or closed the shop panel (Story 3.2); HudScene shows the Shop toggle's open look.
   'shop:toggled': { open: boolean };
+  // GameScene: a sacrificed sheep's ghost reached the hole (or no ghost could play, so at once).
+  // HudScene shows the reveal toast (FR33, Story 4.4).
+  'sacrifice:landed': { wasAbomination: boolean };
 };
 
 export const bus = new EventBus<BusEvents>();

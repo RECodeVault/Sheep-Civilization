@@ -3,6 +3,7 @@ import { TUNING } from '../../../src/config/tuning';
 import { applyCommand } from '../../../src/sim/commands';
 import { drainEvents, type SimEvent } from '../../../src/sim/events';
 import { createSheep } from '../../../src/sim/state';
+import { makeAbomination } from '../../../src/sim/systems/abomination';
 import { sacrifice } from '../../../src/sim/systems/betterPlace';
 import { pickUp } from '../../../src/sim/systems/drag';
 import { infectSheep } from '../../../src/sim/systems/virus';
@@ -61,6 +62,35 @@ describe('sacrifice (Sacrifice command)', () => {
     // Gone like any sacrificed sheep: no carcass.
     expect(state.carcasses).toEqual([]);
     expect(state.stats.sacrificed).toBe(2);
+  });
+
+  it('pays out nothing more for the Abomination: the same state and events as an innocent, but the flag (Story 4.4)', () => {
+    // Paired: one flock, twice, the same lamb sacrificed, once as the Abomination and once not.
+    const withAbom = newGame(5);
+    withAbom.time = 3_000;
+    const lambOf = createSheep(withAbom, { x: withAbom.sheep[0].x, y: withAbom.sheep[0].y, bornAt: withAbom.time });
+    makeAbomination(withAbom, lambOf);
+    const innocent = structuredClone(withAbom);
+    innocent.sheep[innocent.sheep.length - 1].isAbomination = false;
+    drained();
+    applyCommand(withAbom, { type: 'Sacrifice', id: lambOf.id });
+    const abomEvents = drained();
+    applyCommand(innocent, { type: 'Sacrifice', id: lambOf.id });
+    const innocentEvents = drained();
+    // The sheep is gone from both, so the states are equal in full: money, stats, boost, no carcass.
+    expect(withAbom).toEqual(innocent);
+    expect(withAbom.carcasses).toEqual([]);
+    expect(withAbom.sheep.some((s) => s.id === lambOf.id)).toBe(false);
+    expect(withAbom.stats.sacrificed).toBe(1);
+    expect(withAbom.boostUntil).toBe(withAbom.time + TUNING.boostMs);
+    expect(abomEvents).toEqual([
+      { type: 'Sacrificed', id: lambOf.id, wasAbomination: true },
+      { type: 'BoostStarted', until: withAbom.time + TUNING.boostMs, renewed: false },
+    ]);
+    expect(innocentEvents).toEqual([
+      { type: 'Sacrificed', id: lambOf.id, wasAbomination: false },
+      { type: 'BoostStarted', until: innocent.time + TUNING.boostMs, renewed: false },
+    ]);
   });
 
   it('silently ignores an unknown id', () => {

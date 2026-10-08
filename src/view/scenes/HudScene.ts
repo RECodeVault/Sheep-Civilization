@@ -108,6 +108,7 @@ export class HudScene extends Phaser.Scene {
     bus.on('farmBreeding:pressed', this.farmBreeding, this);
     bus.on('breedMode:changed', this.onBreedMode, this);
     bus.on('shop:toggled', this.onShopToggled, this);
+    bus.on('sacrifice:landed', this.onSacrificeLanded, this);
     this.input.on(Phaser.Input.Events.POINTER_DOWN, this.onPointerDown, this);
     // Phaser updates scenes in REVERSE array order (SceneManager.update), so HudScene's update()
     // would run before GameScene ticks and show last frame's food. PRE_RENDER fires after every
@@ -120,6 +121,7 @@ export class HudScene extends Phaser.Scene {
       bus.off('farmBreeding:pressed', this.farmBreeding, this);
       bus.off('breedMode:changed', this.onBreedMode, this);
       bus.off('shop:toggled', this.onShopToggled, this);
+      bus.off('sacrifice:landed', this.onSacrificeLanded, this);
       this.input.off(Phaser.Input.Events.POINTER_DOWN, this.onPointerDown, this);
       this.events.off(Phaser.Scenes.Events.PRE_RENDER, this.refresh, this);
     });
@@ -319,8 +321,8 @@ export class HudScene extends Phaser.Scene {
         if (this.eraFrom === null) this.eraFrom = e.from;
         this.eraTo = e.to;
       } else if (e.type === 'Sacrificed') {
-        // UX-DR93: one at a time (a sheep is dragged in by hand). Never branches on wasAbomination: the
-        // reveal is Story 4.4's.
+        // UX-DR93: one at a time (a sheep is dragged in by hand), at once for every sheep, so it never
+        // branches on wasAbomination. The reveal line follows when the sheep lands (onSacrificeLanded).
         showToast(STRINGS.sacrificeToast, { announcement: true });
       } else if (e.type === 'Sold') {
         // UX-DR93: one per sale (a sheep is dragged on by hand), "A sheep sold. $10." or "$5.".
@@ -332,6 +334,18 @@ export class HudScene extends Phaser.Scene {
         const b = this.bar.farmButton;
         this.popups.spawn(b.x + b.width / 2, b.y - POPUP_LIFT_PX, STRINGS.boostPopup);
       }
+    } catch (err) {
+      reportError('ui', err);
+    }
+  };
+
+  /**
+   * FR33 / UX-DR93 (Story 4.4): GameScene's ghost reached the hole, so the truth is told: "Good
+   * riddance." for the Abomination, "…that was just a sheep." for anyone else.
+   */
+  private readonly onSacrificeLanded = (e: { wasAbomination: boolean }): void => {
+    try {
+      showToast(e.wasAbomination ? STRINGS.revealAbomination : STRINGS.revealInnocent, { announcement: true });
     } catch (err) {
       reportError('ui', err);
     }

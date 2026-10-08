@@ -1,5 +1,5 @@
 # generated: 2026-10-05T14:42:07-07:00
-# last_updated: 2026-10-08T15:01:00-07:00
+# last_updated: 2026-10-08T17:00:00-07:00
 # project: sheep-civilization
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: '2026-10-05T14:42:07-07:00'
-last_updated: '2026-10-08T15:01:00-07:00'
+last_updated: '2026-10-08T17:00:00-07:00'
 project: sheep-civilization
 project_key: NOKEY
 tracking_system: file-system
@@ -80,7 +80,7 @@ development_status:
   4-1-the-abomination-is-born-and-stays-hidden: done
   4-2-the-abominations-tells: done
   4-3-the-kill-cycle: done
-  4-4-sacrifice-reveal: backlog
+  4-4-sacrifice-reveal: done
   4-5-medicine: backlog
   4-6-overcrowding: backlog
   4-7-better-hoe-upgrades: backlog
