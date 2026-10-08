@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatGameTime, formatMoney } from '../../src/core/format';
+import { formatGameTime, formatMinutesInWords, formatMoney } from '../../src/core/format';
 
 describe('formatGameTime', () => {
   it('formats under an hour as m:ss', () => {
@@ -36,5 +36,28 @@ describe('formatMoney', () => {
     expect(formatMoney(-0.5)).toBe('$0');
     expect(formatMoney(-20)).toBe('$0');
     expect(formatMoney(1e21)).toBe('$1000000000000000000000');
+  });
+});
+
+describe('formatMinutesInWords (Story 3.6: the old-age toast follows TUNING.oldAgeMs)', () => {
+  it('spells whole minutes from one to twenty as words', () => {
+    expect(formatMinutesInWords(60_000)).toBe('one minute');
+    expect(formatMinutesInWords(540_000)).toBe('nine minutes');
+    expect(formatMinutesInWords(1_200_000)).toBe('twenty minutes');
+  });
+
+  it('rounds to the nearest minute', () => {
+    expect(formatMinutesInWords(569_999)).toBe('nine minutes');
+    expect(formatMinutesInWords(570_000)).toBe('ten minutes');
+  });
+
+  it('uses digits above twenty', () => {
+    expect(formatMinutesInWords(21 * 60_000)).toBe('21 minutes');
+  });
+
+  it('never says zero or less: under half a minute, negative or non-finite input reads as one minute', () => {
+    expect(formatMinutesInWords(0)).toBe('one minute');
+    expect(formatMinutesInWords(-60_000)).toBe('one minute');
+    expect(formatMinutesInWords(Number.NaN)).toBe('one minute');
   });
 });

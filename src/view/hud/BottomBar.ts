@@ -1,5 +1,6 @@
 import type Phaser from 'phaser';
 import { COMPONENTS, LAYOUT, RADIUS, SPACING } from '../../config/constants';
+import { TUNING } from '../../config/tuning';
 import { invariant } from '../../core/invariant';
 import { STRINGS } from '../strings';
 import { Button, type ButtonSpec } from '../widgets/Button';
@@ -8,7 +9,7 @@ import { Panel } from '../widgets/Panel';
 import { FRAME } from '../assetKeys';
 import { BOOST_TIMER_W, BoostTimer } from './BoostTimer';
 import { FarmBoost } from './FarmBoost';
-import { FARM_PROGRESS_W, FarmProgress } from './FarmProgress';
+import { farmProgressWidth, FarmProgress } from './FarmProgress';
 import { FLOCK_COUNTER_W, FlockCounter } from './FlockCounter';
 import { MONEY_COUNTER_W, MoneyCounter } from './MoneyCounter';
 import { THREAT_SUMMARY_W, ThreatSummary } from './ThreatSummary';
@@ -21,17 +22,31 @@ const FARM_X = LAYOUT.safeMargin;
 const FARM_Y = BAR_TOP + 6;
 const FARM_W = 232; // mockups/hud.html `.btn-farm`
 const METER_GAP = 4;
+// Each bar draws one pip per tuned pip (Story 3.6), so its width follows TUNING; it must fit under its
+// button (checked after the button widths below). 14 px pips: Farm up to 11, breeding up to 9.
+const FARM_PROGRESS_W = farmProgressWidth(TUNING.farmPipsPerFood);
+const BREEDING_PROGRESS_W = farmProgressWidth(TUNING.breedingPipsPerFood);
 const METER_Y = FARM_Y + COMPONENTS.buttonFarm.height + METER_GAP;
 // Groups (a button with its meter) are SPACING[3] apart; the mockup's `.hud` gap is 10 px, the
 // nearest spacing token is 12.
 const GROUP_GAP = SPACING[3];
 // Farm Breeding Food: right of the Farm group. The mockup's `.btn-breedfood` is 190 px, but in the
 // canvas font "Farm Breeding" then runs into the key hint, so it is 200 (browser-checked).
-const BREED_FOOD_X = FARM_X + Math.max(FARM_W, FARM_PROGRESS_W) + GROUP_GAP;
+const BREED_FOOD_X = FARM_X + FARM_W + GROUP_GAP;
 const BREED_FOOD_W = 200;
+// Story 3.6 code review: a pip bar never runs past its button. A retune that needs more pips narrows
+// PIP_W in FarmProgress (or widens the button) instead of shifting the row.
+invariant(
+  FARM_PROGRESS_W <= FARM_W,
+  `BottomBar: the Farm bar (${TUNING.farmPipsPerFood} pips, ${FARM_PROGRESS_W} px) is wider than its ${FARM_W} px button`,
+);
+invariant(
+  BREEDING_PROGRESS_W <= BREED_FOOD_W,
+  `BottomBar: the breeding bar (${TUNING.breedingPipsPerFood} pips, ${BREEDING_PROGRESS_W} px) is wider than its ${BREED_FOOD_W} px button`,
+);
 // The Breed tool (UX-DR31): right of the Farm Breeding Food group, 104 px wide (mockups/hud.html
 // `.btn-breed`), top-aligned with the Farm buttons at their height (Rylan, 2026-10-07).
-const BREED_X = BREED_FOOD_X + Math.max(BREED_FOOD_W, FARM_PROGRESS_W) + GROUP_GAP;
+const BREED_X = BREED_FOOD_X + BREED_FOOD_W + GROUP_GAP;
 const BREED_W = 104;
 // The right end, in the mockup's order (Story 3.2 re-spaced it, deferred-work "A crowded bottom bar"):
 // … threat summary (UX-DR39) · boost timer (UX-DR38) · Shop toggle (UX-DR40), packed one group gap
@@ -112,7 +127,7 @@ export class BottomBar {
       activateOn: 'press',
       onActivate: onFarm,
     });
-    this.farmProgress = new FarmProgress(scene, FARM_X, METER_Y);
+    this.farmProgress = new FarmProgress(scene, FARM_X, METER_Y, TUNING.farmPipsPerFood);
     this.breedFoodButton = new Button(scene, COMPONENTS.buttonBreedFood, {
       x: BREED_FOOD_X,
       y: FARM_Y,
@@ -123,7 +138,14 @@ export class BottomBar {
       activateOn: 'press',
       onActivate: onFarmBreeding,
     });
-    this.breedingProgress = new FarmProgress(scene, BREED_FOOD_X, METER_Y, COMPONENTS.breedingProgress, FRAME.pipBreeding);
+    this.breedingProgress = new FarmProgress(
+      scene,
+      BREED_FOOD_X,
+      METER_Y,
+      TUNING.breedingPipsPerFood,
+      COMPONENTS.breedingProgress,
+      FRAME.pipBreeding,
+    );
     // No key hint: the Breed tool has no shortcut (UX-DR72). Greyed until two adults are ready.
     this.breedButton = new Button(scene, COMPONENTS.buttonBreedTool, {
       x: BREED_X,

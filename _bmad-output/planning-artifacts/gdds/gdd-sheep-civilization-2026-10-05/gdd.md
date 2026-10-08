@@ -128,8 +128,8 @@ Each sheep has a **Fullness** stat: 100 means full, and the sheep dies at 0. Pla
 
 | Parameter | Value |
 |---|---|
-| **Farm** button | Each click fills 1 pip of an **8-pip** progress bar (tune), shown with its count "{n}/8". Every full bar drops **1 food piece** at a random reachable spot in the pen and resets; leftover pips carry over. There is **no food stock** and nothing to spend: Farm is the only way to make food (changed 2026-10-06). |
-| **Farm Breeding Food** button | Works like Farm: each click fills 1 pip of an **8-pip** breeding bar (tune), shown "{n}/8". Every full bar drops **1 breeding-food piece** (a pink treat) at a random reachable spot in the pen; leftover pips carry over. No stock, no cap, never boosted (changed 2026-10-06). |
+| **Farm** button | Each click fills 1 pip of a **6-pip** progress bar (tuned in the Story 3.6 playtest, 2026-10-08; was 8), shown with its count "{n}/6". Every full bar drops **1 food piece** at a random reachable spot in the pen and resets; leftover pips carry over. There is **no food stock** and nothing to spend: Farm is the only way to make food (changed 2026-10-06). |
+| **Farm Breeding Food** button | Works like Farm: each click fills 1 pip of an **8-pip** breeding bar (kept at 8 in Story 3.6), shown "{n}/8". Every full bar drops **1 breeding-food piece** (a pink treat) at a random reachable spot in the pen; leftover pips carry over. No stock, no cap, never boosted (changed 2026-10-06). |
 | Sheep seek food | The nearest non-full sheep (Fullness below 90) walks to the nearest piece. Walk speed **60 px/s** (tune). |
 | Sheep seek breeding food | An adult that is not ready and not on cooldown walks to the nearest breeding piece and eats it, becoming **ready to breed** (no Fullness). Food comes first: a sheep that would seek food does that instead. Lambs and elders ignore breeding pieces. A ready adult that turns elder loses its readiness. |
 | Uneaten pieces | Stay on the field until eaten. They never spoil. |
@@ -224,7 +224,7 @@ The game is mouse-only, with optional keyboard shortcuts.
 
 | Input | Action |
 |---|---|
-| Left-click **Farm** / **Farm Breeding Food** | Fill the Farm bar (8 clicks = 1 food; 2× pips while boosted) / fill the breeding bar (8 clicks = 1 breeding piece) |
+| Left-click **Farm** / **Farm Breeding Food** | Fill the Farm bar (6 clicks = 1 food; 2× pips while boosted) / fill the breeding bar (8 clicks = 1 breeding piece) |
 | Left-click an empty field | Nothing (food comes from the Farm bar) |
 | Left-click a carcass | Clear it |
 | Drag a sheep → Better Place | Sacrifice |
@@ -259,7 +259,7 @@ There is one flat shop with no branches.
 
 | Upgrade | Category | Cost | Effect | Tier |
 |---|---|---|---|---|
-| Land I / II / III | Capacity | $50 / $150 / $400 | Capacity 10 → 25 → 50 → 100 | Must |
+| Land I / II / III | Capacity | $80 / $150 / $400 (Land I was $50 until Story 3.6) | Capacity 10 → 25 → 50 → 100 | Must |
 | Flower Patch | Decoration | $40 | Cosmetic | Must |
 | Scarecrow | Decoration | $80 | Cosmetic | Must |
 | Better Hoe I / II | Click power | $30 / $100 | Farm click fills 2 / 3 pips | Should |
@@ -291,11 +291,11 @@ There is one flat shop with no branches.
 - **Feed demand:** each sheep needs about 0.83 Fullness/s, roughly one food piece every 42 s.
   - 10 sheep need a piece about every **4.2 s**.
   - 25 sheep need one about every **1.7 s**.
-  - At 8 clicks per food, 10 sheep need about 1.9 Farm clicks/s and 25 sheep about 4.8 (before upgrades), with no separate field click. Better Hoe and the boost cut this to a half or a third. [ASSUMPTION, tune in the post-Epic 3 playtest]
+  - At 6 clicks per food (Story 3.6; was 8), 10 sheep need about 1.4 Farm clicks/s and 25 sheep about 3.6 (before upgrades), with no separate field click. Better Hoe and the boost cut this to a half or a third.
 
   Attention pressure grows with the flock, and that is the game's soft cap.
-- **Time gates:** life stages (60 s to adulthood), the 10 s gestation, and the **60 s per-adult breeding cooldown**. Without the cooldown, Village arrived in about 90 s. One breeding needs 2 breeding pieces (16 clicks at 8 pips) [ASSUMPTION, tune in the post-Epic 3 playtest].
-- **Pacing target:** in the Must-tier economy, **Village (10 sheep) in about 3–5 min** and **Town (25) in about 10–15 min** (tune). Hand-simulation with the cooldown, no losses and no sales gives Village at about 3 min. Sales for Land I ($50 = 5 adults) and founder deaths at about 8 min (since 2026-10-07) push Town later.
+- **Time gates:** life stages (60 s to adulthood), the 10 s gestation, and the **60 s per-adult breeding cooldown**. Without the cooldown, Village arrived in about 90 s. One breeding needs 2 breeding pieces (16 clicks at 8 pips; kept in Story 3.6).
+- **Pacing target:** in the Must-tier economy, **Village (10 sheep) in about 3–5 min** and **Town (25) in about 10–15 min** (tune). Hand-simulation with the cooldown, no losses and no sales gives Village at about 3 min. Sales for Land I ($80 = 8 adults since Story 3.6; it was $50) and founder deaths at about 8 min (since 2026-10-07) push Town later. Story 3.6 measured it with a scripted reference player (no boosts, no Better Hoe; `tests/sim/scenarios/pacing.test.ts`): Village at about 4 min at 3 clicks/s; Town at about 12:30–14:30 at 6 clicks/s (about 12:10–12:50 at 7). At 3–5 clicks/s the flock plateaus at 14–23, because feeding and replacing old-age deaths use the whole click budget, so Town relies on the sacrifice boost (and, later, Better Hoe). Human session times are still to come (Story 5.10).
 - **Walls:** the land costs. Getting past them means selling sheep, which is a direct trade-off against the era threshold, since eras count live sheep.
 
 ### Meta-Progression
@@ -326,8 +326,9 @@ The player progresses through **flock size**: more land, more sheep and later er
 ### Difficulty Curve
 
 - **0–60 s:** 3 sheep, all half-hungry. The first one goes thin at about 42 s. The player learns Farm and Feed.
-- **1–5 min:** the first adults, the first breeding and the first sale. The first death, from old age or neglect, introduces carcasses.
-- **5–15 min (Village):** the flock reaches 10–25 sheep. The feed load approaches 2–5 Farm clicks per second before upgrades, which is where Better Hoe and the boost earn their keep. Contagion chains become the main threat.
+- **0–1 min:** the first breeding: the founding adults can breed at once, and the probe breeds within 10–20 s (Story 3.6, accepted).
+- **1–5 min:** the first adults raised in the pen, the first sale. The first death, from old age or neglect, introduces carcasses.
+- **5–15 min (Village):** the flock reaches 10–25 sheep. The feed load approaches 1.5–3.5 Farm clicks per second before upgrades (6-pip bar), which is where Better Hoe and the boost earn their keep. Contagion chains become the main threat.
 - **15 min+ (Town → Wool Empire):** the attention load is the challenge. With the Should tier, the Abomination and overcrowding add pressure.
 
 **Where the player coasts:** right after buying land (spare capacity) and during a sacrifice boost.
@@ -337,7 +338,7 @@ The player progresses through **flock size**: more land, more sheep and later er
 
 | Resource | Earned | Spent | Cap |
 |---|---|---|---|
-| Food | 1 piece per full Farm bar (8 pips; a click fills 1, 2 or 3 pips with upgrades, ×2 when boosted) | Eaten by sheep (+35 Fullness) | None: pieces wait in the pen, never spoil |
+| Food | 1 piece per full Farm bar (6 pips; a click fills 1, 2 or 3 pips with upgrades, ×2 when boosted) | Eaten by sheep (+35 Fullness) | None: pieces wait in the pen, never spoil |
 | Breeding food | 1 piece per full breeding bar (8 pips; a click fills 1, never boosted) | Eaten by an adult that can breed (makes it ready; a breeding uses 2 ready adults) | None: pieces wait in the pen, never spoil |
 | Money | Sell adult $10 / elder $5 | Shop | None |
 | Sheep | Breeding | Selling, sacrifice, death | Land capacity |
@@ -527,4 +528,4 @@ These are measured by informal playtests with at least 3 people, with Rylan watc
 
 **Assumptions:**
 
-- [ASSUMPTION: The Must-tier pacing targets (Village in 3–5 min, Town in 10–15 min) are reachable with the listed numbers. Validate them in the first playtest after Epic 3.]
+- [ASSUMPTION, partly validated] Pacing targets (Village in 3–5 min, Town in 10–15 min): Story 3.6 (2026-10-08) checked them with a scripted reference player only; Rylan waived recording human session times. Village is in its window at 3 clicks/s; Town lands in 10–15 min at about 6 clicks/s without boosts (see Number Balancing). The pacing probe guards both. Confirm with human times in the external playtest (Story 5.10).

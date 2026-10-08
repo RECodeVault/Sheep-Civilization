@@ -2,25 +2,15 @@ import Phaser from 'phaser';
 import type { Rect } from '../../config/tuning';
 import { invariant } from '../../core/invariant';
 import { ATLAS, FRAME } from '../assetKeys';
+import { FENCE_PARTS } from './layout';
 
-const RAIL_THICKNESS = 4;
-const RAIL_GAP = 8; // two rails per side, like the mockup
-const POST_SPACING = 40;
-const POST_HALF_WIDTH = 3; // fence-post frame is 6 px wide
-const POST_RISE = 4; // posts stand a little taller than the rails
-const POST_HEIGHT = 22; // fence-post frame is 22 px tall
-
-/**
- * Everything a fence with `bounds` draws, posts included: the posts stand POST_RISE above the top rail,
- * reach below the front rails, and the side posts overhang the side rails. For layout checks (the
- * decorations, Story 3.4). Allocates.
- */
-export function fenceDrawnBounds({ x, y, width, height }: Rect): Rect {
-  const overhang = Math.max(0, POST_HALF_WIDTH - RAIL_THICKNESS / 2);
-  const frontY = y + height - RAIL_GAP - RAIL_THICKNESS;
-  const bottom = Math.max(y + height, frontY - POST_RISE + POST_HEIGHT);
-  return { x: x - overhang, y: y - POST_RISE, width: width + overhang * 2, height: bottom - (y - POST_RISE) };
-}
+// Part sizes live in layout.ts with fenceDrawnBounds (Story 3.6), so the layout checks run under npm test.
+const RAIL_THICKNESS = FENCE_PARTS.railThickness;
+const RAIL_GAP = FENCE_PARTS.railGap;
+const POST_SPACING = FENCE_PARTS.postSpacing;
+const POST_HALF_WIDTH = FENCE_PARTS.postHalfWidth;
+const POST_RISE = FENCE_PARTS.postRise;
+const POST_HEIGHT = FENCE_PARTS.postHeight;
 
 /**
  * The pasture fence, built from atlas frames and laid out again only when the bounds change: when land

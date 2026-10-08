@@ -99,7 +99,9 @@ Real issues found in reviews that are not actionable in the story where they wer
   - Two full sheep resting on a piece also hold a seeker off: their separation push beats its walk within about 12 px. Today that clears within 4 s, when they stop resting.
   - Fix: Story 1.9 validates piece positions, and Story 3.6 considers a claim timeout.
   - **Resolved in Story 1.9:** the 1.9 part: food pieces must lie inside the inner fence. The claim timeout is still 3.6's.
+  - **Story 3.6: not needed (observed).** `tests/sim/scenarios/pile.test.ts` runs 100 sheep at Land III through a 300-piece mixed pile for 120 s: in an ad-hoc run over 8 seeds the longest claim held was 9.8–17.6 s, no longer than the walk across the pen's diagonal (about 17 s at 60 px/s); claims ≈ pieces eaten (250–251 claims for 250 eaten), so none was dropped or stuck. The committed test runs one seed (3606) and fails if a claim outlasts 1.5 × that walk + `eatMs`. Revisit only if a playtest shows a sheep stuck on a piece.
 - **Farm bar size defined twice (Story 3.6):** `COMPONENTS.farmProgress.segmentCount` (pips drawn) and `TUNING.farmPipsPerFood` (pips per food) are both 8. `FarmProgress.set` scales between them and the "{n}/8" text always reads the tuning value. If 3.6 retunes the bar, change both, or build the pips from the tuning value.
+  - **Resolved in Story 3.6:** `segmentCount` is gone from `COMPONENTS`; `FarmProgress` draws one pip per `TUNING` pip (both bars), and `BottomBar` sizes each bar from its tuning value. The Farm bar is now 6 pips.
 
 ## Deferred from: story 1-8-losing-the-flock (2026-10-06)
 
@@ -165,6 +167,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 ## Deferred from: code review of 2-4-carcasses-and-death-announcements (2026-10-07)
 
 - **Old-age toast vs tuning (Story 3.6):** "A sheep died of old age. A long, full nine minutes." is Voice-table copy that matches `TUNING.oldAgeMs` (540 s) only by a comment in `strings.ts`. If 3.6 retunes the lifespan, update the copy (or build the minutes from `TUNING.oldAgeMs`).
+  - **Resolved in Story 3.6:** the toast builds its minutes with `formatMinutesInWords(TUNING.oldAgeMs)` (`src/core/format.ts`, tested). The lifespan was kept at 540 s.
 
 ## Deferred from: story 2-6-alert-pings-and-threat-summary (2026-10-07)
 
@@ -178,6 +181,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 ## Deferred from: code review of 2-6-alert-pings-and-threat-summary (2026-10-07)
 
 - **Four-digit threat counts (Story 3.6):** `ThreatSummary`'s count box is 34 px, sized for "100". Starving and infected are capped by capacity, but carcasses stay until cleared, so 1 000+ uncleared carcasses would draw "1000" into the next slot. Unreachable in normal play; if 3.6 finds it can happen, clamp the text (for example "999+") and re-space the bar.
+  - **Story 3.6:** not reached in play; still open, owner "any time".
 
 ## Deferred from: story 2-7-drag-a-sheep-into-the-better-place (2026-10-07)
 
@@ -205,6 +209,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 ## Deferred from: code review of 2-8-sacrifice-food-boost (2026-10-07)
 
 - **Validation bounds follow live tuning (Story 3.6):** `validate.ts` caps `boostUntil` at `time + TUNING.boostMs` and `cooldownUntil` at `time + TUNING.breedCooldownMs`. If 3.6 lowers either, saves made mid-boost or mid-cooldown are rejected and the flock is lost. When retuning, clamp these deadlines on load, or validate them against a fixed ceiling, instead of failing.
+  - **Resolved in Story 3.6:** `normalizeTuned` (`src/save/normalize.ts`) runs on load between migrate and validate and clamps the bars, boost, cooldowns, gestation and Fullness into the current bounds (an overdue infection dies on the first tick). `validateState` stays strict for `writeSave`. Tested in `tests/save/normalize.test.ts`.
 - **Shop toggle space (Story 3.2):** the boost timer kept its 104 px width and `SHOP_RESERVE` is 64 px, below the mockup's ~80 px toggle. 3.2 narrows the timer's padding or re-spaces the bar.
   - **Resolved in Story 3.2:** the bar was re-spaced (above); the toggle is 80 px.
 
@@ -243,6 +248,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **The open shop vs a wide play area (Story 3.3):** with the shop open, `PenCamera` keeps the play area right of screen x 392, which leaves 872 px. Today's play area is 834 px (pen ∪ Better Place ∪ Market). If 3.3's land makes it wider, `clamp` takes its too-big branch and centres it: the left edge lands at about screen x 828 − w/2 (for w = 1000, x 328), so the Better Place sits under the panel, drops there count as HUD drops (no sacrifice), and horizontal panning stops. 3.3 must choose: narrow or close the shop when the pen is too wide, let the panel cover the hole, or shrink what the play area must keep in view.
   - **Resolved in Story 3.3:** the play area fits one screen at every tier, and with the shop open `PenCamera` keeps only the Better Place right of the panel (the pen may slide under it). The opening view uses that limit too, so opening the shop never moves the camera.
 - **Performance re-check (Story 3.6 / 5.11):** 3.2's FPS check ran on a loaded machine (the pre-story commit itself read 30–41 FPS at 103 sheep). Shop open vs closed was about 1 FPS apart in alternating runs; re-measure the 40 FPS baseline against shop open on a quiet machine.
+  - **Story 3.6:** not measured (no FPS numbers came back from the session). Moved to **5.11**. The sim side is covered: `npm run bench` puts the tick at ≤ 0.21 ms mean with 100 sheep and a 300-piece pile.
 - **Docs for the numbers font and the money counter (docs pass, any time):** Rylan chose before 3.2's review to drop the money counter's coin (just "$n") and to set all numbers in Nunito (`numeric` 800, `popup` 900; shop prices and the Market tag use `numeric`) because Pixelify Sans digits were hard to read. DESIGN.md (`money-counter` `iconColor: hay`; `numeric`/`popup` in Pixelify Sans), epics.md UX-DR3/UX-DR34 and Story 3.2's AC 1 / Tasks 3.1, 6.2, 9.1 still describe the old design. Decision (Rylan, 2026-10-07): update them in a later docs pass, not in 3.2.
 
 ## Deferred from: story 3-3-buy-land-and-grow-the-fence (2026-10-07)
@@ -250,13 +256,16 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Crowded flock counter (Story 4.6):** UX-DR35's crowded style (numbers in `alert` and a crowd icon at ≥ 90 % of capacity) is not built; `FlockCounter.set` gets `alive` and `capacity`, so 4.6 adds the style there with the overcrowding rule.
 - **"No room. Buy land." at Land III (Voice decision, any time):** when the flock fills Land III's 100 slots there is no land left to buy, but the Breed tooltip still says "Buy land." The Voice table has no other string; a later copy pass may add one (for example "No room.") for that case (`breedBlock` would need to tell the two apart, e.g. via `landTier(state) === 3`).
 - **The Land III pen is dense (Story 3.6):** to fit one screen, Land II/III grow only left and down, so Land III gives about 3.7 k px² per sheep against Land I's 7.4 k. 100 sheep fit the sim (24 px spacing) but overlap visually. If 3.6 finds it too crowded, the alternatives are a bigger world with panning (the Market would move with the fence, and dragging would need edge-pan) or a per-tier camera zoom (Story 3.3 Open Question 1).
+  - **Story 3.6:** no change requested in the playtest (Rylan: "everything looks good"). Left as is; revisit if the external playtest (5.10) finds it crowded.
 - **Pieces under the open shop (Story 3.6 / 5.x):** at Land II/III the open panel covers the left of the pen, and food or breeding pieces can drop there (pings still draw above the panel). Harmless, since sheep reach them and the panel is transient; revisit if playtests show players missing them.
+  - **Story 3.6:** no problem reported in the playtest. Left open for 5.10.
 - **Audio (Story 5.6):** a cue when land is bought (the fence grows; `Bought` with a land item).
 - **Reduced motion (Story 5.7):** the dust burst along the new fence (`GameScene.growLand`) is juice; the grown fence is information and stays.
 
 ## Deferred from: code review of 3-3-buy-land-and-grow-the-fence (2026-10-07)
 
 - **Camera fit has no `npm test` coverage (Story 3.6):** the guarantee that every land tier's play area fits one screen (and stays clear of the Market and the Better Place) is a DEV-only invariant at `GameScene` module load, which Vitest never imports. The slack is 4 px wide at Land III and 0 px tall at Land II/III. A 3.6 retune of `TUNING.landFences` must re-run the DEV build, or add a config-level fit test with the view rects as plain numbers.
+  - **Resolved in Story 3.6:** the field layout moved to the Phaser-free `src/view/field/layout.ts`; `layoutProblems()` runs in `tests/view/field/layout.test.ts` and as GameScene's DEV invariant.
 
 ## Deferred from: story 3-4-decorations (2026-10-07)
 
@@ -267,18 +276,23 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Audio (Story 5.6):** the purchase sound on `Bought` covers decorations too; no separate cue is needed.
 - **Reduced motion (Story 5.7):** the decoration pop-in (`POP` in `Decorations.ts`) and its dust puff (`GameScene.decorationBought`) are juice; under reduced motion show the decoration at once.
 - **Real art (Story 3.6 / 5.x):** the flower patch (28×14) and scarecrow (20×32) are placeholders. Free-pack art must keep these sizes, or update `FRAME_SIZE`/`DECORATION_SPOTS` in `Decorations.ts`; the DEV checks (frame size, and the layout invariant in `GameScene`) catch a mismatch. Like the land fit (3.3), the decoration layout invariant is DEV-only and not covered by `npm test`.
+  - **Story 3.6:** out of scope for the tuning pass; moved to **5.x** (5.8 juice/polish or an art pass).
 
 ## Deferred from: code review of 3-4-decorations (2026-10-07)
 
 - **Decoration layout checks are DEV-only (Story 3.6 / any time):** the decoration spot invariant (`GameScene`) and the frame-size check (`Decorations.build`) run only when a DEV build loads `GameScene`; `npm test` never imports view modules. As with 3.3's camera fit, a retune of `landFences` or new decoration art must re-run the DEV build, or the rects could move to a plain-data module with a config-level test.
+  - **Resolved in Story 3.6:** the decoration spot checks are part of `layoutProblems()` (npm test). The atlas frame-size check stays DEV-only (it needs the loaded texture).
 
 ## Deferred from: story 3-5-eras-and-their-transitions (2026-10-08)
 
 - **Audio and captions (Story 5.6):** the era fanfare on an advance and the soft descending note on a regress, with their `[fanfare]` / `[descending note]` captions (UX-DR83, UX-DR88). Hook them to `EraChanged` the way the banner is: once per frame (HudScene's first `from` / last `to`), so ×16 changes play one cue.
 - **Reduced motion (Story 5.7):** the era banner's slide-in (`ERA_BANNER_MOTION` in `EraBanner.ts`) becomes a fade. Decide whether the 1 s background crossfade (`ERA_FADE_MS` in `EraBackground.ts`) stays; it is slow and gentle, so it may.
 - **Real era art (Story 3.6 / 5.x):** the four backgrounds (`assets/art/backgrounds/`) are placeholders. Free-pack art must stay 864 × 344 (shown at 2× from world (0, −16)) or `ERA_BACKGROUND_BOUNDS` changes; the build-time size check and the DEV frame-size check catch a mismatch. Only four strips of each texture are drawn (`STRIPS` in `EraBackground.ts`: the far line along the top, the top band left of the Better Place and between it and the Market, and everything right of the Market); the rest must stay flat `pasture`, which the camera's clear colour stands in for. `npm run assets` rejects a background that is not 864 × 344, and a DEV check (`flatOutsideStrips`) rejects art outside the strips that is not exactly `pasture`. That cut the probe's FPS cost from about 10 to within noise. Keep the decoration spots plain inside the mid strip. A real GPU would draw a full-field image cheaply; if real art wants texture everywhere, re-measure on real hardware first.
+  - **Story 3.6:** out of scope for the tuning pass; moved to **5.x**.
 - **Era thresholds (Story 3.6):** `TUNING.eraThresholds` (10 / 25 / 50) equals the first three land capacities on purpose (GDD: enter each era at full capacity). A pacing retune changes both tables together, or logs why they part (a config test pins them equal today).
+  - **Resolved in Story 3.6:** kept at 10 / 25 / 50, equal to the land capacities (decision log 2026-10-08).
 - **Coverage is DEV-only (Story 3.6 / any time):** like the 3.3 fit and 3.4 decoration checks, the background coverage invariant (`GameScene`, via `PenCamera.viewExtent`) runs only in a DEV build. A retune of `landFences`, the camera limits or the art must re-run the DEV build.
+  - **Resolved in Story 3.6:** the background coverage check is part of `layoutProblems()` (npm test); the art checks (`flatOutsideStrips`, frame size) stay DEV/build-time.
 - **Banner flicker at a threshold (playtest, any time):** a flock hovering at 9/10 replays the banner each time it crosses (the sim emits every change, as the epic AC requires; the view only coalesces within a frame). If playtests find it noisy, add a view-only cooldown on the banner, with the background and badge still following at once (Story 3.5 Open Question 2).
 - **The banner covers the Market's awning for ~2.7 s (UX, any time):** the band (canvas y 160–248) crosses the upper field, where the Market's awning sits at the opening scroll. A drop on the stall still works (the banner is not interactive), but the stall is partly hidden while it shows. Move the band up or shorten the hold if playtests find it in the way (Story 3.5 Open Question 3).
 - **The era at the loss (UX, any time):** *Resolved in the 3.5 code review:* on `Lost`, the badge and background follow `currentEra` (0 sheep → Pasture), so the live and reloaded lose screens match. Original note: the losing tick emits no `EraChanged` (AC 2), so a flock wiped out at once in the Village keeps the Village background and badge under the lose screen, while a lost save loaded later shows Pasture (the derived era of 0 sheep). Both are honest; if one is wanted, OverlayScene can set the badge (and GameScene the background) to `currentEra` on `Lost`.
@@ -288,3 +302,15 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Mid-fade reversal snaps (playtest, any time):** `EraBackground.fadeTo` snaps a running fade to its target before starting the next (Story 3.5 Task 4.1), so an era that flips back within 1 s jumps to the full previous art. At ×16 with a full flock sitting on a threshold (thresholds equal capacities) this can flicker between eras every frame or so. Revisit with the banner-flicker note: e.g. reverse the running tween instead of snapping, or a view-only cooldown.
 - **Badge fit vs the fallback font (any time):** `EraBadge`'s DEV fit invariant (like `BoostTimer`'s) measures text in whatever font loaded; after a Pixelify Sans timeout, "Wool Empire" in the fallback font could exceed the 160 px pill and throw in `OverlayScene.create` (DEV), or overflow (production). Measure against a font-independent bound, or skip the check when the font failed.
 
+## Deferred from: story 3-6-mvp-pacing-playtest-and-tuning-pass (2026-10-08)
+
+- **Town needs fast clicking in the Must tier (Stories 4.7, 5.10):** with the tuned 6/8 pips and Land I at $80, the scripted reference player (no boosts, no Better Hoe) reaches Town at 12:26–14:30 at 6 clicks/s over 6 seeds (12:08–12:49 at 7); at 3–5 clicks/s the flock plateaus at 14–23 (feeding plus replacing old-age deaths). The 10–15 min guard at 6 clicks/s has about 30 s of margin on the slowest seed. Rylan kept Better Hoe in Should. When 4.7 lands, re-run `tests/sim/scenarios/pacing.test.ts` with a Hoe-buying policy, and check in the external playtest (5.10) whether real players reach Town with the boost.
+- **No human session times (Story 5.10):** Rylan waived recording per-run times in the 3.6 code review (AC 1 / AC 6). The pacing was validated by the scripted probe only. The external playtest should paste one **Copy results** text per tester (the DEV overlay records milestones across reloads) and compare them with the probe.
+- **A rare 13–15 ms sample in the tick bench (any time):** the "300 food · first tick" case showed one 13–15 ms sample out of 400 in 3 of the 4 runs made in Story 3.6 (means 0.17–0.21 ms, p99 ≤ 0.9 ms). It appears in the first pile case, right after the bench builds its 400 cloned states, so it is likely a GC pause in the harness (inference). Watch for it in the browser's tick line (`worst`) during 5.11.
+- **GameScene's DEV tick counters ship (any time):** `takeTickStats` and its three number fields are in the production bundle (like the other GameScene debug members); the timing branch itself is stripped. Harmless; remove with the rest of the debug API if it is ever split out.
+- **Bar width (any later retune):** a pip bar may never run past its button (`BottomBar` DEV invariant since the 3.6 code review): the breeding bar fits up to 9 pips under its 200 px button, the Farm bar up to 11 under 232 px. A larger retune narrows `PIP_W` in `FarmProgress` or widens the button.
+
+## Deferred from: code review of 3-6-mvp-pacing-playtest-and-tuning-pass (2026-10-08)
+
+- **Load-time clamping skips fence, lifespan and capacity retunes (any retune of those):** `normalizeTuned` clamps the bars, boost, cooldowns, gestation, Fullness and an overdue infection, but positions are still validated against the live `TUNING.landFences`/`fenceInset`. Shrinking a fence or raising the inset would reject saves with a sheep, piece, pregnancy or carcass near the old edge. Lower `oldAgeMs`/`elderFromMs` or `landCapacities` load fine today (the sim handles them), but are untested. Add position clamping into the inner fence (and a test) in the story that retunes a fence.
+- **Bench GC sample:** see "A rare 13–14 ms sample in the tick bench" above; the first-tick pool is allocated in the bench setup, so a GC pause can land in a timed sample.

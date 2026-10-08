@@ -1,51 +1,21 @@
 import type Phaser from 'phaser';
-import type { Rect } from '../../config/tuning';
 import { invariant } from '../../core/invariant';
 import { DECORATIONS, isOwned, type Decoration } from '../../sim/selectors';
 import type { GameState } from '../../sim/state';
 import { ATLAS, FRAME } from '../assetKeys';
+import { DECORATION_FRAME_SIZE, DECORATION_SPOTS, WORLD_ART_SCALE } from './layout';
 
-// Placeholder art is drawn at half size and shown at 2×, like the sheep and the Better Place.
-const SCALE = 2;
+// Placeholder art is drawn at half size and shown at 2× (layout.ts, which sizes DECORATION_BOUNDS too).
+const SCALE = WORLD_ART_SCALE;
 
 const DECORATION_FRAME: Readonly<Record<Decoration, string>> = Object.freeze({
   flowerPatch: FRAME.flowerPatch,
   scarecrow: FRAME.scarecrow,
 });
 
-// Each frame's drawn size (assets/art/world/{flower-patch,scarecrow}.png). DEV checks it against the
-// atlas, so new art cannot silently outgrow the bounds the layout invariant checks.
-const FRAME_SIZE: Readonly<Record<Decoration, { readonly width: number; readonly height: number }>> = Object.freeze({
-  flowerPatch: Object.freeze({ width: 28, height: 14 }),
-  scarecrow: Object.freeze({ width: 20, height: 32 }),
-});
-
-/**
- * Where each decoration stands, in world px (FR23) [ASSUMPTION, tune in the browser]: `x` is its centre
- * and `foot` its bottom edge. Both stand in the grass strip between the Better Place's glow (to x 660)
- * and the Market (from x 1080), above the fence: every land tier from Land I has its top rail at y 184
- * (posts to y 180) and fences only grow left and down, so no tier covers them. That strip is always in the
- * camera's play area and right of the open shop panel, and no sheep or piece ever stands there.
- * GameScene's DEV invariant checks all of this for every tier.
- */
-export const DECORATION_SPOTS: Readonly<Record<Decoration, { readonly x: number; readonly foot: number }>> =
-  Object.freeze({
-    flowerPatch: Object.freeze({ x: 724, foot: 176 }),
-    scarecrow: Object.freeze({ x: 1000, foot: 176 }),
-  });
-
-/** The rect each decoration is shown in (its frame at SCALE, standing on its spot). */
-export const DECORATION_BOUNDS: Readonly<Record<Decoration, Rect>> = Object.freeze({
-  flowerPatch: shownRect('flowerPatch'),
-  scarecrow: shownRect('scarecrow'),
-});
-
-function shownRect(d: Decoration): Rect {
-  const { x, foot } = DECORATION_SPOTS[d];
-  const width = FRAME_SIZE[d].width * SCALE;
-  const height = FRAME_SIZE[d].height * SCALE;
-  return Object.freeze({ x: x - width / 2, y: foot - height, width, height });
-}
+// Each frame's drawn size and each spot live in layout.ts (Story 3.6), with the bounds the layout
+// checks use.
+const FRAME_SIZE = DECORATION_FRAME_SIZE;
 
 // [ASSUMPTION, tune in the browser] The pop-in when one is bought. Story 5.7's reduced motion shows it at
 // once instead.

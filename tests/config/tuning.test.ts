@@ -15,10 +15,14 @@ function contains(outer: Rect, inner: Rect): boolean {
 }
 
 describe('land table (FR22, Story 3.3)', () => {
-  it('has a capacity for no land and each of Land I–III, strictly rising (10 → 25 → 50 → 100)', () => {
+  // Shape rules only, no literal values: Story 3.6 may retune the capacities without a test edit.
+  it('has a capacity for no land and each of Land I–III: positive whole counts, strictly rising', () => {
     const c = TUNING.landCapacities;
     expect(c).toHaveLength(TUNING.landPrices.length + 1);
-    expect(c).toEqual([10, 25, 50, 100]);
+    for (const n of c) {
+      expect(Number.isInteger(n)).toBe(true);
+      expect(n).toBeGreaterThan(0);
+    }
     for (let i = 1; i < c.length; i++) expect(c[i]).toBeGreaterThan(c[i - 1]);
   });
 

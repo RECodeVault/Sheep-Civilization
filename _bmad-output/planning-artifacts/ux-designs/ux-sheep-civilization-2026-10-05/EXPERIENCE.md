@@ -48,7 +48,7 @@ Nothing is more than one level deep from the game. Modals replace each other and
 
 **HUD information hierarchy** (Q4: always visible):
 
-1. **Act now:** Farm and Farm Breeding Food buttons, the Farm progress bar ("{n}/8"), the breeding progress bar ("{n}/8") and the Breed tool.
+1. **Act now:** Farm and Farm Breeding Food buttons, the Farm progress bar ("{n}/6"), the breeding progress bar ("{n}/8") and the Breed tool.
 2. **Threat summary:** counts of Starving, Infected and Carcasses (see HUD & Diegetic UI).
 3. **Status:** money, flock vs land capacity (`12/25`), current era, boost timer (only while active).
 4. **Access:** the Shop toggle.
@@ -89,7 +89,7 @@ Behaviour only. Visual specs are in DESIGN.md, under Components.
 
 | Component | Behavioural rules |
 |---|---|
-| Farm button | Left-click or `F` fills the click value of pips on the 8-pip Farm progress bar ("{n}/8"), with a squash and a soft pop sound. When a bar completes, a food piece drops at a random spot in the pen with its landing bounce, and a "+1" popup rises over the button. There is no food stock (changed 2026-10-06). While boosted it uses `{components.button-farm-boosted}`. |
+| Farm button | Left-click or `F` fills the click value of pips on the 6-pip Farm progress bar ("{n}/6"; 8 until Story 3.6), with a squash and a soft pop sound. When a bar completes, a food piece drops at a random spot in the pen with its landing bounce, and a "+1" popup rises over the button. There is no food stock (changed 2026-10-06). While boosted it uses `{components.button-farm-boosted}`. |
 | Farm Breeding Food button | Same behaviour as Farm, using `G`: each click fills a pip of the 8-pip breeding bar ("{n}/8"), and a full bar drops a breeding piece at a random spot in the pen with a "+1" popup. Adults that can breed walk to it and eat it, becoming ready. It is never boosted (changed 2026-10-06). |
 | Farm progress / breeding progress | Update the same frame as the change. |
 | Breed tool | Toggles breed mode (see Interaction Primitives). It greys out (`{components.button-disabled}`) at land capacity, including pending lambs, or when fewer than 2 adults are ready [ASSUMPTION for the readiness case], and its tooltip gives the reason. |
@@ -247,10 +247,10 @@ The developer gave no player journeys. Both flows below are [ASSUMPTION] drafts 
 Sam, a hiring manager, opens the GitHub Pages link from a résumé. They have never played the game, and they must understand the loop and the tone within 60 s.
 
 1. The page loads in under 5 s. The start screen shows the title with three sheep milling about. There is no save, so the only options are New Game and Credits.
-2. Sam clicks New Game. Two adults and a lamb wander a small fenced pasture. The Farm bar under the button reads 0/8.
+2. Sam clicks New Game. Two adults and a lamb wander a small fenced pasture. The Farm bar under the button reads 0/6.
 3. Sam hovers a sheep. The tooltip reads "Biscuit", then "Adult · Hungry". It has a name, so Sam is attached.
 4. At about 40 s one sheep goes thin, a `{components.alert-ping}` pops above it, and the Starving count in the HUD ticks to 1.
-5. Sam clicks the field near the thin sheep; nothing happens. Sam tries **Farm**: each click fills a pip, and the eighth pops "+1" and drops a food piece into the pen. It bounces, the thin sheep trots over and munches, and the ping clears.
+5. Sam clicks the field near the thin sheep; nothing happens. Sam tries **Farm**: each click fills a pip, and the sixth pops "+1" and drops a food piece into the pen. It bounces, the thin sheep trots over and munches, and the ping clears.
 6. Sam tries the Breed tool on the two adults. A heart appears, and a lamb pops out 10 s later.
 7. **Climax (about 2:30):** Sam drags a sheep to see what the stall does. Both targets light up: the striped Market says "$10", and the glowing hole says "+2× food". Curious, Sam drops it in the hole. There is a slurp, a gold sparkle, the Farm button glows "×2", and a toast reads "Pudding went to a Better Place." Sam laughs. They have the tone.
 8. Sam closes the tab. The game pauses on hide and saves, so nothing is lost if they return.

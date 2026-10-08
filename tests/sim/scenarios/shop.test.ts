@@ -27,8 +27,11 @@ describe('the shop in play (FR21, UX-DR24)', () => {
   it('sales fund a purchase queued after them in the same batch', () => {
     const state = newGame(9);
     const [a, b, c, d, e] = fiveAdults(state);
-    // Five adults sold pay for Land I (GDD Pacing: "$50 = 5 adults").
-    expect(TUNING.sellPriceAdult * 5).toBeGreaterThanOrEqual(shopPrice('land1'));
+    // Five adults sold finish paying for Land I. Story 3.6 raised Land I above five sales ($80), so the
+    // flock starts with the rest: the sales still have to land before the Buy in the same batch.
+    const start = Math.max(0, shopPrice('land1') - TUNING.sellPriceAdult * 5);
+    state.money = start;
+    expect(start + TUNING.sellPriceAdult * 5).toBeGreaterThanOrEqual(shopPrice('land1'));
     const events = tickWith(state, [
       { type: 'Sell', id: a.id },
       { type: 'Sell', id: b.id },
@@ -38,7 +41,7 @@ describe('the shop in play (FR21, UX-DR24)', () => {
       { type: 'Buy', item: 'land1' },
     ]);
     expect(state.owned).toEqual(['land1']);
-    expect(state.money).toBe(TUNING.sellPriceAdult * 5 - shopPrice('land1'));
+    expect(state.money).toBe(start + TUNING.sellPriceAdult * 5 - shopPrice('land1'));
     expect(state.stats.moneyEarned).toBe(TUNING.sellPriceAdult * 5);
     expect(events.filter((x) => x.type === 'Bought')).toEqual([{ type: 'Bought', item: 'land1', price: shopPrice('land1') }]);
   });

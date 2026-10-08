@@ -3,6 +3,7 @@
 import { SAVE_SCHEMA_VERSION } from '../config/constants';
 import type { GameState } from '../sim/state';
 import { migrate } from './migrations';
+import { normalizeTuned } from './normalize';
 import { validateState, type ValidationResult } from './validate';
 
 export interface SaveFile {
@@ -27,7 +28,7 @@ export function savable(state: GameState): GameState {
   return { ...state, sheep: state.sheep.map((s) => (s.activity === 'dragged' ? { ...s, activity: 'wander' } : s)) };
 }
 
-/** Parses a save: JSON → envelope check → migrate → validate (AR9). Never throws. */
+/** Parses a save: JSON → envelope check → migrate → normalize → validate (AR9). Never throws. */
 export function decodeSaveResult(raw: string): ValidationResult {
   let parsed: unknown;
   try {
@@ -41,6 +42,8 @@ export function decodeSaveResult(raw: string): ValidationResult {
   if (!('state' in parsed)) return { ok: false, reason: 'state is missing' };
   const migrated = migrate(parsed.schemaVersion, parsed.state);
   if (!migrated.ok) return migrated;
+  // Story 3.6: a save from before a retune is clamped into the current TUNING bounds, not rejected.
+  normalizeTuned(migrated.state);
   return validateState(migrated.state);
 }
 

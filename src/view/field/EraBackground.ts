@@ -1,28 +1,17 @@
 import type Phaser from 'phaser';
 import { COLOR_INT } from '../../config/constants';
 import { invariant } from '../../core/invariant';
-import type { Rect } from '../../config/tuning';
 import { ERAS } from '../../sim/selectors';
 import type { Era } from '../../sim/state';
 import { FIELD_DEPTH } from './depths';
+import { ERA_BACKGROUND_ART } from './layout';
 
-// Each era background's drawn size (assets/art/backgrounds/*.png), shown at SCALE with nearest-neighbour
-// pixels. DEV checks every texture against it, so new art cannot shrink the coverage below.
-const FRAME_W = 864;
-const FRAME_H = 344;
-const SCALE = 2;
-// The image's top-left in world px. With the size above it covers x 0–1728 and y −16–672: every point the
-// camera can show at any land tier, shop open or closed (GameScene's DEV invariant checks it).
-const ORIGIN_X = 0;
-const ORIGIN_Y = -16;
-
-/** The world rect every era background covers (Story 3.5). */
-export const ERA_BACKGROUND_BOUNDS: Rect = Object.freeze({
-  x: ORIGIN_X,
-  y: ORIGIN_Y,
-  width: FRAME_W * SCALE,
-  height: FRAME_H * SCALE,
-});
+// The art's size, scale and origin live in layout.ts with ERA_BACKGROUND_BOUNDS (Story 3.6).
+const FRAME_W = ERA_BACKGROUND_ART.frameW;
+const FRAME_H = ERA_BACKGROUND_ART.frameH;
+const SCALE = ERA_BACKGROUND_ART.scale;
+const ORIGIN_X = ERA_BACKGROUND_ART.originX;
+const ORIGIN_Y = ERA_BACKGROUND_ART.originY;
 
 /**
  * The parts of each texture that are drawn, in texture px. Only these hold era features: the far line

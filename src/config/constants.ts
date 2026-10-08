@@ -293,7 +293,8 @@ export const COMPONENTS = defineComponents({
   farmProgress: {
     trackColor: 'woolShade',
     fillColor: 'hay',
-    segmentCount: 8,
+    // DESIGN.md's segmentCount (6 since Story 3.6) is TUNING.farmPipsPerFood: FarmProgress draws one pip per tuned pip
+    // (Story 3.6, deferred "Farm bar size defined twice"), so it is not repeated here.
     valueTypography: 'numeric',
   },
   // DESIGN.md replaced breeding-meter with these on 2026-10-06: breeding food is a bar that drops
@@ -301,7 +302,7 @@ export const COMPONENTS = defineComponents({
   breedingProgress: {
     trackColor: 'woolShade',
     fillColor: 'heart',
-    segmentCount: 8,
+    // segmentCount is TUNING.breedingPipsPerFood, as for farmProgress.
     valueTypography: 'numeric',
   },
   breedingPiece: {

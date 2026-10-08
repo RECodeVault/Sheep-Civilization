@@ -20,12 +20,16 @@ import { createSheep, type GameState } from '../sim/state';
 import { createCarcass } from '../sim/systems/carcass';
 import { createBreedingPiece, createFoodPiece } from '../sim/systems/feeding';
 import { infectSheep } from '../sim/systems/virus';
+import { bus } from '../view/bus';
 import type { GameScene } from '../view/scenes/GameScene';
+import { PlaytestRecord } from './playtestRecord';
 
 const SPEEDS = [1, 4, 16] as const;
 // DOM text is rewritten at most this often, so the overlay barely affects the FPS it reports.
 const REFRESH_MS = 250;
 const ADD_FOOD = 5;
+// Story 3.6: big piles for the 300-piece tick check (AC 5).
+const ADD_PILE = 50;
 const ADD_SHEEP = 10;
 const ADD_MONEY = 100;
 
@@ -44,6 +48,26 @@ export function installDebugOverlay(game: Phaser.Game): void {
   let count = 0;
   let max = 0;
   let lastRefresh = 0;
+
+  // Story 3.6 playtest instruments: the milestone record (survives reloads), the sim tick times
+  // (GameScene.takeTickStats, DEV-timed) and a count of console warnings and errors since page load.
+  const record = new PlaytestRecord();
+  let tickSum = 0;
+  let tickSamples = 0;
+  let tickMax = 0;
+  let problems = 0;
+  // The overlay's own fallback warnings (a refused clipboard write) are not the game's: not counted.
+  let ownWarning = false;
+  let lastRecord = 0;
+  // The latest window's tick stats, for the tick line.
+  let windowTick = { count: 0, meanMs: 0, maxMs: 0 };
+  for (const level of ['warn', 'error'] as const) {
+    const original = console[level].bind(console);
+    console[level] = (...args: unknown[]): void => {
+      if (!ownWarning) problems++;
+      original(...args);
+    };
+  }
 
   const panel = document.createElement('div');
   const ps = panel.style;
@@ -69,6 +93,10 @@ export function installDebugOverlay(game: Phaser.Game): void {
   const timeLine = line(lines);
   const sheepLine = line(lines);
   const foodLine = line(lines);
+  const tickLine = line(lines);
+  const paceLine = line(lines);
+  const firstLine = line(lines);
+  const problemLine = line(lines);
   const statusLine = line(lines);
 
   const row1 = buttonRow(panel);
@@ -116,6 +144,25 @@ export function installDebugOverlay(game: Phaser.Game): void {
       // As +food: Math.random spots, so the seeded rng stream is untouched; the pieces bounce in on bind.
       const r = innerFence(s);
       for (let i = 0; i < ADD_FOOD; i++) {
+        createBreedingPiece(s, r.left + Math.random() * (r.right - r.left), r.top + Math.random() * (r.bottom - r.top));
+      }
+    });
+    refreshSim();
+  });
+  // Story 3.6: as the buttons above, in piles of ADD_PILE for the tick-time check.
+  const foodPileButton = button(row2, `+${ADD_PILE} food`, () => {
+    activeScene()?.debugMutate((s) => {
+      const r = innerFence(s);
+      for (let i = 0; i < ADD_PILE; i++) {
+        createFoodPiece(s, r.left + Math.random() * (r.right - r.left), r.top + Math.random() * (r.bottom - r.top));
+      }
+    });
+    refreshSim();
+  });
+  const breedingPileButton = button(row2, `+${ADD_PILE} breeding`, () => {
+    activeScene()?.debugMutate((s) => {
+      const r = innerFence(s);
+      for (let i = 0; i < ADD_PILE; i++) {
         createBreedingPiece(s, r.left + Math.random() * (r.right - r.left), r.top + Math.random() * (r.bottom - r.top));
       }
     });
@@ -210,6 +257,14 @@ export function installDebugOverlay(game: Phaser.Game): void {
   const loadButton = button(row3, 'Load save', () => {
     void loadSave();
   });
+  // Story 3.6: the milestones and the run's end state as text, for the story's Playtest Record.
+  const resultsButton = button(row3, 'Copy results', () => {
+    const scene = activeScene();
+    if (scene === null) return;
+    takeTicks(scene);
+    const tick = { meanMs: tickSamples > 0 ? tickSum / tickSamples : 0, maxMs: tickMax, samples: tickSamples };
+    void copyText(record.summary(scene.simState, tick, problems), 'results');
+  });
 
   const row4 = buttonRow(panel);
   button(row4, 'Throw test error', () => {
@@ -229,6 +284,8 @@ export function installDebugOverlay(game: Phaser.Game): void {
     pauseButton,
     foodButton,
     breedingButton,
+    foodPileButton,
+    breedingPileButton,
     sheepButton,
     readyButton,
     feedButton,
@@ -240,7 +297,21 @@ export function installDebugOverlay(game: Phaser.Game): void {
     dumpButton,
     copyButton,
     loadButton,
+    resultsButton,
   ];
+
+  // Milestones stamp at the exact tick: GameScene forwards each tick's events on the bus straight after
+  // it, while simState.time is that tick's time. Subscribed once for the page, like POST_RENDER below.
+  bus.on('sim', (e) => {
+    const scene = activeScene();
+    if (scene === null) return;
+    // Runs inside GameScene's tick (the bus is drained there): a record bug must not drop sim ticks.
+    try {
+      record.onEvent(e, scene.simState);
+    } catch (err) {
+      setStatus(`playtest record error: ${String(err)}`);
+    }
+  });
 
   (document.getElementById('game-container') ?? document.body).appendChild(panel);
 
@@ -265,6 +336,18 @@ export function installDebugOverlay(game: Phaser.Game): void {
       knownClock = scene.simClock;
       knownClock.speed = wantSpeed;
     }
+    // Story 3.6: the record and the tick totals follow the game with the overlay closed too (Rylan plays
+    // with it closed), on the same cadence as the readout.
+    const now = performance.now();
+    if (scene !== null && now - lastRecord >= REFRESH_MS) {
+      lastRecord = now;
+      try {
+        record.sync(scene.simState);
+      } catch (err) {
+        setStatus(`playtest record error: ${String(err)}`);
+      }
+      takeTicks(scene);
+    }
     if (!visible) return;
     const d = game.loop.rawDelta;
     sum += d;
@@ -275,6 +358,16 @@ export function installDebugOverlay(game: Phaser.Game): void {
       refreshSim();
     }
   });
+
+  /** Moves the scene's tick times into the page totals and the latest window. */
+  function takeTicks(scene: GameScene): void {
+    const t = scene.takeTickStats();
+    if (t.count === 0) return;
+    windowTick = t;
+    tickSum += t.meanMs * t.count;
+    tickSamples += t.count;
+    if (t.maxMs > tickMax) tickMax = t.maxMs;
+  }
 
   function activeScene(): GameScene | null {
     const scene = game.scene.getScene('GameScene') as GameScene | null;
@@ -307,6 +400,11 @@ export function installDebugOverlay(game: Phaser.Game): void {
     // Story 3.1: the balance and sales; 3.2: how many shop items are owned.
     sheepLine.textContent = `sheep  ${s.sheep.length} · carcasses ${s.carcasses.length} · infected ${countInfected(s)} · ${formatMoney(s.money)} · sold ${s.stats.sold} · owned ${s.owned.length} · era ${currentEra(s)}`;
     foodLine.textContent = `food   pieces ${s.foodPieces.length} · bar ${s.farmProgress}/${TUNING.farmPipsPerFood} · boost ${formatGameTime(boostRemainingMs(s))}`;
+    // Story 3.6: the latest window's sim tick times (NFR1 budget 2 ms) and the page's worst.
+    tickLine.textContent = `tick   ${windowTick.meanMs.toFixed(2)} ms avg · ${windowTick.maxMs.toFixed(2)} max · worst ${tickMax.toFixed(2)}`;
+    [paceLine.textContent, firstLine.textContent] = record.lines();
+    problemLine.textContent = `warn   ${problems} console warnings/errors since the overlay started`;
+    problemLine.style.color = problems > 0 ? COLORS.alert : '';
     pauseButton.textContent = speed === 0 ? 'Resume' : 'Pause';
     stepButton.disabled = speed !== 0;
     for (let i = 0; i < SPEEDS.length; i++) highlight(speedButtons[i], speed === SPEEDS[i]);
@@ -338,16 +436,24 @@ export function installDebugOverlay(game: Phaser.Game): void {
   async function copySave(): Promise<void> {
     const scene = activeScene();
     if (scene === null) return;
-    const text = encodeSave(scene.simState as GameState);
+    await copyText(encodeSave(scene.simState as GameState), 'save');
+  }
+
+  async function copyText(text: string, what: string): Promise<void> {
     try {
       await navigator.clipboard.writeText(text);
-      setStatus('save copied');
+      setStatus(`${what} copied`);
     } catch (err) {
       // No Clipboard API (insecure context, e.g. `vite --host` over a LAN IP) or the write was
       // refused (document not focused): hand the text over in a prompt to copy by hand.
-      log.warn('debug', 'Clipboard write failed; showing the save in a prompt', err);
-      window.prompt('Copy the save JSON (Ctrl+C):', text);
-      setStatus('save shown in prompt');
+      ownWarning = true;
+      try {
+        log.warn('debug', 'Clipboard write failed; showing the text in a prompt', err);
+      } finally {
+        ownWarning = false;
+      }
+      window.prompt(`Copy the ${what} (Ctrl+C):`, text);
+      setStatus(`${what} shown in prompt`);
     }
   }
 

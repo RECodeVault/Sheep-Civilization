@@ -82,3 +82,16 @@
 - **HUD:** the 10-heart breeding meter, its cost tick and its empty shake are removed; a heart-pip bar "{n}/8" sits under the button; ready sheep show a small heart above them.
 - **Risk:** a breeding now takes 16 clicks (2 pieces) instead of 3. [ASSUMPTION] Story 3.6 tunes `breedingPipsPerFood`.
 - Source: `planning-artifacts/sprint-change-proposal-2026-10-06-breeding-food.md`.
+
+## 2026-10-08 · MVP pacing playtest and tuning pass (Rylan, Story 3.6)
+- Resolves the open [ASSUMPTION] items deferred to "the playtest after Epic 3" (pacing targets, `farmPipsPerFood`, `breedingPipsPerFood`, Better Hoe's tier).
+- **Farm bar: 8 → 6 pips** (`TUNING.farmPipsPerFood`). Feed load drops from ~1.9 to ~1.4 clicks/s at 10 sheep and from ~4.8 to ~3.6 at 25. The HUD bar now draws one pip per tuned pip ("{n}/6").
+- **Breeding bar: kept at 8 pips** (`TUNING.breedingPipsPerFood`). The probe showed it barely moves the first breeding (~0:12–0:20) or Village.
+- **Land I: $50 → $80** (`TUNING.landPrices[0]`; 8 adult sales instead of 5), from the 3.6 code review (Rylan): with $50 the reference player reached Town before 10 min at 6 clicks/s. Land II and III kept.
+- **Better Hoe stays Should** (Story 4.7). No scope change.
+- **First breeding in the first minute: accepted.** The founders start as adults, so a breeding at 0:10–0:20 is expected; the GDD Difficulty Curve now says so instead of "1–5 min".
+- **Everything else kept**: breeding cooldown 60 s, gestation 10 s, life stages (lamb 60 s, elder 420 s, old age 540 s), starvation 120 s, +35 per piece, era thresholds 10/25/50 (still equal to the land capacities), land capacities and prices, sale prices, and the feel values (`eatReachPx`, `eatMs`, `carcassFullness`, wander, separation, personal space, fences).
+- **Measured (scripted reference player, no boosts, no Better Hoe; seeds 3606/11/2026):** with 6/8 pips and Land I $80, Village at 3:54–4:11 at 3 clicks/s (in the 3–5 min window); Town at 12:26–14:30 at 6 clicks/s over 6 seeds (12:08–12:49 at 7), and not reached at 3–5 clicks/s (the flock plateaus at 14–23 when feeding plus replacing old-age deaths use the whole budget). Before the code review's bot fix (it could sell the flock without affording land) and the $80 price, Town was 8:50–9:54 at 6 clicks/s. In play, the sacrifice boost is what carries a normal clicker to Town before Better Hoe exists. `tests/sim/scenarios/pacing.test.ts` now guards Village in 3–5 min at 3 clicks/s and Town in 10–15 min at 6 clicks/s (3 seeds).
+- **Performance:** with 100 sheep at Land III and a 300-piece pile (food, or food + breeding), the sim tick averages ≤ 0.21 ms (p99 ≤ 0.9 ms over 4 runs) against the 2 ms budget (`npm run bench`); one 13–15 ms sample in the first pile case in 3 of 4 runs, likely a GC pause in the bench harness.
+- **Session (Rylan):** Rylan looked at the Phase A build and reported "everything looks good", then waived recording per-run times in the code review. The pacing above is the probe's, not a human session's; human times are deferred to the external playtest (Story 5.10).
+- Source: `implementation-artifacts/3-6-mvp-pacing-playtest-and-tuning-pass.md` (Playtest Record).

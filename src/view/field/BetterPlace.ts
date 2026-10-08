@@ -1,23 +1,16 @@
 import type Phaser from 'phaser';
 import { COMPONENTS, RADIUS } from '../../config/constants';
-import type { Rect } from '../../config/tuning';
 import { invariant } from '../../core/invariant';
 import { ATLAS, FRAME } from '../assetKeys';
 import { STRINGS } from '../strings';
 import { boxTexture, textStyle } from '../widgets/box';
 import { FIELD_DEPTH } from './depths';
+import { BETTER_PLACE, BETTER_PLACE_GLOW_FRAME, WORLD_ART_SCALE } from './layout';
 
 const SPEC = COMPONENTS.dropTargetBetterPlace;
-// Placeholder art is drawn at half size and shown at 2×, like the sheep.
-const SCALE = 2;
+// Placeholder art is drawn at half size and shown at 2× (layout.ts, which the layout checks use too).
+const SCALE = WORLD_ART_SCALE;
 
-/**
- * Where the hole is, in world px (UX-DR47) [ASSUMPTION, mockups/hud.html; tune in the browser]. World
- * coordinates equal the mockup's canvas ones, and every land tier's fence (TUNING.landFences) has its top
- * at y 184, under the hole, so the hole stays clear of the fence as it grows (Story 3.3). `hit` is the outer ring: a drop counts
- * when the pointer is inside it (152×70 px, well above hit-min).
- */
-export const BETTER_PLACE = Object.freeze({ x: 520, y: 108, hitRx: 76, hitRy: 35 } as const);
 // The dirt ring's centre sits 4 px below the hole's (the mockup), so the art is placed by its centre.
 const ART_Y = BETTER_PLACE.y + 4;
 // The "+2× food" tag sits under the dirt ring (mockup tag at y 150), with the mockup's 4/10 px padding.
@@ -25,22 +18,8 @@ const LABEL_TOP = 152;
 const LABEL_PAD_X = 10;
 const LABEL_PAD_Y = 4;
 
-/** The hole's hit ellipse (top y 73), dirt ring and label, for the camera's play area (PenCamera). */
-export const BETTER_PLACE_BOUNDS: Rect = Object.freeze({ x: 442, y: 72, width: 156, height: 114 });
-
-// The haze glow's drawn size (assets/art/world/better-place-glow.png), shown at SCALE around the hole.
-const GLOW_FRAME = Object.freeze({ width: 140, height: 78 } as const);
-
-/**
- * Where the armed glow draws (x 380–660, y 30–186): wider than the hole, so fixed world objects placed
- * near it (the decorations, Story 3.4) keep clear of this, not just of BETTER_PLACE_BOUNDS.
- */
-export const BETTER_PLACE_GLOW_BOUNDS: Rect = Object.freeze({
-  x: BETTER_PLACE.x - (GLOW_FRAME.width * SCALE) / 2,
-  y: BETTER_PLACE.y - (GLOW_FRAME.height * SCALE) / 2,
-  width: GLOW_FRAME.width * SCALE,
-  height: GLOW_FRAME.height * SCALE,
-});
+// The hole's place, its bounds and the glow's size and bounds live in layout.ts (Story 3.6).
+const GLOW_FRAME = BETTER_PLACE_GLOW_FRAME;
 
 /** True when world point (x, y) is in the hole: inside the outer ring's ellipse. Allocates nothing. */
 export function inBetterPlace(x: number, y: number): boolean {

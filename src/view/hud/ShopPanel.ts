@@ -5,6 +5,7 @@ import { SHOP_ITEMS, shopRequires, type ShopRowView } from '../../sim/selectors'
 import type { ShopItemId } from '../../sim/state';
 import { ATLAS, FRAME } from '../assetKeys';
 import { FIELD_DEPTH } from '../field/depths';
+import { SHOP_PANEL_W, SHOP_PANEL_X } from '../field/layout';
 import { STRINGS } from '../strings';
 import { boxTexture, DROP_PX, OUTLINE_PX, textStyle } from '../widgets/box';
 
@@ -14,8 +15,8 @@ const ROW = COMPONENTS.shopItemRow;
 // stands on the bottom bar at the left safe margin, 360 wide, with a 2 px wood border, 16 px padding, the
 // "Shop" header on a 20 px line, then the 56 px rows 4 px apart.
 const BAR_TOP = LAYOUT.canvasHeight - LAYOUT.hudBarHeight;
-const PANEL_X = LAYOUT.safeMargin;
-const PANEL_W = PANEL.width;
+const PANEL_X = SHOP_PANEL_X;
+const PANEL_W = SHOP_PANEL_W;
 const HEADER_H = 20;
 const ROW_GAP = 4;
 const PANEL_H = OUTLINE_PX + PANEL.padding + HEADER_H + SHOP_ITEMS.length * (ROW_GAP + ROW.height) + PANEL.padding;
@@ -28,8 +29,7 @@ const ICON_SCALE = 2;
 // The two text lines inside a 56 px row (name/price on a 22 px line, the effect on a 23 px one).
 const LINE1_Y = 16;
 const LINE2_Y = 39;
-/** The panel's right edge in canvas px, for the field camera (it keeps the play area right of it). */
-export const SHOP_PANEL_RIGHT = PANEL_X + PANEL_W;
+// SHOP_PANEL_RIGHT (layout.ts) is PANEL_X + PANEL_W, for the field camera.
 
 // Land I–III share one icon.
 const SHOP_ICON: Readonly<Record<ShopItemId, string>> = Object.freeze({

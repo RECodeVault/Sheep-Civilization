@@ -1,39 +1,8 @@
 import type Phaser from 'phaser';
-import { LAYOUT } from '../../config/constants';
 import type { Rect } from '../../config/tuning';
+import { EDGE, maxX, maxY, minX, minY, VIEW_H, VIEW_W } from './layout';
 
-// The field the camera shows: the canvas above the bottom bar.
-export const VIEW_W = LAYOUT.canvasWidth;
-export const VIEW_H = LAYOUT.canvasHeight - LAYOUT.hudBarHeight;
-// The play area always stays this far inside the visible field.
-export const EDGE = LAYOUT.safeMargin;
-
-/** True when `area` fits the visible field inside the safe edge, so it can be held wholly in view. */
-export function fitsView(area: Rect): boolean {
-  return area.width <= VIEW_W - 2 * EDGE && area.height <= VIEW_H - 2 * EDGE;
-}
-
-/**
- * True when the x limits for `area` are not crossed with `leftInset` (the open shop's edge): the
- * Better Place `protect` can sit right of it while the area's right edge stays in view. False means
- * clamp would fall back to centring, which breaks both limits (Story 3.3 review).
- */
-export function fitsWithInset(area: Rect, protect: Rect, leftInset: number): boolean {
-  return minX(area) <= maxX(area, protect, leftInset);
-}
-
-/**
- * The world rect the camera can show for `area` (Story 3.5): its whole scroll range, from the limits
- * centreOn and panBy clamp to, plus the field. GameScene's DEV invariant checks the era background
- * covers it at every land tier, shop open and closed. Allocates; DEV checks only.
- */
-export function viewExtent(area: Rect, protect: Rect, leftInset: number = EDGE): Rect {
-  const x0 = Math.min(minX(area), maxX(area, protect, leftInset));
-  const x1 = Math.max(minX(area), maxX(area, protect, leftInset));
-  const y0 = Math.min(minY(area), maxY(area));
-  const y1 = Math.max(minY(area), maxY(area));
-  return { x: x0, y: y0, width: x1 - x0 + VIEW_W, height: y1 - y0 + VIEW_H };
-}
+// The view size, the scroll limits and the fit checks live in layout.ts (Story 3.6), Phaser-free.
 
 /**
  * The field camera (Rylan, 2026-10-06): a game starts with the pen and the Better Place centred in the
@@ -101,21 +70,6 @@ export class PenCamera {
     if (x !== this.camera.scrollX || y !== this.camera.scrollY) this.camera.setScroll(x, y);
   }
 }
-
-// Right edge at or left of VIEW_W - EDGE on screen. Left: the area's edge at or right of `leftInset` (EDGE
-// unless the shop is open) when the area fits between the two; if it is too wide for that (Land II/III
-// with the shop open), the area's edge at or right of EDGE and the protected rect's at or right of
-// `leftInset`. The protected rect is inside the area, so with the shop closed the area's own edge is the
-// limit either way. Same for y with EDGE.
-function minX(p: Rect): number {
-  return p.x + p.width - VIEW_W + EDGE;
-}
-function maxX(p: Rect, protect: Rect, leftInset: number = EDGE): number {
-  if (p.width <= VIEW_W - EDGE - leftInset) return p.x - leftInset;
-  return Math.min(p.x - EDGE, protect.x - leftInset);
-}
-const minY = (p: Rect): number => p.y + p.height - VIEW_H + EDGE;
-const maxY = (p: Rect): number => p.y - EDGE;
 
 // An area too big to fit has min > max: centre it on that axis. Every land tier fits, shop open or not
 // (GameScene checks fitsView and fitsWithInset in DEV), so this is a guard only.

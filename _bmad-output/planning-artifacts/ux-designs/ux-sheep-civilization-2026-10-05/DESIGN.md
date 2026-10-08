@@ -191,7 +191,7 @@ components:
   farm-progress:
     trackColor: '{colors.wool-shade}'
     fillColor: '{colors.hay}'
-    segmentCount: '8'
+    segmentCount: '6'
     valueTypography: '{typography.numeric}'
   breeding-progress:
     trackColor: '{colors.wool-shade}'
@@ -393,7 +393,7 @@ The base canvas is `{spacing.canvas-width}` × `{spacing.canvas-height}` (16:9),
 │ └───────┘                [captions]                          │
 ├──────────────────────────────────────────────────────────────┤
 │ [FARM F]    [FARM BREED G] [BREED] [MED] │ $ │ 🐑12/25 │ ⚠2 ✚1 ✖0 │ ×2 0:18 │ [SHOP] │
-│ ▮▮▮▯▯▯▯▯ 3/8          ▮▮▯▯▯▯▯▯ 2/8                                    │
+│ ▮▮▮▯▯▯ 3/6            ▮▮▯▯▯▯▯▯ 2/8                                    │
 └──────────────────────────────────────────────────────────────┘
 ```
 - **Bottom bar** (`{spacing.hud-bar-height}`), left to right: resource producers (each meter stacked under its button), then the Breed tool and the Medicine slot *(Should)*, then status read-outs, then the threat summary, the boost timer and the Shop toggle. Actions are on the left and information is on the right.
@@ -438,7 +438,7 @@ Each component's behaviour is in EXPERIENCE.md, under Component Patterns. The ke
 - **Panel** (`panel`): the `wool` 9-slice with a bark outline, used by every modal and sub-panel (Volume, Stats, Credits). The pause panel is headed "Paused" in `title`. [ASSUMPTION]
 - **Shop panel** (`shop-panel`) and **shop item row** (`shop-item-row`): a `wool` panel with a `wood` border, headed "Shop" in `label` so all rows fit above the bar. Each row shows the icon, the name and price on its first line, and a one-line effect (strings from the GDD) in `caption` type on its second. An unaffordable row greys its name, effect and price to `disabled-ink` but stays readable. A locked Land tier shows "Needs Land {n}" on its effect line. [ASSUMPTION]
 - **Slider** (`slider`) and **toggle** (`toggle`): a chunky track with a `hay` fill and a `bark` thumb that is 40 px tall for easy grabbing.
-- **Farm progress** (`farm-progress`): 8 discrete `hay` pips on a `wool-shade` track, stacked under the Farm button, with the count "3/8" beside it (it starts at "0/8"). Each click fills a pip (more with Better Hoe or the boost); a full bar drops 1 food piece into the pen and empties.
+- **Farm progress** (`farm-progress`): 6 discrete `hay` pips (one per tuned pip; 8 until Story 3.6, 2026-10-08) on a `wool-shade` track, stacked under the Farm button, with the count "3/6" beside it (it starts at "0/6"). Each click fills a pip (more with Better Hoe or the boost); a full bar drops 1 food piece into the pen and empties.
 - **Breeding progress** (`breeding-progress`): 8 discrete `heart` pips on a `wool-shade` track, stacked under the Farm Breeding Food button, with the count "2/8" beside it (it starts at "0/8"). A full bar drops 1 breeding piece into the pen and empties. (changed 2026-10-06)
 - **Breeding piece** (`breeding-piece`) and **ready marker** (`ready-marker`): a small heart-shaped `heart` treat with a `heart-deep` outline on the field, told apart from the hay food piece by shape as well as colour; and a small `heart` icon with a bark outline above a sheep that is ready to breed. [ASSUMPTION]
 - **Money counter** (`money-counter`): a hay coin icon and "$145".

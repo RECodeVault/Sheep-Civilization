@@ -1,7 +1,7 @@
 // All player-facing copy (EXPERIENCE.md Voice and Tone). Components read text from here, never
 // inline literals. Rules: no "!" except "Last sheep!"; never "corpse", "blood" or "kill".
 import { TUNING } from '../config/tuning';
-import { formatMoney } from '../core/format';
+import { formatMinutesInWords, formatMoney } from '../core/format';
 import type { DeathCause } from '../sim/events';
 import type { Hunger, Stage } from '../sim/selectors';
 import type { Era, ShopItemId } from '../sim/state';
@@ -16,11 +16,12 @@ const THREAT_TOOLTIP = Object.freeze({
 });
 // Death toasts (UX-DR92, UX-DR97), after the subject: "A sheep starved.", or "3 sheep starved." for
 // deaths of one cause in the same frame (code review decision, Rylan 2026-10-07). Story 5.3 puts the
-// name in place of "A sheep", in `halo`. The Abomination's victims never get a cause (UX-DR64). Old
-// age is 540 s: nine minutes.
+// name in place of "A sheep", in `halo`. The Abomination's victims never get a cause (UX-DR64). The
+// old-age lifespan is built from TUNING.oldAgeMs (540 s: "nine minutes"), so a retune keeps it true
+// (Story 3.6).
 const DEATH_TOAST: Readonly<Record<DeathCause, string>> = Object.freeze({
   starved: 'starved.',
-  oldAge: 'died of old age. A long, full nine minutes.',
+  oldAge: `died of old age. A long, full ${formatMinutesInWords(TUNING.oldAgeMs)}.`,
   virus: 'caught the carcass sickness.',
   abomination: 'just… fell over.',
 });
@@ -105,7 +106,7 @@ export const STRINGS = Object.freeze({
   soldToast: (price: number): string => `A sheep sold. ${formatMoney(price)}.`,
   // Float popup (UX-DR44), e.g. "+1" when a full Farm or breeding bar drops a piece.
   farmPopup: (n: number): string => `+${n}`,
-  // Meter value (UX-DR29), e.g. "3/8" for the Farm bar.
+  // Meter value (UX-DR29), e.g. "3/6" for the Farm bar.
   meterValue: (n: number, cap: number): string => `${n}/${cap}`,
   // Lose screen (UX-DR19, UX-DR95; EXPERIENCE Voice), e.g. "Survived 12:34 · Peak flock 18".
   loseTitle: 'The flock is gone.',

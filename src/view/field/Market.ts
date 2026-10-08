@@ -1,29 +1,17 @@
 import type Phaser from 'phaser';
 import { COLORS, COMPONENTS, RADIUS, type ColorToken } from '../../config/constants';
-import type { Rect } from '../../config/tuning';
 import { ATLAS, FRAME } from '../assetKeys';
 import { STRINGS } from '../strings';
 import { boxTexture, DROP_PX, textStyle } from '../widgets/box';
 import { FIELD_DEPTH } from './depths';
+import { MARKET, WORLD_ART_SCALE } from './layout';
 
 const SPEC = COMPONENTS.dropTargetMarket;
 const INVALID = COMPONENTS.dropTargetInvalid;
-// Placeholder art is drawn at half size and shown at 2×, like the sheep and the Better Place.
-const SCALE = 2;
+// Placeholder art is drawn at half size and shown at 2× (layout.ts, which the layout checks use too).
+const SCALE = WORLD_ART_SCALE;
 
-/**
- * Where the stall is, in world px (UX-DR46) [ASSUMPTION, mockups/hud.html mid-drag state; tune in the
- * browser]. World coordinates equal the mockup's canvas ones, so the stall (awning 1100–1260 from y 190,
- * counter down to y 370) stays clear of the Land I fence (x ≤ 1062) when Story 3.3 grows it, and far
- * from the Better Place (x ≤ 598), so a misdrop takes a real drag mistake (DESIGN Layout). `x` is the
- * stall's centre and `bottom` the foot of its counter; `hit` is the mockup's inner drag outline
- * (180×204 px, well above hit-min): a drop counts when the pointer is inside it.
- */
-export const MARKET = Object.freeze({
-  x: 1180,
-  bottom: 372,
-  hit: Object.freeze({ x: 1088, y: 178, width: 180, height: 204 }) satisfies Rect,
-} as const);
+// The stall's place and bounds live in layout.ts (Story 3.6).
 // The drag outline's centre: the mockup's outer ring spans 1080–1276 × 170–390.
 const OUTLINE_X = 1178;
 const OUTLINE_Y = 280;
@@ -31,13 +19,6 @@ const OUTLINE_Y = 280;
 const TAG_BOTTOM = 172;
 const TAG_PAD_X = 10;
 const TAG_PAD_Y = 4;
-
-/**
- * Everything the Market can draw, for the camera's pinned play area (PenCamera): the outer outline
- * (1080–1276 × 170–390) and the tag grown on hover above it. It overlaps neither BETTER_PLACE_BOUNDS
- * (x 442–598) nor the Land I fence (x 430–1062).
- */
-export const MARKET_BOUNDS: Rect = Object.freeze({ x: 1080, y: 120, width: 196, height: 270 });
 
 /** True when world point (x, y) is on the stall: inside the drag outline. Allocates nothing. */
 export function inMarket(x: number, y: number): boolean {

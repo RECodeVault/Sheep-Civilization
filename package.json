@@ -12,6 +12,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "bench": "vitest bench --run",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit && tsc --noEmit -p scripts",
     "assets": "node scripts/build-assets.ts",

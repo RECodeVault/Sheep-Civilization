@@ -22,7 +22,7 @@ This document provides the complete epic and story breakdown for Sheep Civilizat
 **Hunger & feeding**
 FR1: Each sheep has a Fullness stat (0–100) that drains from 100 to 0 over 120 game-seconds; a sheep dies when Fullness reaches 0.
 FR2: Sheep display three hunger states derived from Fullness: Fed (>50), Hungry (50–25), Starving (<25).
-FR3: Each Farm click fills the current click value of pips (base 1) on an 8-pip Farm progress bar, shown with its count "{n}/8"; every full bar drops 1 food piece at a random reachable spot in the pen and the bar resets, with leftover pips carrying over. There is no food stock.
+FR3: Each Farm click fills the current click value of pips (base 1) on a 6-pip Farm progress bar (Story 3.6, 2026-10-08; was 8), shown with its count "{n}/6"; every full bar drops 1 food piece at a random reachable spot in the pen and the bar resets, with leftover pips carrying over. There is no food stock.
 FR4: (Removed 2026-10-06) Clicking the field no longer drops food; food comes only from full Farm bars (FR3).
 FR5: The nearest sheep with Fullness below 90 walks (60 px/s) to the nearest food piece and eats it for +35 Fullness (capped at 100); uneaten pieces stay until eaten and never spoil.
 FR6: A new game starts with 2 adults aged 60 s and 1 newborn lamb, all at Fullness 60, with an empty Farm bar, an empty breeding bar and no sheep ready to breed.
@@ -50,7 +50,7 @@ FR20: Sell and sacrifice have no confirmation; dropping on the wrong target is a
 
 **Economy, shop & land**
 FR21: Money is earned only by selling and has no cap.
-FR22: The shop offers Land I/II/III ($50/$150/$400) raising capacity 10 → 25 → 50 → 100, each tier requiring the previous one; land growth is shown as the fence expanding.
+FR22: The shop offers Land I/II/III ($80/$150/$400; Land I was $50 until Story 3.6) raising capacity 10 → 25 → 50 → 100, each tier requiring the previous one; land growth is shown as the fence expanding.
 FR23: The shop offers Flower Patch ($40) and Scarecrow ($80) as cosmetic decorations.
 FR24: (Should) The shop offers Better Hoe I/II ($30/$100) raising a Farm click to 2/3 pips.
 FR25: (Should) The shop offers an Auto-feeder ($120, one only) that drops 1 food piece next to the hungriest sheep every 10 s [redesign pending since 2026-10-06: there is no food stock, so Story 4.8 decides what feeds it].
@@ -169,7 +169,7 @@ Items tagged **(Should)** follow GDD Should tier; everything else is Must.
 - UX-DR26: Farm button (`button-farm`): 64px tall, hay fill, hay-deep border, bark label "Farm", key hint "F", rounded.md, padding 12. Left-click or `F` fills the click value of pips on the Farm progress bar, with a squash and a soft pop SFX. When a bar completes, its food piece drops into the pen with a landing bounce and a "+1" float popup rises over the button. Pressed state uses hay-deep / loses drop offset. (DESIGN: Components; EXPERIENCE: Component Patterns)
 - UX-DR27: Farm button boosted (`button-farm-boosted`): pulsing `halo` outer glow and a small `void` badge with `halo` text "×2"; each click fills double pips. (DESIGN: Components; EXPERIENCE: State Patterns)
 - UX-DR28: Farm Breeding Food button (`button-breed-food`): same anatomy, heart fill, heart-deep border, bark label "Farm Breeding Food", key hint "G", 64px; same click/squash/popup behaviour as Farm: left-click or `G` fills a pip of the breeding bar, and a full bar drops a breeding-food piece into the pen with a "+1" popup over the button; never boosted. (DESIGN/EXPERIENCE: Components)
-- UX-DR29: Farm progress (`farm-progress`), stacked under Farm: 8 discrete hay pips on a wool-shade track showing the current bar, with its count "{n}/8" in numeric beside it (starts at "0/8"); updates on the frame of the change. (Changed 2026-10-06: no food stock.)
+- UX-DR29: Farm progress (`farm-progress`), stacked under Farm: 6 discrete hay pips (one per `TUNING.farmPipsPerFood`; 8 until Story 3.6) on a wool-shade track showing the current bar, with its count "{n}/6" in numeric beside it (starts at "0/6"); updates on the frame of the change. (Changed 2026-10-06: no food stock.)
 - UX-DR30: (Changed 2026-10-06) Breeding progress (`breeding-progress`): stacked under Farm Breeding Food, 8 discrete heart pips on a wool-shade track showing the current bar, with its count "{n}/8" in numeric beside it (starts at "0/8"); updates on the frame of the change. There is no breeding stock, cost tick or empty shake. (DESIGN/EXPERIENCE: Components)
 - UX-DR30a: Breeding-food piece: a small heart-coloured, heart-shaped treat on the field, distinct from the hay food piece by shape as well as colour; bounces on landing; a ready sheep shows a small heart icon above it (world-overlay layer, always visible) until it breeds or turns elder. [ASSUMPTION for sprite and marker] (Sprint change 2026-10-06, breeding food)
 - UX-DR31: Breed tool (`button-breed-tool`): 64px (was 56px; aligned with the Farm buttons, Rylan 2026-10-07), wool fill, heart-deep border, heart icon, label "Breed"; active: heart-deep fill, wool label, heart cursor. Greyed (`button-disabled`) at land capacity (including pending lambs) or when fewer than 2 adults are ready, with tooltip reason ("No room. Buy land." / "Needs 2 ready sheep."); becoming greyed exits active breed mode. (DESIGN/EXPERIENCE: Components; State Patterns)

@@ -20,3 +20,37 @@ export function formatMoney(n: number): string {
   // toLocaleString avoids exponent notation for huge values (1e21 → "1000000000000000000000").
   return `$${Math.floor(n).toLocaleString('en-US', { useGrouping: false, maximumFractionDigits: 0 })}`;
 }
+
+const MINUTE_WORDS = Object.freeze([
+  '',
+  'one',
+  'two',
+  'three',
+  'four',
+  'five',
+  'six',
+  'seven',
+  'eight',
+  'nine',
+  'ten',
+  'eleven',
+  'twelve',
+  'thirteen',
+  'fourteen',
+  'fifteen',
+  'sixteen',
+  'seventeen',
+  'eighteen',
+  'nineteen',
+  'twenty',
+]);
+
+/**
+ * A duration as whole minutes in words for copy, e.g. 540 000 → "nine minutes" (rounded; digits above
+ * twenty; never less than one minute). Story 3.6: lets copy follow a TUNING duration.
+ */
+export function formatMinutesInWords(ms: number): string {
+  const minutes = Number.isFinite(ms) ? Math.max(1, Math.round(ms / 60_000)) : 1;
+  const n = minutes < MINUTE_WORDS.length ? MINUTE_WORDS[minutes] : String(minutes);
+  return minutes === 1 ? `${n} minute` : `${n} minutes`;
+}

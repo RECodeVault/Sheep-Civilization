@@ -22,7 +22,6 @@ import {
   selectPregnancies,
   selectPublicSheep,
   selectShopView,
-  DECORATIONS,
   type Decoration,
   type PublicPregnancy,
   type PublicSheep,
@@ -33,24 +32,34 @@ import { step } from '../../sim/step';
 import { syncEra } from '../../sim/systems/eras';
 import { ATLAS, FRAME, HEART_CURSOR } from '../assetKeys';
 import { bus } from '../bus';
-import { TUNING, type Rect } from '../../config/tuning';
-import { BETTER_PLACE, BETTER_PLACE_BOUNDS, BETTER_PLACE_GLOW_BOUNDS, BetterPlace } from '../field/BetterPlace';
+import type { Rect } from '../../config/tuning';
+import { BetterPlace } from '../field/BetterPlace';
 import { CarcassSprite } from '../field/CarcassSprite';
-import { DECORATION_BOUNDS, DECORATION_SPOTS, Decorations } from '../field/Decorations';
+import { Decorations } from '../field/Decorations';
 import { FIELD_DEPTH } from '../field/depths';
-import { ERA_BACKGROUND_BOUNDS, EraBackground } from '../field/EraBackground';
+import { EraBackground } from '../field/EraBackground';
 import { EntityLayer } from '../field/EntityLayer';
-import { Fence, fenceDrawnBounds } from '../field/Fence';
+import { Fence } from '../field/Fence';
 import { FoodSprite } from '../field/FoodSprite';
-import { Market, MARKET, MARKET_BOUNDS } from '../field/Market';
+import {
+  BETTER_PLACE,
+  BETTER_PLACE_BOUNDS,
+  DECORATION_SPOTS,
+  layoutProblems,
+  MARKET,
+  MARKET_BOUNDS,
+  SHOP_PANEL_RIGHT,
+  union,
+} from '../field/layout';
+import { Market } from '../field/Market';
 import { ObjectPool } from '../field/ObjectPool';
-import { fitsView, fitsWithInset, PenCamera, viewExtent } from '../field/PenCamera';
+import { PenCamera } from '../field/PenCamera';
 import { PregnancyHeart } from '../field/PregnancyHeart';
 import { spriteIndexAt } from '../field/hitTest';
 import { SheepDrag } from '../field/SheepDrag';
 import { SheepHover } from '../field/SheepHover';
 import { SheepSprite } from '../field/SheepSprite';
-import { SHOP_PANEL_RIGHT, ShopPanel } from '../hud/ShopPanel';
+import { ShopPanel } from '../hud/ShopPanel';
 import { FloatPopups } from '../juice/FloatPopups';
 import { clearAnnouncements, markGameStarted, reportError, setForceSave, showToast } from '../safetyNet';
 import { STRINGS } from '../strings';
@@ -144,6 +153,10 @@ export class GameScene extends Phaser.Scene {
   private paused = false;
   // The first frame after the tab returns or the menu closes adds no time (no catch-up burst).
   private skipDelta = false;
+  // DEV sim tick timing for the debug overlay (Story 3.6, takeTickStats). Written only in DEV builds.
+  private tickMsSum = 0;
+  private tickCount = 0;
+  private tickMsMax = 0;
   private stopAutosave: () => void = () => {};
   private pendingCommands: Command[] = [];
   private readonly publicSheep: PublicSheep[] = [];
@@ -656,6 +669,19 @@ export class GameScene extends Phaser.Scene {
     return this.clock;
   }
 
+  /**
+   * The sim tick times since the last call (DEV builds time each `step`, Story 3.6): mean and max in ms
+   * over `count` ticks, then the window restarts. The overlay calls it on its refresh.
+   */
+  takeTickStats(): { count: number; meanMs: number; maxMs: number } {
+    const meanMs = this.tickCount > 0 ? this.tickMsSum / this.tickCount : 0;
+    const out = { count: this.tickCount, meanMs, maxMs: this.tickMsMax };
+    this.tickMsSum = 0;
+    this.tickCount = 0;
+    this.tickMsMax = 0;
+    return out;
+  }
+
   /** Runs exactly one tick and renders it (debug step while paused). */
   stepOnce(): void {
     try {
@@ -735,7 +761,18 @@ export class GameScene extends Phaser.Scene {
       // re-applying the commands before it and throwing again on every frame.
       cmds.length = 0;
     }
-    step(this.state);
+    if (import.meta.env.DEV) {
+      // Story 3.6: the debug overlay's tick-time line (NFR1's 2 ms sim budget). DEV only, so production
+      // neither times nor ships this branch; plain number fields, nothing allocated.
+      const t0 = performance.now();
+      step(this.state);
+      const ms = performance.now() - t0;
+      this.tickMsSum += ms;
+      this.tickCount++;
+      if (ms > this.tickMsMax) this.tickMsMax = ms;
+    } else {
+      step(this.state);
+    }
     drainEvents(this.forwardEvent);
   }
 
@@ -902,77 +939,12 @@ export class GameScene extends Phaser.Scene {
   }
 }
 
-/** True when the two rects overlap (touching edges do not). */
-function intersects(a: Rect, b: Rect): boolean {
-  return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
-}
-
-/** True when `inner` lies wholly inside `outer`. */
-function contains(outer: Rect, inner: Rect): boolean {
-  return (
-    inner.x >= outer.x &&
-    inner.y >= outer.y &&
-    inner.x + inner.width <= outer.x + outer.width &&
-    inner.y + inner.height <= outer.y + outer.height
-  );
-}
-
-/** The smallest rect holding both. Allocates; called once per game and per land purchase. */
-function union(a: Rect, b: Rect): Rect {
-  const x = Math.min(a.x, b.x);
-  const y = Math.min(a.y, b.y);
-  return {
-    x,
-    y,
-    width: Math.max(a.x + a.width, b.x + b.width) - x,
-    height: Math.max(a.y + a.height, b.y + b.height) - y,
-  };
-}
-
-// Story 3.3: at every land tier the whole play area fits one screen (GDD Camera), so the Market and the
-// Better Place are always in view, also with the shop open (the hole right of the panel); the fence stays
-// clear of the stall and under the hole (the 2 px overlap with its label is the mockup's).
+// The layout checks (Stories 3.3–3.5): every land tier's play area fits one screen with the Better Place
+// and the Market in view, shop open or closed; the era art covers every scroll; the decorations stay
+// clear. Story 3.6 moved them to layout.ts so npm test runs them too (tests/view/field/layout.test.ts).
 if (import.meta.env.DEV) {
-  for (const f of TUNING.landFences) {
-    const area = union(union(f, BETTER_PLACE_BOUNDS), MARKET_BOUNDS);
-    invariant(fitsView(area), "GameScene: a land tier's play area does not fit the field");
-    invariant(
-      fitsWithInset(area, BETTER_PLACE_BOUNDS, SHOP_PANEL_RIGHT + LAYOUT.safeMargin),
-      "GameScene: a land tier's play area cannot keep the Better Place right of the open shop",
-    );
-    // Story 3.5: no bare canvas colour at any scroll, shop closed or open.
-    for (const inset of [LAYOUT.safeMargin, SHOP_PANEL_RIGHT + LAYOUT.safeMargin]) {
-      invariant(
-        contains(ERA_BACKGROUND_BOUNDS, viewExtent(area, BETTER_PLACE_BOUNDS, inset)),
-        "GameScene: an era background does not cover a land tier's view",
-      );
-    }
-    invariant(f.x + f.width < MARKET_BOUNDS.x, "GameScene: a land tier's fence reaches the Market");
-    invariant(
-      f.y >= BETTER_PLACE_BOUNDS.y + BETTER_PLACE_BOUNDS.height - 2,
-      "GameScene: a land tier's fence reaches the Better Place",
-    );
-  }
-  // Story 3.4: each decoration stays clear of everything every tier's fence draws (posts included) by a
-  // 2 px margin, clear of the Better Place (the hole and its armed glow) and the Market, inside the play
-  // area (so always in view), and right of the Better Place's left edge, which the open shop keeps right
-  // of the panel.
-  for (const d of DECORATIONS) {
-    const r = DECORATION_BOUNDS[d];
-    invariant(!intersects(r, BETTER_PLACE_BOUNDS), 'GameScene: a decoration overlaps the Better Place');
-    invariant(!intersects(r, BETTER_PLACE_GLOW_BOUNDS), "GameScene: a decoration overlaps the Better Place's glow");
-    invariant(!intersects(r, MARKET_BOUNDS), 'GameScene: a decoration overlaps the Market');
-    invariant(r.x >= BETTER_PLACE_BOUNDS.x, 'GameScene: a decoration can slide under the open shop');
-    for (const f of TUNING.landFences) {
-      const drawn = fenceDrawnBounds(f);
-      const fence: Rect = { x: drawn.x - 2, y: drawn.y - 2, width: drawn.width + 4, height: drawn.height + 4 };
-      invariant(!intersects(r, fence), "GameScene: a land tier's fence reaches a decoration");
-      invariant(
-        contains(union(union(f, BETTER_PLACE_BOUNDS), MARKET_BOUNDS), r),
-        "GameScene: a decoration is outside a land tier's play area",
-      );
-    }
-  }
+  const problems = layoutProblems();
+  invariant(problems.length === 0, `GameScene: the field layout is broken: ${problems.join('; ')}`);
 }
 
 /**
