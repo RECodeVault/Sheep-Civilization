@@ -96,6 +96,12 @@ function check(x: unknown): void {
     if (req !== null && !(owned.indexOf(req) >= 0 && owned.indexOf(req) < i)) fail(`state.owned has ${item} before ${req}`);
   }
   if (!ERAS.includes(s.lastEra as Era)) fail('state.lastEra is not a known era');
+  // FR29 (Story 4.1): births are counted from 0. The guaranteed birth is any birth number, not checked
+  // against the live spawn window: one already passed must stay passed through a retune of the window
+  // (Rylan, 4.1 code review), and normalizeTuned moves a pending one into the window.
+  if (!isObj(s.abomination)) fail('state.abomination is not an object');
+  int(s.abomination, 'birthsSeen', 'abomination', 0);
+  int(s.abomination, 'guaranteedAtBirth', 'abomination', 1);
 
   const sheep = array(s, 'sheep');
   const pieces = array(s, 'foodPieces');
@@ -132,6 +138,7 @@ function check(x: unknown): void {
     if (id > maxId) maxId = id;
   };
 
+  let abominations = 0;
   for (let i = 0; i < sheep.length; i++) {
     const o = sheep[i];
     const p = `sheep[${i}]`;
@@ -146,6 +153,9 @@ function check(x: unknown): void {
     if (full < 0 || full > TUNING.fullnessMax) fail(`${p}.fullness is outside [0, ${TUNING.fullnessMax}]`);
     if (!ACTIVITIES.includes(o.activity as SheepActivity)) fail(`${p}.activity is not a known activity`);
     if (typeof o.breedReady !== 'boolean') fail(`${p}.breedReady is not a boolean`);
+    // FR29: at most one Abomination is ever alive.
+    if (typeof o.isAbomination !== 'boolean') fail(`${p}.isAbomination is not a boolean`);
+    if (o.isAbomination && ++abominations > 1) fail(`${p} is a second Abomination`);
     // A deadline Breed set at most breedCooldownMs ago, or 0 for never bred.
     const cool = finite(o, 'cooldownUntil', p);
     if (cool < 0 || cool > time + TUNING.breedCooldownMs) fail(`${p}.cooldownUntil is outside [0, time + breedCooldownMs]`);

@@ -584,13 +584,13 @@ export function killSheep(state: GameState, id: number, cause: DeathCause): void
 - `Sacrificed { wasAbomination }` event — the only moment the view learns the truth
 
 **Data Flow:**
-1. **Spawn:** on each `LambBorn`, `abomination.ts` checks `birthsSeen === guaranteedAtBirth` (rolled 8–15 at new game) or RNG < 5%, and that none is alive → sets `isAbomination`.
+1. **Spawn:** on each birth, `lifecycle.ts` `births()` calls `abomination.ts` `onBirth(state, lamb)` (a helper owned by the concept, like `killSheep`; systems never consume `SimEvent`s, and `LambBorn` looks the same either way). It counts the birth, then sets `isAbomination` when none is alive and `birthsSeen === guaranteedAtBirth` (rolled 8–15 at new game) or, past that birth, RNG < 5% (Story 4.1).
 2. **Kill cycle:** at `nextKillAt` (45–60 s window) pick a random victim ≠ self → `stalk.phase = 'approach'` (seek victim) → on contact `'linger'` for 1 s → set victim `doomedAt` → `'leave'` → schedule next.
 3. **Delayed death:** the lifecycle check calls `killSheep(state, victimId, 'abomination')` when `state.time >= doomedAt`.
 4. **Reveal:** sacrifice emits `Sacrificed { wasAbomination: true }` → view plays true-form flash, screech, "Good riddance."; innocent → "…that was just {name}."
 
 **Rules and edge cases:**
-- Never ages past lamb; never dies of old age; **can starve** (eats normally) so a lone Abomination still produces a loss.
+- Never ages past lamb (`stageOf` returns `'lamb'` for it, so it cannot be sold, bred or fed breeding food); never dies of old age; **can starve** (eats normally) so a lone Abomination still produces a loss.
 - If the victim dies, is sold or is sacrificed before contact, choose a new victim. If no other sheep exists, idle until one does.
 - It counts toward capacity and eras.
 - Tells exposed through `publicSheep`: `gait: 'offstep'`. Wider separation (36 px) is applied inside the sim, so other sheep visibly avoid it.
@@ -612,7 +612,7 @@ export interface PublicSheep {
 export function publicSheep(s: Sheep, state: GameState): PublicSheep {
   return {
     id: s.id, name: s.name, x: s.x, y: s.y,
-    stage: s.isAbomination ? 'lamb' : stageOf(s, state),
+    stage: stageOf(s, state),   // stageOf returns 'lamb' for the Abomination at any age (Story 4.1), so the sim agrees
     hunger: hungerOf(s),
     infected: s.infectedAt !== undefined,
     onCooldown: state.time < s.cooldownUntil,

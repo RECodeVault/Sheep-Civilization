@@ -131,7 +131,7 @@ export default tseslint.config(
   group(['src/core/log.ts'], { pure: true, logGuard: false }),
   group(['src/config/**/*.ts'], { pure: true }),
   group(['src/debug/**/*.ts'], { secrecy: false }),
-  // secrecy off: save validation and migrations must read isAbomination once Story 4.1 adds it.
+  // secrecy off: save validation and migrations read isAbomination (Story 4.1).
   group(['src/save/**/*.ts'], { storage: false, secrecy: false }),
   group(['src/**/*.ts'], {}, ['src/sim/**', 'src/core/**', 'src/config/**', 'src/debug/**', 'src/save/**']),
 );

@@ -1,9 +1,9 @@
 // The Market (FR17, Story 3.1): an adult or elder dropped on the stall is sold, with no carcass and no
 // confirmation (FR20). It leaves through removeSheep (pattern N1), so selling the last sheep is a loss.
 // The price comes from salePrice (adult $10, elder $5), by the sheep's stage when the command applies;
-// selling is the only way to earn money (FR21). A lamb is never sold. The Abomination never grows past
-// a lamb (Story 4.1 must keep stageOf reporting it as one), so it can never be sold either: no secret
-// is read here. Pick-up and the sale are commands, so this module has no update function.
+// selling is the only way to earn money (FR21). A lamb is never sold. stageOf reports the Abomination
+// as a lamb at any age (FR30), so it can never be sold either: no secret is read here. Pick-up and the
+// sale are commands, so this module has no update function.
 import { emit } from '../events';
 import { salePrice, sheepIndex, stageOf } from '../selectors';
 import type { GameState } from '../state';

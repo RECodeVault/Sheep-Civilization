@@ -190,7 +190,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Fence growth vs the hole (Story 3.3):** the hole is fixed at world (520, 108). The Land I fence (mockup 430–1062 × 184–598) stays clear of it, but check the later tiers, and recompute `GameScene.playArea` (and re-clamp the camera) when the fence grows.
   - **Resolved in Story 3.3:** every tier's fence top stays at y 184, under the hole (`TUNING.landFences`; a DEV invariant in `GameScene` checks it), and `playArea` is rebuilt and the camera re-clamped on a land purchase (`GameScene.growLand`).
 - **A victim picked up mid-approach (Story 4.3):** a dragged sheep keeps its sim position (the pickup spot), so the Abomination would walk to where it was picked up. Decide whether a dragged victim is re-picked like a sacrificed one.
-- **The reveal (Story 4.4):** `Sacrificed.wasAbomination` is always false today; the HUD toast and `GameScene.suck` must branch on it only there.
+- **The reveal (Story 4.4):** `Sacrificed.wasAbomination` carries the sheep's real `isAbomination` since Story 4.1, but the view still ignores it: the HUD toast and `GameScene.suck` must branch on it only in 4.4.
 - **Audio (Story 5.6):** the `[suction]` caption and SFX on `Sacrificed`.
 - **Reduced motion (Story 5.7):** the suction spiral (`SUCTION`), the ring spin and hole suck (`BP_MOTION` in `BetterPlace.ts`) and the 4 px lift are juice; the lit rim, glow and label are information and stay.
 
@@ -220,6 +220,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Land tiers vs the stall (Story 3.3):** the stall is fixed at world x 1100–1260 (`MARKET`, outline from x 1080). Land I ends at x 1062; check that Land II/III never reach x 1080, and rebuild both camera rects (the focus and `playArea`) when the fence grows.
   - **Resolved in Story 3.3:** every tier's fence ends at x 1062, left of the stall (DEV invariant in `GameScene`); both camera rects are rebuilt on purchase.
 - **The Abomination stays unsellable (Story 4.1):** `market.ts` relies on `stageOf` reporting the Abomination as a lamb (it never grows past one). Keep it so; the view's "Too young" reads only `PublicSheep.stage`.
+  - **Resolved in Story 4.1:** `stageOf` returns `'lamb'` for the Abomination at any age, which also keeps it from breeding and from breeding food. Tested in `market.test.ts` (an elder-aged Abomination is put down unsold) and in the browser (the stall shows "Too young").
 - **Names (Story 5.3):** the sold toast says "A sheep sold. $10."; 5.3 puts the name in place of "A sheep", in `halo`.
 - **Audio (Story 5.6):** the cash-register ding on `Sold` (UX-DR82), and a caption if captions cover it.
 - **Reduced motion (Story 5.7):** the outline pulse, awning flap, tag growth and stall nudge (`MARKET_MOTION` in `Market.ts`) and the sale hop (`SALE` in `GameScene.ts`) are juice; the outline, tag and "Too young" are information and stay.
@@ -314,3 +315,15 @@ Real issues found in reviews that are not actionable in the story where they wer
 
 - **Load-time clamping skips fence, lifespan and capacity retunes (any retune of those):** `normalizeTuned` clamps the bars, boost, cooldowns, gestation, Fullness and an overdue infection, but positions are still validated against the live `TUNING.landFences`/`fenceInset`. Shrinking a fence or raising the inset would reject saves with a sheep, piece, pregnancy or carcass near the old edge. Lower `oldAgeMs`/`elderFromMs` or `landCapacities` load fine today (the sim handles them), but are untested. Add position clamping into the inner fence (and a test) in the story that retunes a fence.
 - **Bench GC sample:** see "A rare 13–14 ms sample in the tick bench" above; the first-tick pool is allocated in the bench setup, so a GC pause can land in a timed sample.
+
+## Deferred from: story 4-1-the-abomination-is-born-and-stays-hidden (2026-10-08)
+
+- **The Town pacing guard is skipped (Stories 4.3, 4.7):** with the Abomination in, `pacing.test.ts`'s "reaches Town in 10–15 min at TOWN_CPS" failed on seed 11 (15:46). Over seeds 1–40 at 6 clicks/s: mean 14.03 min with 3/40 over 15 before 4.1, mean 14.26 with 5/40 over after. At 7 clicks/s all 40 land in 12.5–14.2 min, but guard seed 3606 sits at 14:56. Rylan chose to skip the guard (`it.skip`, with the reason in the test) and re-check pacing once the kill cycle (4.3) and Better Hoe (4.7) are in: re-enable it then, with a Hoe-buying policy, a new reference rate or a retune. The Village guard and the report table still run.
+- **Secrecy lint covers `isAbomination` only (Story 4.3):** `SECRECY_SYNTAX` blocks `isAbomination` outside sim, debug and save, but not `state.abomination` (birth counts) or the `stalk` field 4.3 adds. 4.3 should decide whether to add both selectors; until then review catches view reads.
+- **Old saves count births from their load (by design):** the 8 → 9 migration sets `birthsSeen: 0`, so a pre-Epic-4 save's first Abomination comes 8–15 births after loading (births before the save are not recorded).
+- **GameScene's `debugSheepDrawnAt` ships (any time):** like `debugMutate` and the tick counters, it is in the production bundle. It takes an id and returns a sprite position, so it reveals nothing. Remove it with the rest of the debug API if that is ever split out.
+- **The Reveal ring is placed after render (DEV only):** `syncOutline` runs on `POST_RENDER`, so the ring shows where the sprite was drawn one frame earlier (under 1 px at walk speed; the browser probe measured 0 px at rest). Harmless for a debug aid.
+
+## Deferred from: code review of 4-1-the-abomination-is-born-and-stays-hidden (2026-10-08)
+
+- **The busy save fixture depends on its seed (any time):** `busyGame` reaches its "busy" state (seekers walking to pieces, and so on) through a seeded 1 s run, so any change to the rng draw order can need a new seed. Story 4.1 moved it from 31337 to 31339. Building the busy conditions directly (e.g. placing seekers far from their pieces) would make it robust.

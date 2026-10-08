@@ -1,12 +1,15 @@
 // Life stages (FR7): stage is derived from age (selectors.stageOf), so ageing needs no state; only
 // adults can be ready to breed, so readiness is cleared outside that stage (FR8a). This system starts
 // a life (gestation and birth, FR9) and ends one: an elder dies of old age, through the single death
-// pipeline, on the tick its age reaches oldAgeMs. Story 4.3 adds the Abomination victim's delayed
-// death (doomedAt).
+// pipeline, on the tick its age reaches oldAgeMs. Each birth goes through abomination.ts onBirth, which
+// may make the lamb the Abomination (FR29; a helper owned by that concept, like killSheep). The
+// Abomination stays a lamb and never dies of old age (FR30). Story 4.3 adds the Abomination victim's
+// delayed death (doomedAt).
 import { TUNING } from '../../config/tuning';
 import { emit } from '../events';
-import { innerFence, pregnancySpot } from '../selectors';
+import { innerFence, pregnancySpot, stageOf } from '../selectors';
 import { createSheep, type GameState } from '../state';
+import { onBirth } from './abomination';
 import { killSheep } from './carcass';
 
 // Module-scope scratch for the birth spot, so a tick allocates nothing.
@@ -22,10 +25,11 @@ export function updateLifecycle(state: GameState): void {
     const s = sheep[i];
     const age = state.time - s.bornAt;
     // FR8a: only adults can breed, so a ready adult loses its readiness on turning elder (and a ready
-    // lamb, which only a corrupt save can hold, loses it at once).
-    if (s.breedReady && (age < TUNING.lambUntilMs || age >= TUNING.elderFromMs)) s.breedReady = false;
-    // Story 4.1: the Abomination never dies of old age (skip isAbomination).
-    if (age >= TUNING.oldAgeMs) killSheep(state, s.id, 'oldAge');
+    // lamb, which only a corrupt save can hold, loses it at once). By stageOf, not age: the Abomination
+    // is a lamb at any age, and a ready one would show the view a heart no lamb can have (4.1 review).
+    if (s.breedReady && stageOf(s, state) !== 'adult') s.breedReady = false;
+    // FR30: the Abomination never dies of old age (it can still starve or catch the virus).
+    if (age >= TUNING.oldAgeMs && !s.isAbomination) killSheep(state, s.id, 'oldAge');
   }
 }
 
@@ -50,6 +54,8 @@ function births(state: GameState): void {
       y: Math.min(r.bottom, Math.max(r.top, spot.y)),
       bornAt: state.time,
     });
+    // FR29: before LambBorn, which is the same either way (the spawn is secret).
+    onBirth(state, lamb);
     list.splice(i, 1);
     emit({ type: 'LambBorn', id: lamb.id, pregnancyId: g.id, x: lamb.x, y: lamb.y });
   }

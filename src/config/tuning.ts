@@ -116,6 +116,12 @@ export const TUNING = Object.freeze({
   // GDD Abomination tells: "normal 24 px personal space (tune)". Story 4.2 adds the 36 px value.
   // Kept in 3.6 (2026-10-08): no spacing issue in the playtest; the 4.2 tell needs the 24 vs 36 gap.
   personalSpacePx: 24,
+  // GDD The Abomination (Should tier) → Spawn: "The first Abomination is guaranteed on a random birth
+  // between the 8th and 15th birth of a save. After that, 5% per birth. At most 1 alive at a time."
+  // A birth is a pending lamb coming due (FR29, Story 4.1); the founding lamb is not one.
+  abominationGuaranteedBirthMin: 8,
+  abominationGuaranteedBirthMax: 15,
+  abominationBirthChance: 0.05,
   // Architecture (Movement and Flock Spacing): 48 px uniform grid for neighbour queries.
   gridCellPx: 48,
   // [ASSUMPTION; kept in 3.6, 2026-10-08] Wander feel: the most a heading turns per tick, the per-tick chance a

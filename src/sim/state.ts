@@ -1,7 +1,7 @@
 // The single serializable game state and the new-game factory. GameState is plain JSON data only:
 // no classes, Map/Set, Date, functions or cycles; entities reference each other by numeric id.
 import { TUNING } from '../config/tuning';
-import { rngRange, seedFromNumber } from './rng';
+import { rngInt, rngRange, seedFromNumber } from './rng';
 import { fenceBounds } from './selectors';
 
 /**
@@ -40,6 +40,12 @@ export interface Sheep {
    * virus death at `infectedAt + TUNING.virusDeathMs` (virus.ts).
    */
   infectedAt?: number;
+  /**
+   * SECRET (AR18, pattern N2): this sheep is the Abomination (Story 4.1). Read only in src/sim/,
+   * src/debug/ and src/save/ (lint-enforced); the view sees PublicSheep, where it is a lamb like any
+   * other except for `gait`. Set at birth by abomination.ts onBirth, never cleared.
+   */
+  isAbomination: boolean;
 }
 
 export interface FoodPiece {
@@ -97,6 +103,21 @@ export interface Stats {
   peakFlock: number;
 }
 
+/**
+ * The Abomination's spawn bookkeeping (FR29, pattern N2). SECRET like `Sheep.isAbomination`: the view
+ * never reads it. Story 4.3 adds `nextKillAt`.
+ */
+export interface AbominationState {
+  /** Lambs born from pregnancies so far in this save (the founding lamb is not a birth). */
+  birthsSeen: number;
+  /**
+   * The birth that is guaranteed to be the Abomination, rolled once at new game in
+   * [abominationGuaranteedBirthMin, abominationGuaranteedBirthMax]. Births after it roll
+   * abominationBirthChance.
+   */
+  guaranteedAtBirth: number;
+}
+
 export interface GameState {
   /** Game-ms since the save began; advanced only by step(). */
   time: number;
@@ -128,6 +149,7 @@ export interface GameState {
   pregnancies: Pregnancy[];
   carcasses: Carcass[];
   stats: Stats;
+  abomination: AbominationState;
   /** Change-detection cache for EraChanged only; display reads currentEra(state). */
   lastEra: Era;
   /**
@@ -153,6 +175,7 @@ export function createSheep(state: GameState, o: { x: number; y: number; bornAt:
     restUntil: 0,
     breedReady: false,
     cooldownUntil: 0,
+    isAbomination: false,
   };
   state.sheep.push(s);
   // The one place a sheep is added, so the peak covers new games, births and debug sheep alike.
@@ -176,6 +199,9 @@ export function createNewGame(seed: number): GameState {
     pregnancies: [],
     carcasses: [],
     stats: { died: 0, sold: 0, sacrificed: 0, moneyEarned: 0, peakFlock: 0 },
+    // Rolled below, after the founders, so their positions and headings keep the draws they had
+    // before Story 4.1.
+    abomination: { birthsSeen: 0, guaranteedAtBirth: 0 },
     lastEra: 'pasture',
   };
   const f = fenceBounds(state);
@@ -189,5 +215,11 @@ export function createNewGame(seed: number): GameState {
       bornAt: i < TUNING.startFlockAdults ? -TUNING.startAdultAgeMs : state.time,
     });
   }
+  // FR29: the birth that will be the first Abomination.
+  state.abomination.guaranteedAtBirth = rngInt(
+    state,
+    TUNING.abominationGuaranteedBirthMin,
+    TUNING.abominationGuaranteedBirthMax,
+  );
   return state;
 }

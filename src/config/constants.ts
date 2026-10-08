@@ -29,7 +29,9 @@ export const AUTOSAVE_MS = 10_000;
 // 6 since Story 2.8: `boostUntil`, the sacrifice food boost's deadline (a version-5 save gets 0).
 // 7 since Story 3.1: `money`, the spendable balance (a version-6 save gets 0).
 // 8 since Story 3.2: `owned`, the one-time shop purchases (a version-7 save gets []).
-export const SAVE_SCHEMA_VERSION = 8;
+// 9 since Story 4.1: sheep `isAbomination` and `abomination` (birthsSeen, guaranteedAtBirth); a
+// version-8 save gets no Abomination, births counted from 0 and a guaranteed birth rolled from its rng.
+export const SAVE_SCHEMA_VERSION = 9;
 
 /*
  * Colour-usage rules (DESIGN.md Colors, Do's and Don'ts — UX-DR2):

@@ -84,6 +84,22 @@ describe('validateState', () => {
     expect(validateState(r).ok).toBe(true);
   });
 
+  it('accepts a guaranteed birth outside the live spawn window: a retune must not reject a save (4.1 review)', () => {
+    for (const g of [1, TUNING.abominationGuaranteedBirthMin - 1, TUNING.abominationGuaranteedBirthMax + 20]) {
+      const r = raw();
+      (r.abomination as Record<string, unknown>).guaranteedAtBirth = g;
+      expect(validateState(r).ok, `guaranteedAtBirth ${g}`).toBe(true);
+    }
+  });
+
+  it('accepts one living Abomination and none (Story 4.1)', () => {
+    const r = raw();
+    expect(r.sheep.filter((x) => x.isAbomination === true)).toHaveLength(1);
+    expect(validateState(r).ok).toBe(true);
+    for (const x of r.sheep) x.isAbomination = false;
+    expect(validateState(r).ok).toBe(true);
+  });
+
   it('accepts a pregnancy whose parents have died', () => {
     const r = raw();
     // Ids that were issued (below nextId) but name no living sheep.
@@ -317,6 +333,24 @@ describe('validateState', () => {
     ['a fractional lostAt', (r) => (r.lostAt = 0.5), 'lostAt'],
     ['a lostAt after time', (r) => (r.lostAt = (r.time as number) + 100), 'lostAt'],
     ['an empty pen that is not lost', (r) => (r.sheep.length = 0), 'sheep'],
+    // Story 4.1: the Abomination (FR29).
+    ['a sheep with no isAbomination', (r) => delete r.sheep[0].isAbomination, 'sheep[0].isAbomination'],
+    ['a string isAbomination', (r) => (r.sheep[0].isAbomination = 'no'), 'sheep[0].isAbomination'],
+    [
+      'two Abominations alive',
+      (r) => {
+        const i = r.sheep.findIndex((x) => x.isAbomination === true);
+        const j = i === 0 ? 1 : 0;
+        r.sheep[j].isAbomination = true;
+      },
+      'second Abomination',
+    ],
+    ['a missing abomination', (r) => delete r.abomination, 'abomination'],
+    ['an abomination that is not an object', (r) => (r.abomination = 3), 'abomination'],
+    ['a negative birthsSeen', (r) => ((r.abomination as Record<string, unknown>).birthsSeen = -1), 'birthsSeen'],
+    ['a fractional birthsSeen', (r) => ((r.abomination as Record<string, unknown>).birthsSeen = 1.5), 'birthsSeen'],
+    ['a guaranteedAtBirth of 0', (r) => ((r.abomination as Record<string, unknown>).guaranteedAtBirth = 0), 'guaranteedAtBirth'],
+    ['a fractional guaranteedAtBirth', (r) => ((r.abomination as Record<string, unknown>).guaranteedAtBirth = 9.5), 'guaranteedAtBirth'],
   ];
 
   it.each(cases)('rejects %s and names the field', (_name, breakIt, field) => {

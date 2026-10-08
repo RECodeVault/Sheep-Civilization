@@ -93,12 +93,41 @@ describe('normalizeTuned: a retune never loses a save (AC 7)', () => {
     expect(r.ok && r.state).toStrictEqual(state);
   });
 
+  describe('a retuned Abomination spawn window (Story 4.1, code review)', () => {
+    const MIN = TUNING.abominationGuaranteedBirthMin;
+    const MAX = TUNING.abominationGuaranteedBirthMax;
+    const loadWith = (birthsSeen: number, guaranteedAtBirth: number): number => {
+      const raw = busyRaw();
+      raw.abomination = { birthsSeen, guaranteedAtBirth };
+      return load(raw).abomination.guaranteedAtBirth;
+    };
+
+    it('moves a pending guaranteed birth into the window', () => {
+      expect(loadWith(0, MAX + 5)).toBe(MAX);
+      expect(loadWith(0, MIN - 3)).toBe(MIN);
+    });
+
+    it('never moves a pending one to a birth already counted, so it still comes', () => {
+      // Clamped down to MAX would be behind birth MAX + 1 and never come: the next birth is it.
+      expect(loadWith(MAX + 1, MAX + 5)).toBe(MAX + 2);
+      // Clamped up stays above the count.
+      expect(loadWith(MIN, MIN + 1)).toBe(MIN + 1);
+    });
+
+    it('never moves one already passed, so there is no second guaranteed spawn', () => {
+      expect(loadWith(MIN - 1, MIN - 2)).toBe(MIN - 2);
+      expect(loadWith(MAX + 10, MAX + 5)).toBe(MAX + 5);
+      expect(loadWith(MIN, MIN)).toBe(MIN);
+    });
+  });
+
   it('never repairs a malformed value: those still fail validation', () => {
     for (const [field, bad] of [
       ['farmProgress', 1.5],
       ['farmProgress', -1],
       ['boostUntil', 'soon'],
       ['breedingProgress', null],
+      ['abomination', { birthsSeen: 0, guaranteedAtBirth: 'soon' }],
     ] as const) {
       const raw = busyRaw();
       raw[field] = bad;

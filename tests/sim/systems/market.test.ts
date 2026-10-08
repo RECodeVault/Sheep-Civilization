@@ -77,6 +77,22 @@ describe('sell (Sell command, FR17)', () => {
     expect(drained()).toEqual([]);
   });
 
+  it('never sells the Abomination, at any age: it stays a lamb (FR30, Story 4.1)', () => {
+    const state = newGame(5);
+    const abom = state.sheep[2];
+    abom.isAbomination = true;
+    // Old enough to be an elder: its age never makes it sellable.
+    abom.bornAt = state.time - TUNING.elderFromMs - 1;
+    pickUp(state, abom.id);
+    drained();
+    const before = structuredClone(state);
+    sell(state, abom.id);
+    before.sheep[2].activity = 'wander';
+    expect(state).toStrictEqual(before);
+    expect(state.money).toBe(0);
+    expect(drained()).toEqual([]);
+  });
+
   it('silently ignores an unknown id', () => {
     const state = newGame(5);
     const before = structuredClone(state);

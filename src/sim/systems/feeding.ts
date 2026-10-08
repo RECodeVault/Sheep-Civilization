@@ -168,7 +168,7 @@ function mayEatFood(s: Sheep): boolean {
 /**
  * FR8a: a free adult that is not ready and not on breeding cooldown may claim breeding food, unless
  * it is hungry while food lies in the pen (food first) or Starving while a carcass and no food lie
- * there (FR14). Story 4.1: the Abomination is never an adult (it stays a lamb).
+ * there (FR14). The Abomination is never an adult (stageOf keeps it a lamb, FR30), so it never eats one.
  */
 function mayEatBreedingFood(s: Sheep, state: GameState): boolean {
   return (

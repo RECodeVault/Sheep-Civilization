@@ -10,7 +10,7 @@ const START_FLOCK = TUNING.startFlockAdults + TUNING.startFlockLambs;
 describe('createNewGame', () => {
   it('has exactly the GameState fields', () => {
     expect(Object.keys(newGame()).sort()).toEqual(
-      ['boostUntil', 'breedingPieces', 'breedingProgress', 'carcasses', 'farmProgress', 'foodPieces', 'lastEra', 'money', 'nextId', 'owned', 'pregnancies', 'rng', 'sheep', 'stats', 'time'].sort(),
+      ['abomination', 'boostUntil', 'breedingPieces', 'breedingProgress', 'carcasses', 'farmProgress', 'foodPieces', 'lastEra', 'money', 'nextId', 'owned', 'pregnancies', 'rng', 'sheep', 'stats', 'time'].sort(),
     );
   });
 
@@ -73,6 +73,23 @@ describe('createNewGame', () => {
     expect(JSON.parse(JSON.stringify(state))).toStrictEqual(state);
     runFor(state, 10_000);
     expect(JSON.parse(JSON.stringify(state))).toStrictEqual(state);
+  });
+
+  it('rolls the Abomination window after the founders, so their draws are as before Story 4.1 (FR29)', () => {
+    // Positions and headings recorded on the pre-4.1 build (82e20e5) for these seeds.
+    const before: Record<number, [number, number, number][]> = {
+      1: [[784, 370, 3.314047491791736], [890, 535, 1.7662253995887838], [780, 493, 2.675361153267824]],
+      1234: [[618, 490, 5.6728116736620535], [887, 377, 0.7399274262044432], [645, 506, 2.506549140541327]],
+      4294967295: [[865, 402, 4.496578392470317], [879, 514, 3.38751651924877], [800, 451, 0.853619351140894]],
+    };
+    for (const [seed, founders] of Object.entries(before)) {
+      const state = createNewGame(Number(seed));
+      expect(state.sheep.map((s) => [s.x, s.y, s.heading])).toEqual(founders);
+      expect(state.sheep.every((s) => s.isAbomination === false)).toBe(true);
+      expect(state.abomination.birthsSeen).toBe(0);
+      expect(state.abomination.guaranteedAtBirth).toBeGreaterThanOrEqual(TUNING.abominationGuaranteedBirthMin);
+      expect(state.abomination.guaranteedAtBirth).toBeLessThanOrEqual(TUNING.abominationGuaranteedBirthMax);
+    }
   });
 
   it('starts with no money (FR21)', () => {

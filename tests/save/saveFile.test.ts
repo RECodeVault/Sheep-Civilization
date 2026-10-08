@@ -4,8 +4,15 @@ import { TUNING } from '../../src/config/tuning';
 import { applyCommand } from '../../src/sim/commands';
 import { decodeSave, decodeSaveResult, encodeSave } from '../../src/save/saveFile';
 import { newGame, runFor } from '../sim/helpers';
+import { migratedFrom8 } from './fromVersion8';
 
 const NOW = new Date('2026-10-06T12:34:56.789Z');
+
+/** Removes the fields schema 9 added (Story 4.1), so an older save really lacks them. */
+function stripVersion9(v: Record<string, unknown>): void {
+  delete v.abomination;
+  for (const s of v.sheep as Record<string, unknown>[]) delete s.isAbomination;
+}
 
 describe('encodeSave / decodeSave', () => {
   it('round-trips a game that has been running', () => {
@@ -24,6 +31,7 @@ describe('encodeSave / decodeSave', () => {
   it('decodes a version-2 save (before breeding food) with an empty bar, no pieces and nobody ready', () => {
     const state = newGame(7);
     const v2 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+    stripVersion9(v2);
     delete v2.breedingProgress;
     delete v2.breedingPieces;
     delete v2.pregnancies;
@@ -34,35 +42,38 @@ describe('encodeSave / decodeSave', () => {
       delete s.cooldownUntil;
     }
     const raw = JSON.stringify({ schemaVersion: 2, savedAt: NOW.toISOString(), state: v2 });
-    expect(decodeSave(raw)).toStrictEqual(state);
+    expect(decodeSave(raw)).toStrictEqual(migratedFrom8(state));
   });
 
   it('decodes a version-3 save (before breeding) with no pregnancies and nobody on cooldown', () => {
     const state = newGame(7);
     const v3 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+    stripVersion9(v3);
     delete v3.pregnancies;
     delete v3.boostUntil;
     delete v3.money;
     for (const s of v3.sheep as Record<string, unknown>[]) delete s.cooldownUntil;
     const raw = JSON.stringify({ schemaVersion: 3, savedAt: NOW.toISOString(), state: v3 });
-    expect(decodeSave(raw)).toStrictEqual(state);
+    expect(decodeSave(raw)).toStrictEqual(migratedFrom8(state));
   });
 
   it('decodes a version-5 save (before the boost) with no boost running', () => {
     const state = newGame(7);
     const v5 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+    stripVersion9(v5);
     delete v5.boostUntil;
     delete v5.money;
     const raw = JSON.stringify({ schemaVersion: 5, savedAt: NOW.toISOString(), state: v5 });
-    expect(decodeSave(raw)).toStrictEqual(state);
+    expect(decodeSave(raw)).toStrictEqual(migratedFrom8(state));
   });
 
   it('decodes a version-6 save (before selling) with no money', () => {
     const state = newGame(7);
     const v6 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+    stripVersion9(v6);
     delete v6.money;
     const raw = JSON.stringify({ schemaVersion: 6, savedAt: NOW.toISOString(), state: v6 });
-    expect(decodeSave(raw)).toStrictEqual(state);
+    expect(decodeSave(raw)).toStrictEqual(migratedFrom8(state));
   });
 
   it('round-trips a balance and a game lost by selling the last sheep', () => {

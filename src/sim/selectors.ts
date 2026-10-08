@@ -82,9 +82,12 @@ export type Stage = 'lamb' | 'adult' | 'elder';
 
 /**
  * FR7: stage from age (`state.time - bornAt`). Never stored. There is no upper bound: lifecycle.ts
- * kills an elder on the tick it reaches oldAgeMs.
+ * kills an elder on the tick it reaches oldAgeMs. FR30: the Abomination is a lamb at any age, so the
+ * one rule keeps it unsellable (market.ts), unable to breed or eat breeding food, and a lamb in
+ * PublicSheep.
  */
 export function stageOf(s: Sheep, state: GameState): Stage {
+  if (s.isAbomination) return 'lamb';
   const age = state.time - s.bornAt;
   if (age < TUNING.lambUntilMs) return 'lamb';
   if (age < TUNING.elderFromMs) return 'adult';
@@ -210,7 +213,17 @@ export function breedBlock(state: GameState): BreedBlock {
   return eligible < 2 ? 'notReady' : null;
 }
 
-/** The only sheep shape the view may consume. Later stories add name, gait, activity. */
+/**
+ * How a sheep walks (FR32): `offstep` is the Abomination's designed tell, the only PublicSheep field in
+ * which it differs from a lamb (Story 4.1; Story 4.2 draws it).
+ */
+export type Gait = 'normal' | 'offstep';
+
+/**
+ * The only sheep shape the view may consume (AR18). It never carries the Abomination's secret: no
+ * `isAbomination` and no kill-cycle state, and the Abomination is a lamb here at any age. Later
+ * stories add name (5.3) and activity (4.3).
+ */
 export interface PublicSheep {
   id: number;
   x: number;
@@ -225,6 +238,8 @@ export interface PublicSheep {
   canBreed: boolean;
   /** Infected (FR15): the tint, marker and wobble. Not secret: the Abomination can catch it like any lamb. */
   infected: boolean;
+  /** The walk (FR32): `offstep` for the Abomination, else `normal`. */
+  gait: Gait;
 }
 
 export function publicSheep(s: Sheep, state: GameState): PublicSheep {
@@ -238,6 +253,7 @@ export function publicSheep(s: Sheep, state: GameState): PublicSheep {
     onCooldown: onCooldown(s, state),
     canBreed: canBreed(s, state),
     infected: s.infectedAt !== undefined,
+    gait: s.isAbomination ? 'offstep' : 'normal',
   };
 }
 
@@ -251,7 +267,18 @@ export function selectPublicSheep(state: GameState, out: PublicSheep[]): PublicS
     const s = sheep[i];
     let p = out[i];
     if (p === undefined) {
-      p = { id: 0, x: 0, y: 0, stage: 'adult', hunger: 'fed', ready: false, onCooldown: false, canBreed: false, infected: false };
+      p = {
+        id: 0,
+        x: 0,
+        y: 0,
+        stage: 'adult',
+        hunger: 'fed',
+        ready: false,
+        onCooldown: false,
+        canBreed: false,
+        infected: false,
+        gait: 'normal',
+      };
       out[i] = p;
     }
     p.id = s.id;
@@ -263,6 +290,7 @@ export function selectPublicSheep(state: GameState, out: PublicSheep[]): PublicS
     p.onCooldown = onCooldown(s, state);
     p.canBreed = canBreed(s, state);
     p.infected = s.infectedAt !== undefined;
+    p.gait = s.isAbomination ? 'offstep' : 'normal';
   }
   out.length = sheep.length;
   return out;

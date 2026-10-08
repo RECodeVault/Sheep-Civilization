@@ -3,6 +3,8 @@
 // schema adds its step here. There is no step from version 1: no version-1 save was ever persisted
 // (saving starts in 1.9, at version 2), so version 1 is rejected rather than migrated.
 import { SAVE_SCHEMA_VERSION } from '../config/constants';
+import { TUNING } from '../config/tuning';
+import { rngInt } from '../sim/rng';
 
 export type Migration = (state: Record<string, unknown>) => Record<string, unknown>;
 
@@ -30,6 +32,25 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = Object.freeze({
   6: (s) => ({ ...s, money: 0 }),
   // Story 3.2: nothing had been bought (FR22, FR23).
   7: (s) => ({ ...s, owned: [] }),
+  // Story 4.1: nobody is the Abomination yet (FR29). The births before this save are not known, so it
+  // counts births from its load, and its guaranteed birth is rolled from its own rng, so a reload
+  // migrates the same way. A malformed rng is left for validation to reject.
+  8: (s) => {
+    const sheep = Array.isArray(s.sheep)
+      ? s.sheep.map((x: unknown) => (isObj(x) ? { ...x, isAbomination: false } : x))
+      : s.sheep;
+    const roll = { rng: s.rng as number };
+    const validRng = Number.isInteger(s.rng) && (s.rng as number) >= 0 && (s.rng as number) <= 0xffffffff;
+    const guaranteedAtBirth = validRng
+      ? rngInt(roll, TUNING.abominationGuaranteedBirthMin, TUNING.abominationGuaranteedBirthMax)
+      : TUNING.abominationGuaranteedBirthMax;
+    return {
+      ...s,
+      sheep,
+      abomination: { birthsSeen: 0, guaranteedAtBirth },
+      ...(validRng ? { rng: roll.rng } : {}),
+    };
+  },
 });
 
 export type MigrationResult = { ok: true; state: unknown } | { ok: false; reason: string };

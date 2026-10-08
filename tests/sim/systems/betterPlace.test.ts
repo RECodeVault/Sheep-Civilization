@@ -50,6 +50,19 @@ describe('sacrifice (Sacrifice command)', () => {
     ]);
   });
 
+  it('tells the truth on Sacrificed: wasAbomination for the Abomination only (Story 4.1, for the 4.4 reveal)', () => {
+    const state = newGame(5);
+    const abom = state.sheep[2];
+    abom.isAbomination = true;
+    sacrifice(state, state.sheep[0].id);
+    sacrifice(state, abom.id);
+    const sacrificed = drained().filter((e) => e.type === 'Sacrificed');
+    expect(sacrificed.map((e) => e.type === 'Sacrificed' && e.wasAbomination)).toEqual([false, true]);
+    // Gone like any sacrificed sheep: no carcass.
+    expect(state.carcasses).toEqual([]);
+    expect(state.stats.sacrificed).toBe(2);
+  });
+
   it('silently ignores an unknown id', () => {
     const state = newGame(5);
     const before = structuredClone(state);

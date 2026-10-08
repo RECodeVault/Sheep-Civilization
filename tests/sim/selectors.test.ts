@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { TICK_MS } from '../../src/config/constants';
 import { TUNING } from '../../src/config/tuning';
 import { applyCommand } from '../../src/sim/commands';
 import {
@@ -43,6 +44,7 @@ import {
   type PublicPregnancy,
   type PublicSheep,
 } from '../../src/sim/selectors';
+import type { Sheep } from '../../src/sim/state';
 import { createCarcass, killSheep } from '../../src/sim/systems/carcass';
 import { infectSheep } from '../../src/sim/systems/virus';
 import { busyGame } from '../save/busy';
@@ -89,7 +91,7 @@ describe('publicSheep / selectPublicSheep', () => {
     const state = newGame();
     const s = state.sheep[0];
     s.fullness = TUNING.starvingBelow - 1;
-    expect(publicSheep(s, state)).toEqual({ id: s.id, x: s.x, y: s.y, stage: 'adult', hunger: 'starving', ready: false, onCooldown: false, canBreed: false, infected: false });
+    expect(publicSheep(s, state)).toEqual({ id: s.id, x: s.x, y: s.y, stage: 'adult', hunger: 'starving', ready: false, onCooldown: false, canBreed: false, infected: false, gait: 'normal' });
   });
 
   it('exposes breedReady as ready', () => {
@@ -135,6 +137,88 @@ describe('publicSheep / selectPublicSheep', () => {
     expect(out).toHaveLength(state.sheep.length);
     expect(out.map((p) => p.stage)).toEqual(['adult', 'adult', 'lamb']);
     expect(out).toEqual(state.sheep.map((x) => publicSheep(x, state)));
+  });
+});
+
+describe('Abomination secrecy (AR18, UX-DR64; the mandatory secrecy test, Story 4.1 AC 5)', () => {
+  /** A copy of `s` with the flag set: every other field equal, the id included. */
+  function twin(s: Sheep): Sheep {
+    return { ...structuredClone(s), isAbomination: true };
+  }
+
+  it('an Abomination and a lamb with equal fields differ in PublicSheep only in gait', () => {
+    const state = newGame();
+    const lamb = state.sheep[2];
+    expect(stageOf(lamb, state)).toBe('lamb');
+    // A busy lamb: hungry, infected, walking to food. None of it may differ.
+    lamb.fullness = TUNING.fedAbove - 1;
+    lamb.infectedAt = state.time;
+    lamb.activity = 'seekFood';
+    const plain = publicSheep(lamb, state);
+    const abom = publicSheep(twin(lamb), state);
+    expect(plain.gait).toBe('normal');
+    expect(abom.gait).toBe('offstep');
+    expect({ ...abom, gait: plain.gait }).toStrictEqual(plain);
+  });
+
+  it('stays a lamb past elderFromMs: never breedable, and no secret key on the output', () => {
+    const state = newGame();
+    const old = state.sheep[2];
+    old.bornAt = state.time - TUNING.elderFromMs - 1;
+    const abom = twin(old);
+    expect(stageOf(old, state)).toBe('elder');
+    expect(stageOf(abom, state)).toBe('lamb');
+    const p = publicSheep(abom, state);
+    expect(p.stage).toBe('lamb');
+    expect(p.ready).toBe(false);
+    expect(p.canBreed).toBe(false);
+    // Even forced ready, the pairing rule refuses it: it is never an adult.
+    expect(canBreed({ ...abom, breedReady: true }, state)).toBe(false);
+    expect(Object.keys(p)).not.toContain('isAbomination');
+    expect(Object.keys(p)).not.toContain('stalk');
+    expect(Object.keys(p).sort()).toEqual(Object.keys(publicSheep(old, state)).sort());
+  });
+
+  it('a ready Abomination at adult age (a crafted save) loses readiness on the next tick, so no heart shows', () => {
+    const state = newGame();
+    const abom = state.sheep[2];
+    abom.isAbomination = true;
+    abom.bornAt = state.time - TUNING.lambUntilMs - 1;
+    abom.breedReady = true;
+    runFor(state, TICK_MS);
+    expect(abom.breedReady).toBe(false);
+    expect(publicSheep(abom, state).ready).toBe(false);
+  });
+
+  it('selectPublicSheep reports the Abomination exactly as publicSheep does, reusing its objects', () => {
+    const state = newGame();
+    state.sheep[2].isAbomination = true;
+    state.sheep[2].bornAt = state.time - TUNING.lambUntilMs - 1;
+    const out: PublicSheep[] = [];
+    selectPublicSheep(state, out);
+    const first = out[2];
+    selectPublicSheep(state, out);
+    expect(out[2]).toBe(first);
+    expect(out).toEqual(state.sheep.map((x) => publicSheep(x, state)));
+    expect(out.map((p) => p.gait)).toEqual(['normal', 'normal', 'offstep']);
+    expect(out[2].stage).toBe('lamb');
+    for (const p of out) expect(Object.keys(p)).not.toContain('isAbomination');
+  });
+
+  it('counts in capacity and eras like any sheep (FR30)', () => {
+    const state = newGame();
+    fillFlock(state, TUNING.eraThresholds[0] - 1);
+    expect(currentEra(state)).toBe('pasture');
+    const lamb = state.sheep[2];
+    const used = slotsUsed(state);
+    lamb.isAbomination = true;
+    expect(slotsUsed(state)).toBe(used);
+    // One more sheep, an Abomination, reaches Village.
+    const extra = twin(lamb);
+    extra.id = state.nextId++;
+    state.sheep.push(extra);
+    expect(slotsUsed(state)).toBe(used + 1);
+    expect(currentEra(state)).toBe('village');
   });
 });
 

@@ -5,10 +5,10 @@
 // the canvas or the gameplay InputController, and a real button click is the user gesture the
 // Clipboard API needs. Backtick toggles it.
 //
-// Later stories add their buttons here: Reveal Abomination (4.1), … src/debug/ is the
-// only non-sim code allowed to read isAbomination.
+// Later stories add their buttons here. src/debug/ is the only non-sim code allowed to read
+// isAbomination: Reveal Abomination (Story 4.1) rings it on the field, and the readout names it.
 import Phaser from 'phaser';
-import { COLORS, RADIUS, SPACING } from '../config/constants';
+import { COLOR_INT, COLORS, RADIUS, SPACING } from '../config/constants';
 import { TUNING } from '../config/tuning';
 import type { FixedStepClock } from '../core/fixedStep';
 import { formatGameTime, formatMoney } from '../core/format';
@@ -16,11 +16,13 @@ import { log } from '../core/log';
 import { decodeSave, encodeSave } from '../save/saveFile';
 import { rngRange } from '../sim/rng';
 import { boostRemainingMs, currentEra, fenceBounds, innerFence, stageOf } from '../sim/selectors';
-import { createSheep, type GameState } from '../sim/state';
+import { createSheep, type GameState, type Sheep } from '../sim/state';
+import { abominationAlive } from '../sim/systems/abomination';
 import { createCarcass } from '../sim/systems/carcass';
 import { createBreedingPiece, createFoodPiece } from '../sim/systems/feeding';
 import { infectSheep } from '../sim/systems/virus';
 import { bus } from '../view/bus';
+import { FIELD_DEPTH } from '../view/field/depths';
 import type { GameScene } from '../view/scenes/GameScene';
 import { PlaytestRecord } from './playtestRecord';
 
@@ -32,6 +34,9 @@ const ADD_FOOD = 5;
 const ADD_PILE = 50;
 const ADD_SHEEP = 10;
 const ADD_MONEY = 100;
+// Story 4.1: the Reveal Abomination ring, sized to circle a 64×52 sheep.
+const OUTLINE_RADIUS = 40;
+const OUTLINE_WIDTH = 2;
 
 export function installDebugOverlay(game: Phaser.Game): void {
   let visible = false;
@@ -92,6 +97,7 @@ export function installDebugOverlay(game: Phaser.Game): void {
   const frameLine = line(lines);
   const timeLine = line(lines);
   const sheepLine = line(lines);
+  const abomLine = line(lines);
   const foodLine = line(lines);
   const tickLine = line(lines);
   const paceLine = line(lines);
@@ -243,6 +249,43 @@ export function installDebugOverlay(game: Phaser.Game): void {
     refreshSim();
   });
 
+  // Story 4.1: the Abomination. Reveal rings the living one on the field (POST_RENDER below) until
+  // toggled off; it keeps working with the panel closed.
+  let reveal = false;
+  let outline: Phaser.GameObjects.Graphics | null = null;
+  // Reused every frame by syncOutline.
+  const drawnAt = { x: 0, y: 0 };
+  const abomRow = buttonRow(panel);
+  const revealButton = button(abomRow, 'Reveal Abomination', () => {
+    reveal = !reveal;
+    highlight(revealButton, reveal);
+    syncOutline();
+  });
+  // Makes a new lamb the Abomination, at a Math.random spot in the pen (as the +food buttons place
+  // pieces), so the reveal can be checked without breeding 8–15 lambs. It is not a birth: birthsSeen is
+  // untouched. At most one is alive, as in play, so if this one is still alive at the save's guaranteed
+  // birth, that guarantee is used up (onBirth) and later births only roll the 5% chance. createSheep
+  // draws its heading from the seeded rng, as "+10 sheep" does.
+  const makeButton = button(abomRow, 'Make Abomination', () => {
+    const scene = activeScene();
+    if (scene === null) return;
+    if (abominationAlive(scene.simState)) {
+      setStatus('an Abomination is already alive');
+      return;
+    }
+    scene.debugMutate((s) => {
+      const r = innerFence(s);
+      const lamb = createSheep(s, {
+        x: Math.round(r.left + Math.random() * (r.right - r.left)),
+        y: Math.round(r.top + Math.random() * (r.bottom - r.top)),
+        bornAt: s.time,
+      });
+      lamb.isAbomination = true;
+    });
+    setStatus('made an Abomination');
+    refreshSim();
+  });
+
   const row3 = buttonRow(panel);
   const dumpButton = button(row3, 'Dump state', () => {
     const scene = activeScene();
@@ -294,6 +337,8 @@ export function installDebugOverlay(game: Phaser.Game): void {
     infectButton,
     boostButton,
     moneyButton,
+    revealButton,
+    makeButton,
     dumpButton,
     copyButton,
     loadButton,
@@ -348,6 +393,8 @@ export function installDebugOverlay(game: Phaser.Game): void {
       }
       takeTicks(scene);
     }
+    // Every frame, so the ring follows the drawn sprite (and the panned camera, as a world object).
+    syncOutline();
     if (!visible) return;
     const d = game.loop.rawDelta;
     sum += d;
@@ -390,6 +437,7 @@ export function installDebugOverlay(game: Phaser.Game): void {
     if (scene === null) {
       timeLine.textContent = 'time   —';
       sheepLine.textContent = 'sheep  —';
+      abomLine.textContent = 'abom   —';
       foodLine.textContent = 'food   —';
       stepButton.disabled = true;
       return;
@@ -399,6 +447,9 @@ export function installDebugOverlay(game: Phaser.Game): void {
     timeLine.textContent = `time   ${formatGameTime(s.time)} (${s.time} ms) · ${speed === 0 ? 'paused' : `×${speed}`}`;
     // Story 3.1: the balance and sales; 3.2: how many shop items are owned.
     sheepLine.textContent = `sheep  ${s.sheep.length} · carcasses ${s.carcasses.length} · infected ${countInfected(s)} · ${formatMoney(s.money)} · sold ${s.stats.sold} · owned ${s.owned.length} · era ${currentEra(s)}`;
+    // Story 4.1: which sheep is the Abomination, and the birth count against the guaranteed birth.
+    const abom = findAbomination(s);
+    abomLine.textContent = `abom   ${abom === null ? 'none' : `#${abom.id}`} · births ${s.abomination.birthsSeen}/${s.abomination.guaranteedAtBirth}`;
     foodLine.textContent = `food   pieces ${s.foodPieces.length} · bar ${s.farmProgress}/${TUNING.farmPipsPerFood} · boost ${formatGameTime(boostRemainingMs(s))}`;
     // Story 3.6: the latest window's sim tick times (NFR1 budget 2 ms) and the page's worst.
     tickLine.textContent = `tick   ${windowTick.meanMs.toFixed(2)} ms avg · ${windowTick.maxMs.toFixed(2)} max · worst ${tickMax.toFixed(2)}`;
@@ -421,6 +472,28 @@ export function installDebugOverlay(game: Phaser.Game): void {
     wantSpeed = speed;
     knownClock = scene.simClock;
     knownClock.speed = speed;
+  }
+
+  /**
+   * Places the Reveal ring on the living Abomination's drawn sprite, or hides it. The ring is drawn
+   * once per GameScene and only moved after that. A scene restart (Load, New Game, Restart) destroys
+   * it with the scene's other objects, and a new one is drawn in the new scene.
+   */
+  function syncOutline(): void {
+    const scene = activeScene();
+    const target = reveal && scene !== null && scene.simState.lostAt === undefined ? findAbomination(scene.simState) : null;
+    if (scene === null || target === null) {
+      if (outline !== null && outline.active) outline.setVisible(false);
+      return;
+    }
+    if (outline === null || !outline.active || outline.scene !== scene) {
+      outline = scene.add.graphics();
+      outline.lineStyle(OUTLINE_WIDTH, COLOR_INT.alert);
+      outline.strokeCircle(0, 0, OUTLINE_RADIUS);
+      outline.setDepth(FIELD_DEPTH.overlay);
+    }
+    const at = scene.debugSheepDrawnAt(target.id, drawnAt) ?? target;
+    outline.setPosition(at.x, at.y).setVisible(true);
   }
 
   function resetWindow(): void {
@@ -552,6 +625,12 @@ function preventFocus(e: MouseEvent): void {
 function highlight(b: HTMLButtonElement, on: boolean): void {
   b.style.backgroundColor = on ? COLORS.hay : COLORS.dusk;
   b.style.color = on ? COLORS.bark : COLORS.wool;
+}
+
+/** The living Abomination, or null (at most one is alive). */
+function findAbomination(s: Readonly<GameState>): Sheep | null {
+  for (const sheep of s.sheep) if (sheep.isAbomination) return sheep;
+  return null;
 }
 
 /** Infected sheep, for the counts line (refreshed every REFRESH_MS, not per frame). */

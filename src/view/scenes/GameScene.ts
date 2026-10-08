@@ -702,6 +702,20 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
+   * For src/debug/ only (Reveal Abomination, Story 4.1): writes into `out` the world spot where sheep
+   * `id` is drawn this frame (its interpolated sprite) and returns it, or returns null when no sprite is
+   * bound to it. A copy, so debug code never holds the pooled sprite. Takes an id, so this scene never
+   * learns which sheep is the Abomination.
+   */
+  debugSheepDrawnAt<T extends { x: number; y: number }>(id: number, out: T): T | null {
+    const sprite = this.sheepLayer.spriteFor(id);
+    if (sprite === undefined) return null;
+    out.x = sprite.x;
+    out.y = sprite.y;
+    return out;
+  }
+
+  /**
    * Replaces the game by restarting the scene, so every pooled sprite, the fence and the clock reset.
    * Returns false (game unchanged) if the state cannot run (see stateCanRun).
    */

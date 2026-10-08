@@ -28,6 +28,18 @@ export function normalizeTuned(state: unknown): void {
   const time = state.time;
   clampDown(state, 'farmProgress', TUNING.farmPipsPerFood - 1, true);
   clampDown(state, 'breedingProgress', TUNING.breedingPipsPerFood - 1, true);
+  // Story 4.1: a retuned spawn window moves a pending guaranteed birth into the new one, but never to a
+  // birth already counted (it would never come) and never moves one already passed (it would spawn a
+  // second guaranteed Abomination). If the whole window is behind the count, the next birth is it.
+  const a = state.abomination;
+  if (isObj(a) && Number.isInteger(a.birthsSeen) && Number.isInteger(a.guaranteedAtBirth)) {
+    const seen = a.birthsSeen as number;
+    const g = a.guaranteedAtBirth as number;
+    if (seen < g) {
+      const lo = Math.max(TUNING.abominationGuaranteedBirthMin, seen + 1);
+      a.guaranteedAtBirth = Math.max(lo, Math.min(g, TUNING.abominationGuaranteedBirthMax));
+    }
+  }
   // Deadlines are relative to `time`; without a valid time there is nothing to clamp against.
   if (!Number.isInteger(time)) return;
   const t = time as number;

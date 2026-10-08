@@ -2,11 +2,22 @@ import { describe, expect, it } from 'vitest';
 import { SAVE_SCHEMA_VERSION } from '../../src/config/constants';
 import { MIGRATIONS, migrate, type Migration } from '../../src/save/migrations';
 import { validateState } from '../../src/save/validate';
+import { TUNING } from '../../src/config/tuning';
 import { newGame } from '../sim/helpers';
+import { busyGame } from './busy';
+import { migratedFrom8 } from './fromVersion8';
+
+/** A JSON copy of a current-version state in the version-8 shape (before Story 4.1's Abomination). */
+function toVersion8(state: object): Record<string, unknown> {
+  const v8 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+  delete v8.abomination;
+  for (const s of v8.sheep as Record<string, unknown>[]) delete s.isAbomination;
+  return v8;
+}
 
 /** A JSON copy of a current-version state in the version-7 shape (before Story 3.2's shop). */
 function toVersion7(state: object): Record<string, unknown> {
-  const v7 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+  const v7 = toVersion8(state);
   delete v7.owned;
   return v7;
 }
@@ -60,7 +71,7 @@ describe('migrate', () => {
     const r = migrate(2, toVersion2(state));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.state).toStrictEqual(state);
+    expect(r.state).toStrictEqual(migratedFrom8(state));
     expect(validateState(r.state).ok).toBe(true);
   });
 
@@ -69,7 +80,7 @@ describe('migrate', () => {
     const r = migrate(3, toVersion3(state));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.state).toStrictEqual(state);
+    expect(r.state).toStrictEqual(migratedFrom8(state));
     expect(validateState(r.state).ok).toBe(true);
   });
 
@@ -79,7 +90,7 @@ describe('migrate', () => {
     const r = migrate(4, v4);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.state).toStrictEqual(state);
+    expect(r.state).toStrictEqual(migratedFrom8(state));
     expect(validateState(r.state).ok).toBe(true);
   });
 
@@ -88,7 +99,7 @@ describe('migrate', () => {
     const r = migrate(5, toVersion5(state));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.state).toStrictEqual({ ...state, boostUntil: 0 });
+    expect(r.state).toStrictEqual({ ...migratedFrom8(state), boostUntil: 0 });
     expect(validateState(r.state).ok).toBe(true);
   });
 
@@ -97,7 +108,7 @@ describe('migrate', () => {
     const r = migrate(6, toVersion6(state));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.state).toStrictEqual({ ...state, money: 0 });
+    expect(r.state).toStrictEqual({ ...migratedFrom8(state), money: 0 });
     expect(validateState(r.state).ok).toBe(true);
   });
 
@@ -106,8 +117,39 @@ describe('migrate', () => {
     const r = migrate(7, toVersion7(state));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.state).toStrictEqual({ ...state, owned: [] });
+    expect(r.state).toStrictEqual({ ...migratedFrom8(state), owned: [] });
     expect(validateState(r.state).ok).toBe(true);
+  });
+
+  it('migrates a version-8 state (before the Abomination): nobody is one, births from 0, a roll in the window', () => {
+    const state = busyGame();
+    for (const s of state.sheep) s.isAbomination = false;
+    const v8 = toVersion8(state);
+    const r = migrate(8, v8);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const out = r.state as typeof state;
+    expect(out).toStrictEqual(migratedFrom8(state));
+    expect(out.sheep.every((s) => s.isAbomination === false)).toBe(true);
+    expect(out.abomination.birthsSeen).toBe(0);
+    expect(out.abomination.guaranteedAtBirth).toBeGreaterThanOrEqual(TUNING.abominationGuaranteedBirthMin);
+    expect(out.abomination.guaranteedAtBirth).toBeLessThanOrEqual(TUNING.abominationGuaranteedBirthMax);
+    expect(out.rng).not.toBe(state.rng);
+    expect(validateState(out).ok).toBe(true);
+    // Deterministic: the same save migrates the same way, and the input is not mutated.
+    expect(migrate(8, toVersion8(state))).toStrictEqual(r);
+    expect(v8).toStrictEqual(toVersion8(state));
+  });
+
+  it('leaves a malformed version-8 rng and sheep list for validation to reject', () => {
+    const r = migrate(8, { ...toVersion8(newGame(3)), rng: 'x', sheep: 'nope' });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const out = r.state as Record<string, unknown>;
+    expect(out.rng).toBe('x');
+    expect(out.sheep).toBe('nope');
+    expect(out.abomination).toStrictEqual({ birthsSeen: 0, guaranteedAtBirth: TUNING.abominationGuaranteedBirthMax });
+    expect(validateState(out).ok).toBe(false);
   });
 
   it('leaves a non-array sheep in a version-3 state for validation to reject', () => {

@@ -34,7 +34,8 @@ export type SimEvent =
   | { type: 'BreedingFoodEaten'; sheepId: number; pieceId: number; x: number; y: number }
   // Two ready adults bred (FR9): a lamb is on the way. (x, y) is the pregnancy's stored spot.
   | { type: 'Bred'; pregnancyId: number; parentA: number; parentB: number; x: number; y: number }
-  // A pending lamb was born at (x, y) (lifecycle.ts). Story 4.1 spawns the Abomination from this.
+  // A pending lamb was born at (x, y) (lifecycle.ts). The sim decides at birth whether it is the
+  // Abomination (abomination.ts onBirth), not from this event, and this event is the same either way.
   | { type: 'LambBorn'; id: number; pregnancyId: number; x: number; y: number }
   // Sheep `id` went into the Better Place (FR18; betterPlace.ts), before any Lost it caused. Story 5.3
   // adds `name`. Secrecy (AR18): `wasAbomination` is for the reveal (Story 4.4) only; the view must not

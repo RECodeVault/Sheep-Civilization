@@ -40,6 +40,34 @@ describe('updateLifecycle', () => {
     expect(state.carcasses[0]).toMatchObject({ x: elder.x, y: elder.y, createdAt: state.time });
   });
 
+  it('never kills the Abomination of old age: it stays a lamb past oldAgeMs (FR30)', () => {
+    const state = gameWithAges([TUNING.oldAgeMs - TICK_MS, TUNING.lambUntilMs]);
+    const [abom, other] = state.sheep;
+    abom.isAbomination = true;
+    const events = runFed(state, 5);
+    expect(state.time - abom.bornAt).toBeGreaterThan(TUNING.oldAgeMs);
+    expect(events).toEqual([]);
+    expect(state.sheep.map((s) => s.id)).toEqual([abom.id, other.id]);
+    expect(stageOf(abom, state)).toBe('lamb');
+  });
+
+  it('the Abomination still starves: an ordinary death with a carcass (FR30)', () => {
+    const state = gameWithAges([0, TUNING.lambUntilMs]);
+    const [abom, other] = state.sheep;
+    abom.isAbomination = true;
+    const events: SimEvent[] = [];
+    for (let t = 0; t < TUNING.starveMs / TICK_MS; t++) {
+      other.fullness = TUNING.fullnessMax;
+      step(state);
+      drainEvents((e) => events.push(e));
+    }
+    expect(state.sheep.map((s) => s.id)).toEqual([other.id]);
+    expect(events).toEqual([
+      { type: 'SheepDied', id: abom.id, cause: 'starved', x: abom.x, y: abom.y },
+      { type: 'CarcassSpawned', id: expect.any(Number), x: abom.x, y: abom.y },
+    ]);
+  });
+
   it('kills an elder on exactly the tick its age reaches oldAgeMs', () => {
     // After one step this elder is aged oldAgeMs − TICK_MS; after two, exactly oldAgeMs.
     const state = gameWithAges([TUNING.oldAgeMs - 2 * TICK_MS, TUNING.lambUntilMs]);

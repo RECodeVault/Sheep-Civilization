@@ -246,6 +246,19 @@ describe('updateFeeding breeding food (FR8a)', () => {
     expect(state.breedingPieces).toEqual([p]);
   });
 
+  it('ignores the Abomination at adult age: it stays a lamb, so it never eats breeding food (FR30)', () => {
+    const c = mid(newGame());
+    const state = gameWith([{ x: c.x + TUNING.eatReachPx / 2, y: c.y, fullness: FED }]);
+    const abom = state.sheep[0];
+    abom.isAbomination = true;
+    abom.bornAt = state.time - TUNING.lambUntilMs - 1;
+    const p = createBreedingPiece(state, c.x, c.y);
+    for (let t = 0; t < 3; t++) updateFeeding(state);
+    expect(abom.activity).toBe('wander');
+    expect(abom.breedReady).toBe(false);
+    expect(state.breedingPieces).toEqual([p]);
+  });
+
   it('food comes first: a hungry adult takes the food piece, not the breeding piece', () => {
     const c = mid(newGame());
     const state = gameWith([{ x: c.x, y: c.y }]);
