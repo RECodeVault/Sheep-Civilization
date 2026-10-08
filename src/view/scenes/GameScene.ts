@@ -10,6 +10,7 @@ import { applyCommand, type Command } from '../../sim/commands';
 import { clearEvents, drainEvents, type SimEvent } from '../../sim/events';
 import {
   breedBlock,
+  currentEra,
   fenceBounds,
   isDecoration,
   isLand,
@@ -29,6 +30,7 @@ import {
 } from '../../sim/selectors';
 import { createNewGame, type BreedingPiece, type Carcass, type FoodPiece, type GameState } from '../../sim/state';
 import { step } from '../../sim/step';
+import { syncEra } from '../../sim/systems/eras';
 import { ATLAS, FRAME, HEART_CURSOR } from '../assetKeys';
 import { bus } from '../bus';
 import { TUNING, type Rect } from '../../config/tuning';
@@ -36,12 +38,13 @@ import { BETTER_PLACE, BETTER_PLACE_BOUNDS, BETTER_PLACE_GLOW_BOUNDS, BetterPlac
 import { CarcassSprite } from '../field/CarcassSprite';
 import { DECORATION_BOUNDS, DECORATION_SPOTS, Decorations } from '../field/Decorations';
 import { FIELD_DEPTH } from '../field/depths';
+import { ERA_BACKGROUND_BOUNDS, EraBackground } from '../field/EraBackground';
 import { EntityLayer } from '../field/EntityLayer';
 import { Fence, fenceDrawnBounds } from '../field/Fence';
 import { FoodSprite } from '../field/FoodSprite';
 import { Market, MARKET, MARKET_BOUNDS } from '../field/Market';
 import { ObjectPool } from '../field/ObjectPool';
-import { fitsView, fitsWithInset, PenCamera } from '../field/PenCamera';
+import { fitsView, fitsWithInset, PenCamera, viewExtent } from '../field/PenCamera';
 import { PregnancyHeart } from '../field/PregnancyHeart';
 import { spriteIndexAt } from '../field/hitTest';
 import { SheepDrag } from '../field/SheepDrag';
@@ -165,6 +168,10 @@ export class GameScene extends Phaser.Scene {
   private fence!: Fence;
   /** A land purchase was applied this frame: the fence grows once, after the ticks (growLand). */
   private landBought = false;
+  /** The era art under the field (Story 3.5). */
+  private eraBackground!: EraBackground;
+  /** An EraChanged was emitted this frame: the background fades once, after the ticks, to the era now. */
+  private eraChanged = false;
   /**
    * The shop panel (Story 3.2), drawn here so the world overlays draw above it (ShopPanel). Open or
    * closed is view state, never saved: every game starts with it closed.
@@ -216,6 +223,10 @@ export class GameScene extends Phaser.Scene {
       // Grown once per frame in update, however many tiers were bought in the frame's ticks.
       else if (e.type === 'Bought' && isLand(e.item)) this.landBought = true;
       else if (e.type === 'Bought' && isDecoration(e.item)) this.decorationBought(e.item);
+      // Faded once per frame in update, straight to the era the state is in (×16 can change it twice).
+      // The losing tick runs no eras system (AC 2), so a one-tick wipe would keep the old era's art:
+      // follow the derived era (0 sheep → Pasture) as the badge does (AC 6).
+      else if (e.type === 'EraChanged' || e.type === 'Lost') this.eraChanged = true;
     } catch (err) {
       reportError('ui', err);
     }
@@ -247,13 +258,19 @@ export class GameScene extends Phaser.Scene {
     // Phaser keeps restart data in settings.data and reuses it when a later restart passes none, so
     // consume it: a plain restart must start a new game, not resume this (by then mutated) state.
     if (data !== undefined) delete data.state;
+    // A stale era cache (an old or edited save) must not announce a change on the first tick.
+    syncEra(this.state);
     this.clock = new FixedStepClock();
     this.pendingCommands = [];
     this.publicSheep.length = 0;
     this.publicPregnancies.length = 0;
 
-    // Placeholder ground until the era backgrounds arrive in Epic 3 (`pasture` is an art tone).
+    // The era art (Story 3.5) covers every world point the camera can show; the pasture colour shows
+    // only if a background failed to load. A continued or loaded game shows its era at once, no fade.
     this.cameras.main.setBackgroundColor(COLORS.pasture);
+    this.eraBackground = new EraBackground(this);
+    this.eraBackground.show(currentEra(this.state));
+    this.eraChanged = false;
     // A loaded game with land draws its grown fence from the start (Story 3.3).
     this.fence = new Fence(this, fenceBounds(this.state));
     this.betterPlace = new BetterPlace(this);
@@ -606,6 +623,14 @@ export class GameScene extends Phaser.Scene {
       reportError('ui', err);
     }
     try {
+      if (this.eraChanged) {
+        this.eraChanged = false;
+        this.eraBackground.fadeTo(currentEra(this.state));
+      }
+    } catch (err) {
+      reportError('ui', err);
+    }
+    try {
       this.updateShop();
     } catch (err) {
       reportError('ui', err);
@@ -915,6 +940,13 @@ if (import.meta.env.DEV) {
       fitsWithInset(area, BETTER_PLACE_BOUNDS, SHOP_PANEL_RIGHT + LAYOUT.safeMargin),
       "GameScene: a land tier's play area cannot keep the Better Place right of the open shop",
     );
+    // Story 3.5: no bare canvas colour at any scroll, shop closed or open.
+    for (const inset of [LAYOUT.safeMargin, SHOP_PANEL_RIGHT + LAYOUT.safeMargin]) {
+      invariant(
+        contains(ERA_BACKGROUND_BOUNDS, viewExtent(area, BETTER_PLACE_BOUNDS, inset)),
+        "GameScene: an era background does not cover a land tier's view",
+      );
+    }
     invariant(f.x + f.width < MARKET_BOUNDS.x, "GameScene: a land tier's fence reaches the Market");
     invariant(
       f.y >= BETTER_PLACE_BOUNDS.y + BETTER_PLACE_BOUNDS.height - 2,

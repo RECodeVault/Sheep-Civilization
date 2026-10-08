@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { CANVAS_HEIGHT, CANVAS_WIDTH, COLOR_INT, COLORS } from '../../config/constants';
 import { log } from '../../core/log';
-import { ATLAS, atlasUrls } from '../assetKeys';
+import { ERAS } from '../../sim/selectors';
+import { ATLAS, atlasUrls, backgroundUrl } from '../assetKeys';
 import { showToast } from '../safetyNet';
 import { STRINGS } from '../strings';
 
@@ -44,14 +45,16 @@ export class PreloadScene extends Phaser.Scene {
       const urls = atlasUrls(key);
       this.load.atlas(key, urls.png, urls.json);
     }
+    // The era backgrounds (Story 3.5), keyed by Era id.
+    for (const era of ERAS) this.load.image(era, backgroundUrl(era));
   }
 
   create(): void {
     // Checks the outcome, not loader events: a file that downloads but fails to parse (e.g. an HTML
     // fallback page served for a missing .json) never fires FILE_LOAD_ERROR.
-    const missing = ATLASES.filter((key) => !this.textures.exists(key));
+    const missing = [...ATLASES, ...ERAS].filter((key) => !this.textures.exists(key));
     if (missing.length > 0) {
-      log.warn('boot', 'Atlases missing after load', missing);
+      log.warn('boot', 'Textures missing after load', missing);
       showToast(STRINGS.assetLoadFailed);
     } else {
       log.info('boot', 'Assets loaded');

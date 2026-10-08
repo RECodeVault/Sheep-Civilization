@@ -7,6 +7,9 @@ import {
   canBreed,
   capacity,
   carcassIndex,
+  currentEra,
+  ERAS,
+  eraIndex,
   farmPipsPerClick,
   fenceBounds,
   FULLNESS_EPSILON,
@@ -570,5 +573,24 @@ describe('land selectors (FR11, FR22, Story 3.3)', () => {
     });
     expect(out.flock).toBe(state.sheep.length);
     expect(out.capacity).toBe(TUNING.landCapacities[1]);
+  });
+});
+
+describe('era selectors (FR27, Story 3.5)', () => {
+  it('ERAS lists the four eras in order; eraIndex rises with them (FR27)', () => {
+    expect(ERAS).toEqual(['pasture', 'village', 'town', 'wool-empire']);
+    expect(Object.isFrozen(ERAS)).toBe(true);
+    ERAS.forEach((era, i) => expect(eraIndex(era)).toBe(i));
+  });
+
+  it('currentEra counts living sheep only', () => {
+    const state = newGame();
+    expect(currentEra(state)).toBe('pasture');
+    // Carcasses are not sheep: a flock one short of Village stays in Pasture with any number of them.
+    fillFlock(state, TUNING.eraThresholds[0] - 1);
+    for (let i = 0; i < 5; i++) createCarcass(state, state.sheep[0].x, state.sheep[0].y);
+    expect(currentEra(state)).toBe('pasture');
+    fillFlock(state, TUNING.eraThresholds[0]);
+    expect(currentEra(state)).toBe('village');
   });
 });

@@ -4,7 +4,7 @@ import { TUNING } from '../config/tuning';
 import { formatMoney } from '../core/format';
 import type { DeathCause } from '../sim/events';
 import type { Hunger, Stage } from '../sim/selectors';
-import type { ShopItemId } from '../sim/state';
+import type { Era, ShopItemId } from '../sim/state';
 
 const STAGE: Readonly<Record<Stage, string>> = Object.freeze({ lamb: 'Lamb', adult: 'Adult', elder: 'Elder' });
 const HUNGER: Readonly<Record<Hunger, string>> = Object.freeze({ fed: 'Fed', hungry: 'Hungry', starving: 'Starving' });
@@ -32,6 +32,14 @@ function landEffect(tier: 1 | 2 | 3): string {
   const c = TUNING.landCapacities;
   return `Capacity ${c[tier - 1]} → ${c[tier]}`;
 }
+// UX-DR94 / UX-DR95: the era names, for the era badge and the era-up banner.
+const ERA_NAME: Readonly<Record<Era, string>> = Object.freeze({
+  pasture: 'Pasture',
+  village: 'Village',
+  town: 'Town',
+  'wool-empire': 'Wool Empire',
+});
+
 const SHOP_NAME: Readonly<Record<ShopItemId, string>> = Object.freeze({
   land1: 'Land I',
   land2: 'Land II',
@@ -141,4 +149,8 @@ export const STRINGS = Object.freeze({
   // The flock counter (UX-DR35): living sheep over land capacity, e.g. "12/25".
   flockCount: (alive: number, capacity: number): string => `${alive}/${capacity}`,
   shopEffect: SHOP_EFFECT,
+  // The era badge and banner (UX-DR36, UX-DR37; EXPERIENCE Voice, UX-DR94): the era's name, and the
+  // regress banner, e.g. "Back to Pasture." (a full stop, never "!").
+  eraName: ERA_NAME,
+  eraBack: (name: string): string => `Back to ${name}.`,
 } as const);

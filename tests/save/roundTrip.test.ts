@@ -3,7 +3,8 @@ import { TUNING } from '../../src/config/tuning';
 import { decodeSave, encodeSave } from '../../src/save/saveFile';
 import { applyCommand } from '../../src/sim/commands';
 import type { SimEvent } from '../../src/sim/events';
-import { isLost } from '../../src/sim/selectors';
+import { currentEra, isLost } from '../../src/sim/selectors';
+import { syncEra } from '../../src/sim/systems/eras';
 import type { GameState } from '../../src/sim/state';
 import { newGame, runFor } from '../sim/helpers';
 import { busyGame, isBusy } from './busy';
@@ -20,6 +21,32 @@ describe('save round trip', () => {
     // Guard against a vacuous pass: the state must really use seekers, targets, pieces and the bar.
     expect(isBusy(state)).toBe(true);
     expect(reload(state)).toStrictEqual(state);
+  });
+
+  it('a saved game holds the era its flock is in, so loading emits no EraChanged (Story 3.5)', () => {
+    const state = busyGame();
+    expect(state.lastEra).toBe(currentEra(state));
+    expect(state.lastEra).toBe('village');
+    const loaded = reload(state);
+    expect(runFor(loaded, 100).filter((e) => e.type === 'EraChanged')).toEqual([]);
+  });
+
+  it('a save with a stale lastEra loads, and its first tick emits one EraChanged to the current era', () => {
+    const state = busyGame();
+    state.lastEra = 'wool-empire';
+    const loaded = reload(state);
+    expect(loaded.lastEra).toBe('wool-empire');
+    const events = runFor(loaded, 100).filter((e) => e.type === 'EraChanged');
+    expect(events).toEqual([{ type: 'EraChanged', from: 'wool-empire', to: currentEra(loaded) }]);
+    expect(loaded.lastEra).toBe(currentEra(loaded));
+  });
+
+  it('a stale lastEra synced at load (as GameScene.create does) emits no EraChanged', () => {
+    const state = busyGame();
+    state.lastEra = 'pasture';
+    const loaded = reload(state);
+    syncEra(loaded);
+    expect(runFor(loaded, 100).filter((e) => e.type === 'EraChanged')).toEqual([]);
   });
 
   it('10 save/load cycles give the same game as an uninterrupted run (NFR7)', () => {

@@ -15,7 +15,7 @@ import { formatGameTime, formatMoney } from '../core/format';
 import { log } from '../core/log';
 import { decodeSave, encodeSave } from '../save/saveFile';
 import { rngRange } from '../sim/rng';
-import { boostRemainingMs, fenceBounds, innerFence, stageOf } from '../sim/selectors';
+import { boostRemainingMs, currentEra, fenceBounds, innerFence, stageOf } from '../sim/selectors';
 import { createSheep, type GameState } from '../sim/state';
 import { createCarcass } from '../sim/systems/carcass';
 import { createBreedingPiece, createFoodPiece } from '../sim/systems/feeding';
@@ -305,7 +305,7 @@ export function installDebugOverlay(game: Phaser.Game): void {
     const speed = scene.simClock.speed;
     timeLine.textContent = `time   ${formatGameTime(s.time)} (${s.time} ms) · ${speed === 0 ? 'paused' : `×${speed}`}`;
     // Story 3.1: the balance and sales; 3.2: how many shop items are owned.
-    sheepLine.textContent = `sheep  ${s.sheep.length} · carcasses ${s.carcasses.length} · infected ${countInfected(s)} · ${formatMoney(s.money)} · sold ${s.stats.sold} · owned ${s.owned.length}`;
+    sheepLine.textContent = `sheep  ${s.sheep.length} · carcasses ${s.carcasses.length} · infected ${countInfected(s)} · ${formatMoney(s.money)} · sold ${s.stats.sold} · owned ${s.owned.length} · era ${currentEra(s)}`;
     foodLine.textContent = `food   pieces ${s.foodPieces.length} · bar ${s.farmProgress}/${TUNING.farmPipsPerFood} · boost ${formatGameTime(boostRemainingMs(s))}`;
     pauseButton.textContent = speed === 0 ? 'Resume' : 'Pause';
     stepButton.disabled = speed !== 0;

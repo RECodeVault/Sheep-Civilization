@@ -23,6 +23,19 @@ export function fitsWithInset(area: Rect, protect: Rect, leftInset: number): boo
 }
 
 /**
+ * The world rect the camera can show for `area` (Story 3.5): its whole scroll range, from the limits
+ * centreOn and panBy clamp to, plus the field. GameScene's DEV invariant checks the era background
+ * covers it at every land tier, shop open and closed. Allocates; DEV checks only.
+ */
+export function viewExtent(area: Rect, protect: Rect, leftInset: number = EDGE): Rect {
+  const x0 = Math.min(minX(area), maxX(area, protect, leftInset));
+  const x1 = Math.max(minX(area), maxX(area, protect, leftInset));
+  const y0 = Math.min(minY(area), maxY(area));
+  const y1 = Math.max(minY(area), maxY(area));
+  return { x: x0, y: y0, width: x1 - x0 + VIEW_W, height: y1 - y0 + VIEW_H };
+}
+
+/**
  * The field camera (Rylan, 2026-10-06): a game starts with the pen and the Better Place centred in the
  * field above the bottom bar, as far as the open shop's limit allows (see centreOn), and a right-drag
  * pans, pinned so the whole play area always stays in view (you cannot drag it away). The play area is the pen plus the drop targets (Story 2.7: the Better

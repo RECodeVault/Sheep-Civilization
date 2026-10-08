@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { COLORS, COMPONENTS, SPACING } from '../../config/constants';
 import { discardSave, loadSave, wipeSave } from '../../save/saveStore';
 import type { GameState } from '../../sim/state';
+import { EraBackground } from '../field/EraBackground';
 import { TitleFlock } from '../field/TitleFlock';
 import { ConfirmPanel } from '../overlay/ConfirmPanel';
 import { MenuPanel, type MenuItem } from '../overlay/MenuPanel';
@@ -55,8 +56,11 @@ export class TitleScene extends Phaser.Scene {
       if (loaded !== null && this.saved === null) discardSave();
     }
 
-    // Placeholder ground until the era backgrounds arrive in Epic 3, as in GameScene.
+    // The Pasture art behind the title (Story 3.5), placed as in the field. The camera does not pan; the
+    // strip below the art's plain-grass bottom edge, and everything if the art failed to load, is the
+    // pasture colour.
     this.cameras.main.setBackgroundColor(COLORS.pasture);
+    new EraBackground(this).show('pasture');
     this.modals = new ModalController<TitleModal>(this, COMPONENTS.menuScrimStart, SCRIM_DEPTH);
 
     const items: MenuItem[] = [];

@@ -6,7 +6,7 @@
 // Pure: never mutates its input and never throws. Hand-written guards only (no schema library).
 // Unknown extra keys are tolerated and kept: a field a later build added is harmless to this one.
 import { TUNING } from '../config/tuning';
-import { fenceBounds, innerFence, SHOP_ITEMS, shopRequires } from '../sim/selectors';
+import { ERAS, fenceBounds, innerFence, SHOP_ITEMS, shopRequires } from '../sim/selectors';
 import type { Era, GameState, SheepActivity, ShopItemId } from '../sim/state';
 
 export type ValidationResult = { ok: true; state: GameState } | { ok: false; reason: string };
@@ -15,7 +15,6 @@ type Obj = Record<string, unknown>;
 
 // `dragged` is never saved (encodeSave writes it as `wander`), so a save holding it is rejected.
 const ACTIVITIES: readonly SheepActivity[] = ['wander', 'seekFood', 'seekBreedingFood', 'seekCarcass', 'eating'];
-const ERAS: readonly Era[] = ['pasture', 'village', 'town', 'wool-empire'];
 const STAT_COUNTS = ['died', 'sold', 'sacrificed', 'peakFlock'] as const;
 const RNG_MAX = 0xffffffff;
 // Ceiling for time, ids and counters: 2^48 ms is about 8 900 years of play, and the headroom up to

@@ -1,7 +1,7 @@
 // Read-only views of GameState. The view layer reads state only through these.
 import { TUNING, type Rect } from '../config/tuning';
 import { assertNever } from '../core/types';
-import type { BreedingPiece, Carcass, FoodPiece, GameState, Pregnancy, Sheep, ShopItemId } from './state';
+import type { BreedingPiece, Carcass, Era, FoodPiece, GameState, Pregnancy, Sheep, ShopItemId } from './state';
 
 /** A land tier: 0 before any land, then 1–3 for Land I–III (FR22). Indexes TUNING's land table. */
 export type LandTier = 0 | 1 | 2 | 3;
@@ -395,7 +395,32 @@ export function farmPipsPerClick(state: GameState): number {
   return TUNING.farmPipsPerClick * (isBoosted(state) ? TUNING.boostPipMultiplier : 1);
 }
 
-/** What the HUD shows. A later story adds the era (3.5). */
+/** The eras in order (FR27). Era `i ≥ 1` needs TUNING.eraThresholds[i − 1] living sheep. */
+export const ERAS: readonly Era[] = Object.freeze(['pasture', 'village', 'town', 'wool-empire']);
+
+/**
+ * FR27 / pattern N4: the era, derived from the living flock every time and never stored. Counts
+ * state.sheep only: pending lambs hold a capacity slot (AR21) but are not alive, and carcasses are
+ * not sheep. Eras regress (FR28). Runs every tick and every frame, so it is a plain comparison.
+ */
+export function currentEra(state: GameState): Era {
+  const n = state.sheep.length;
+  const t = TUNING.eraThresholds;
+  if (n >= t[2]) return 'wool-empire';
+  if (n >= t[1]) return 'town';
+  if (n >= t[0]) return 'village';
+  return 'pasture';
+}
+
+/** An era's place in ERAS, so the view can tell an advance from a regress (Story 3.5). */
+export function eraIndex(era: Era): number {
+  return ERAS.indexOf(era);
+}
+
+/**
+ * What the HUD shows. The era is not here: the era badge lives in OverlayScene (above the modal scrim)
+ * and reads currentEra itself (Story 3.5).
+ */
 export interface HudView {
   /** Pips in the current Farm bar, out of farmPipsPerFood (FR3). */
   farmProgress: number;

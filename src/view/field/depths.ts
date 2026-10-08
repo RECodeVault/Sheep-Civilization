@@ -2,9 +2,14 @@
 // depth = y, which stays well below these bands, so lower sprites draw in front. Above them come the
 // screen-fixed shop panel (Story 3.2), a dragged sheep, then the world-overlay band: hearts and markers, then particles, then alert pings,
 // with the sheep tooltip on top. The Better Place sits below the world, as ground decor. The decorations
-// (Story 3.4) are world objects at depth = their foot's y, like the sheep; they need no band of their own. The HUD and
-// Overlay scenes draw above all of GameScene.
+// (Story 3.4) are world objects at depth = their foot's y, like the sheep; they need no band of their own. Under
+// everything is the era background (Story 3.5). The HUD and Overlay scenes draw above all of GameScene.
 export const FIELD_DEPTH = Object.freeze({
+  /**
+   * The era background (Story 3.5): under the ground decor, the fence's back rails (0) and every world
+   * object. Its crossfade's incoming image uses background + 1.
+   */
+  background: -100,
   /** The Better Place's parts (glow, hole, ring, label): ground decor under everything that moves. */
   ground: -10,
   /**

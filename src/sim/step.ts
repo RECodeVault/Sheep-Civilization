@@ -2,6 +2,7 @@
 import { TICK_MS } from '../config/constants';
 import type { GameState } from './state';
 import { updateCarcassEating } from './systems/carcass';
+import { updateEras } from './systems/eras';
 import { updateFeeding } from './systems/feeding';
 import { updateHunger } from './systems/hunger';
 import { updateLifecycle } from './systems/lifecycle';
@@ -25,6 +26,8 @@ const SYSTEMS: readonly System[] = [
   updateHunger,
   updateLifecycle,
   updateVirus,
+  // Always last: it sees the tick's births, deaths and the commands applied before it (pattern N4).
+  updateEras,
 ];
 
 export function step(state: GameState): void {

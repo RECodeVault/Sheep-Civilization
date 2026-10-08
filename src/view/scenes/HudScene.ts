@@ -2,9 +2,11 @@ import Phaser from 'phaser';
 import type { Command } from '../../sim/commands';
 import type { DeathCause, SimEvent } from '../../sim/events';
 import { COMPONENTS, LAYOUT } from '../../config/constants';
-import { selectHudView, type HudView } from '../../sim/selectors';
+import { eraIndex, selectHudView, type HudView } from '../../sim/selectors';
+import type { Era } from '../../sim/state';
 import { bus } from '../bus';
 import { BottomBar } from '../hud/BottomBar';
+import { EraBanner } from '../hud/EraBanner';
 import { FloatPopups } from '../juice/FloatPopups';
 import { reportError, showToast } from '../safetyNet';
 import { STRINGS } from '../strings';
@@ -15,6 +17,8 @@ import type { GameScene } from './GameScene';
 import type { OverlayScene } from './OverlayScene';
 
 // Within this scene: popups over the bar, the tooltip over everything.
+// The era banner (Story 3.5): above the bar and the Pause button, under the popups and the tooltip.
+const BANNER_DEPTH = 50;
 const POPUP_DEPTH = 100;
 const TOOLTIP_DEPTH = 200;
 // Popups start just above the Farm button's top edge.
@@ -57,6 +61,11 @@ export class HudScene extends Phaser.Scene {
   // Deaths since the last frame, by cause: one toast per cause per frame (UX-DR41/UX-DR92), so a wipe
   // of many sheep on one tick reads "5 sheep starved." instead of overflowing the 3-toast stack.
   private readonly deaths: Record<DeathCause, number> = { starved: 0, oldAge: 0, virus: 0, abomination: 0 };
+  private banner!: EraBanner;
+  // This frame's era change, played once in refresh: the first `from` and the last `to` since the last
+  // refresh, so ×16 ticks that cross twice show one banner (or none, for a flip there and back).
+  private eraFrom: Era | null = null;
+  private eraTo: Era | null = null;
   // The buttons that can show a tooltip; built once, so hoveredButton allocates nothing per frame.
   private tooltipButtons: readonly Button[] = [];
   // Everything the one tooltip serves: the buttons, then the threat summary's counts (UX-DR39).
@@ -73,6 +82,8 @@ export class HudScene extends Phaser.Scene {
     this.wasModal = false;
     this.wasDragging = false;
     for (const k in this.deaths) this.deaths[k as DeathCause] = 0;
+    this.eraFrom = null;
+    this.eraTo = null;
     this.bar = new BottomBar(this, this.farm, this.farmBreeding, this.breedTool, this.shopTool);
     this.pauseButton = new Button(this, PAUSE, {
       x: LAYOUT.safeMargin,
@@ -88,6 +99,7 @@ export class HudScene extends Phaser.Scene {
     // controlAt covers it.
     this.tooltipButtons = [this.pauseButton, this.bar.farmButton, this.bar.breedFoodButton, this.bar.breedButton, this.bar.shopButton];
     this.tooltipSources = [...this.tooltipButtons, ...this.bar.threats.sources];
+    this.banner = new EraBanner(this, BANNER_DEPTH);
     this.popups = new FloatPopups(this, POPUP_DEPTH);
     this.tooltip = new Tooltip(this, TOOLTIP_DEPTH);
 
@@ -114,6 +126,12 @@ export class HudScene extends Phaser.Scene {
   }
 
   private readonly refresh = (): void => {
+    // Its own guard, so a banner error never skips the frame's HUD refresh (and vice versa).
+    try {
+      this.flushEraBanner();
+    } catch (err) {
+      reportError('ui', err);
+    }
     try {
       this.flushDeathToasts();
       const state = this.gameScene.simState;
@@ -296,6 +314,10 @@ export class HudScene extends Phaser.Scene {
       } else if (e.type === 'SheepDied') {
         // Counted here, toasted once per frame in refresh (flushDeathToasts).
         this.deaths[e.cause]++;
+      } else if (e.type === 'EraChanged') {
+        // Recorded here, played once per frame in refresh (flushEraBanner).
+        if (this.eraFrom === null) this.eraFrom = e.from;
+        this.eraTo = e.to;
       } else if (e.type === 'Sacrificed') {
         // UX-DR93: one at a time (a sheep is dragged in by hand). Never branches on wasAbomination: the
         // reveal is Story 4.4's.
@@ -314,6 +336,22 @@ export class HudScene extends Phaser.Scene {
       reportError('ui', err);
     }
   };
+
+  /**
+   * The frame's era change (UX-DR37, UX-DR94): the new era's name going up, "Back to {era}." going down.
+   * A jump over several eras names only the last; a flip there and back shows nothing.
+   */
+  private flushEraBanner(): void {
+    const from = this.eraFrom;
+    const to = this.eraTo;
+    if (from === null || to === null) return;
+    this.eraFrom = null;
+    this.eraTo = null;
+    if (from === to) return;
+    const name = STRINGS.eraName[to];
+    if (eraIndex(to) > eraIndex(from)) this.banner.play(name, false);
+    else this.banner.play(STRINGS.eraBack(name), true);
+  }
 
   /** One announcement per cause for the frame's deaths, in the deaths map's order. */
   private flushDeathToasts(): void {

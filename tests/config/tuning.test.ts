@@ -44,3 +44,20 @@ describe('land table (FR22, Story 3.3)', () => {
     for (const f of TUNING.landFences) expect(Object.isFrozen(f)).toBe(true);
   });
 });
+
+describe('era thresholds (FR27, Story 3.5)', () => {
+  it('has Village, Town and Wool Empire as positive whole counts, strictly rising', () => {
+    const t = TUNING.eraThresholds;
+    expect(t).toHaveLength(3);
+    for (const n of t) {
+      expect(Number.isInteger(n)).toBe(true);
+      expect(n).toBeGreaterThan(0);
+    }
+    for (let i = 1; i < t.length; i++) expect(t[i]).toBeGreaterThan(t[i - 1]);
+    expect(Object.isFrozen(t)).toBe(true);
+  });
+
+  it('each threshold equals a land capacity (GDD: enter each era at full capacity)', () => {
+    TUNING.eraThresholds.forEach((n, i) => expect(n).toBe(TUNING.landCapacities[i]));
+  });
+});

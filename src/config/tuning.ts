@@ -59,6 +59,11 @@ export const TUNING = Object.freeze({
   // FR11 / FR22 / GDD Upgrade Trees: land capacity by land tier (0 = no land, then Land I, II, III).
   // Capacity counts living sheep plus pending lambs (AR21); selectors.ts capacity reads it by tier.
   landCapacities: Object.freeze([10, 25, 50, 100] as const),
+  // FR27 / GDD Meta-Progression: living sheep needed for Village, Town and Wool Empire (Pasture below
+  // the first). Each equals a land capacity on purpose (GDD Level Progression; decision log
+  // "Overcrowding at era thresholds"): the player enters each era at full capacity. Tune in 3.6, and
+  // change both tables together or log why.
+  eraThresholds: Object.freeze([10, 25, 50] as const),
   // FR5: sheep below 90 Fullness may seek food (feeding.ts pairs each piece with its nearest such
   // sheep); a piece is worth +35, capped at fullnessMax.
   seekBelowFullness: 90,

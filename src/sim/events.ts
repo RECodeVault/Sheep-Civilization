@@ -2,8 +2,8 @@
 // never saved); after each tick GameScene drains it onto the EventBus. Variants: SheepDied,
 // CarcassSpawned, CarcassCleared, CarcassEaten, Infected, Farmed, FoodDropped, FoodEaten,
 // BreedingFoodDropped, BreedingFoodEaten, Bred, LambBorn, Sacrificed, BoostStarted, Sold, Bought,
-// Lost.
-import type { ShopItemId } from './state';
+// Lost, EraChanged.
+import type { Era, ShopItemId } from './state';
 
 export type DeathCause = 'starved' | 'oldAge' | 'virus' | 'abomination';
 
@@ -53,7 +53,11 @@ export type SimEvent =
   | { type: 'Bought'; item: ShopItemId; price: number }
   // The flock reached 0 (checkLastSheepAndLoss). Emitted once per game, after the last SheepDied.
   // survivedMs is state.lostAt; peakFlock is stats.peakFlock.
-  | { type: 'Lost'; survivedMs: number; peakFlock: number };
+  | { type: 'Lost'; survivedMs: number; peakFlock: number }
+  // The derived era changed (FR27, FR28; eras.ts). Once per change, at the end of the tick, so one tick's
+  // net change is one event (a jump over two thresholds is one event). Never on the losing tick: step()
+  // stops before eras once lostAt is set.
+  | { type: 'EraChanged'; from: Era; to: Era };
 
 const queue: SimEvent[] = [];
 

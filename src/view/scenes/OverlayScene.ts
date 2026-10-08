@@ -1,9 +1,10 @@
 import Phaser from 'phaser';
 import { COMPONENTS } from '../../config/constants';
 import type { SimEvent } from '../../sim/events';
-import { isLost, selectLoseView, type LoseView } from '../../sim/selectors';
+import { currentEra, isLost, selectLoseView, type LoseView } from '../../sim/selectors';
 import { bus } from '../bus';
 import { ConfirmPanel } from '../overlay/ConfirmPanel';
+import { EraBadge } from '../overlay/EraBadge';
 import { LosePanel } from '../overlay/LosePanel';
 import { MenuPanel } from '../overlay/MenuPanel';
 import { ModalController } from '../overlay/ModalController';
@@ -14,6 +15,9 @@ import type { GameScene } from './GameScene';
 
 // Within this scene: the scrim under every modal panel.
 const SCRIM_DEPTH = 0;
+// The era badge (Story 3.5): above the scrim, so a modal never dims it, and below the panels, which are
+// centred and never reach its top-right corner.
+const BADGE_DEPTH = 5;
 const PANEL_DEPTH = 10;
 // [ASSUMPTION] UX-DR19: "the sim stops, a scrim appears, then the lose panel". Visual only. Pause
 // shows at once (approved by Rylan 2026-10-06).
@@ -22,7 +26,8 @@ const SCRIM_FADE_MS = 250;
 type OverlayModal = 'pause' | 'subPanel' | 'confirm' | 'lose';
 
 /**
- * In-game modals (UX-DR10 layer 4), launched by GameScene in parallel and drawn above the HUD: the
+ * In-game modals (UX-DR10 layer 4), launched by GameScene in parallel and drawn above the HUD, plus the
+ * era badge, which must stay above their scrim (Story 3.5): the
  * pause menu (its last button, Main Menu, saves and returns to the title), its Volume / Stats /
  * Credits sub-panels (placeholders until Epic 5), the start-over confirm and the lose screen, one
  * at a time over one scrim (ModalController). Any of the first three pauses the game (GameScene.setPaused); the Esc chain calls `closeConfirm`, `closeSubPanel`
@@ -34,6 +39,7 @@ export class OverlayScene extends Phaser.Scene {
   private modals!: ModalController<OverlayModal>;
   private losePanel!: LosePanel;
   private subPanel!: PlaceholderPanel;
+  private badge!: EraBadge;
   private showingLose = false;
   private readonly loseView: LoseView = { survivedMs: 0, peakFlock: 0 };
 
@@ -45,6 +51,7 @@ export class OverlayScene extends Phaser.Scene {
     this.gameScene = this.scene.get('GameScene') as GameScene;
     this.showingLose = false;
     this.modals = new ModalController<OverlayModal>(this, COMPONENTS.menuScrim, SCRIM_DEPTH);
+    this.badge = new EraBadge(this, BADGE_DEPTH);
     this.losePanel = new LosePanel(this, PANEL_DEPTH, this.restart);
     this.subPanel = new PlaceholderPanel(this, PANEL_DEPTH, () => this.modals.back());
     this.modals
@@ -82,6 +89,8 @@ export class OverlayScene extends Phaser.Scene {
     // A state that is already lost (a lost save, or debug Load): show at once. Guarded: a throw
     // inside create() would leave Phaser's scene queue stuck.
     try {
+      // The current era from the first frame (a new, continued or loaded game), with no banner.
+      this.badge.set(currentEra(this.gameScene.simState));
       if (isLost(this.gameScene.simState)) this.showLose(false);
     } catch (err) {
       reportError('ui', err);
@@ -128,9 +137,13 @@ export class OverlayScene extends Phaser.Scene {
 
   // Runs inside GameScene's tick (drainEvents → bus): a throw must not count as a sim error.
   private readonly onSim = (e: SimEvent): void => {
-    if (e.type !== 'Lost') return;
     try {
-      this.showLose(true);
+      // Always the current era (UX-DR36), under any modal too. The losing tick emits no EraChanged (AC 2),
+      // so a one-tick wipe sets it from the derived era here.
+      if (e.type === 'Lost') {
+        this.badge.set(currentEra(this.gameScene.simState));
+        this.showLose(true);
+      } else if (e.type === 'EraChanged') this.badge.set(e.to);
     } catch (err) {
       reportError('ui', err);
     }
