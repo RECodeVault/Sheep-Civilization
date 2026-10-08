@@ -327,3 +327,11 @@ Real issues found in reviews that are not actionable in the story where they wer
 ## Deferred from: code review of 4-1-the-abomination-is-born-and-stays-hidden (2026-10-08)
 
 - **The busy save fixture depends on its seed (any time):** `busyGame` reaches its "busy" state (seekers walking to pieces, and so on) through a seeded 1 s run, so any change to the rng draw order can need a new seed. Story 4.1 moved it from 31337 to 31339. Building the busy conditions directly (e.g. placing seekers far from their pieces) would make it robust.
+
+## Deferred from: story 4-2-the-abominations-tells (2026-10-08)
+
+- **Title-screen sheep do not walk-animate (Story 5.8):** `TitleFlock.ts` tweens its three sheep on their idle frame. Giving them the walk cycle is polish.
+- **The walk is two beats only (Story 5.8):** one step frame per pose. Eating/munching frames and a fuller multi-frame walk (the GDD sprite set) are still polish; the off-step must stay readable against whatever 5.8 adds.
+- **The off-step's values await a real playtest (Story 5.10):** `GAIT` (long/short 1.6/0.4, a 2 px dip) was checked by a browser probe (rhythm and dip measured) but not by a person watching. GDD success metric: at least one tester spots the Abomination unprompted; if not, exaggerate the off-step first (GDD Risks #2).
+- **The flock's gap is modest while everyone walks (Story 5.10):** resting sheep settle about 36 px from it (24 from each other), but in a crowded walking pen its mean nearest-neighbour distance is only about 1–7 px wider than the same lamb's unflagged (`tests/sim/scenarios/abominationTells.test.ts`), because walkers press in at the walk-speed cap. Revisit with the off-step if the playtest finds the tell too subtle.
+- **Approach and contact for the kill cycle (Story 4.3):** the Abomination feels only the normal 24 px from other sheep, so walking up to a victim it is held off at about `24 × (1 − 1/separationWeight)` = 8 px (and the victim is pushed away at up to 36 px). Define "contact" at or beyond that distance, or let the stalk ignore separation, so the approach can finish.

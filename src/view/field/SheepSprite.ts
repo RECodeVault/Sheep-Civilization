@@ -5,10 +5,13 @@ import { ATLAS, FRAME } from '../assetKeys';
 import { AlertPing } from './AlertPing';
 import { FIELD_DEPTH } from './depths';
 import type { PooledEntitySprite } from './EntityLayer';
+import { GAIT, gaitDipPx, isStepBeat } from './gait';
 
 // Placeholder art is shown at 2×: an adult or elder is 32×26 (about 64×52 on the 1280×720 canvas, as
 // in the mockup). The lamb is drawn smaller at the bottom of a 22×26 frame, so with the shared centre
 // origin its feet (and so depth sorting) line up with an adult's, and nothing jumps when it grows up.
+// Walking (Story 4.2), a sheep alternates each pose with its step frame (same size, legs apart); only the
+// off-step's dip moves the origin, by one art pixel (gait.ts).
 const SHEEP_SCALE = 2;
 
 // Facing changes only when a sheep moves more than this sideways in one tick (a quarter of walk
@@ -42,6 +45,13 @@ const SHEEP_FRAME: Readonly<Record<Stage, Readonly<Record<Hunger, string>>>> = O
   adult: Object.freeze({ fed: FRAME.adultIdle, hungry: FRAME.adultHungry, starving: FRAME.adultStarving }),
   elder: Object.freeze({ fed: FRAME.elderIdle, hungry: FRAME.elderHungry, starving: FRAME.elderStarving }),
 });
+// Story 4.2: the walk cycle's step frame (legs apart) for each pose. A walking sheep alternates
+// SHEEP_FRAME and this in the rhythm gait.ts sets from PublicSheep.gait; both beats keep the hunger pose.
+const STEP_FRAME: Readonly<Record<Stage, Readonly<Record<Hunger, string>>>> = Object.freeze({
+  lamb: Object.freeze({ fed: FRAME.lambWalk, hungry: FRAME.lambHungryWalk, starving: FRAME.lambStarvingWalk }),
+  adult: Object.freeze({ fed: FRAME.adultWalk, hungry: FRAME.adultHungryWalk, starving: FRAME.adultStarvingWalk }),
+  elder: Object.freeze({ fed: FRAME.elderWalk, hungry: FRAME.elderHungryWalk, starving: FRAME.elderStarvingWalk }),
+});
 // UX-DR60: a dragged sheep dangles its legs; one frame per stage (the hunger pose waits until it is put
 // down; the ping and tint still show Starving and infected).
 const DRAGGED_FRAME: Readonly<Record<Stage, string>> = Object.freeze({
@@ -70,6 +80,17 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
   /** The stage and hunger whose frame is showing; null forces the next sync to set it. */
   private shownStage: Stage | null = null;
   private shownHunger: Hunger | null = null;
+  /**
+   * The walk cycle (Story 4.2): whether the last tick moved it far enough to count as walking, the
+   * stride travelled while walking (drives gait.ts), the last drawn point (to measure that stride), and
+   * whether the step frame is showing. The gait comes from PublicSheep.gait only, never the sim's flag
+   * (UX-DR64), and the reduced-motion setting must never change it (UX-DR84).
+   */
+  private walking = false;
+  private stridePx = 0;
+  private lastDrawnX = 0;
+  private lastDrawnY = 0;
+  private shownStep = false;
   /**
    * Held by a drag (Story 2.7): drawn at (heldX, heldY), lifted and dangling while `heldLifted` (in the
    * hand), or standing (put down, waiting for its Drop to apply). shownLifted caches the frame choice.
@@ -144,20 +165,14 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
   }
 
   sync(pub: PublicSheep, alpha: number, simTime: number): void {
-    // Either may change alone: a sheep ages while its hunger holds steady, and the reverse.
     const lifted = this.held && this.heldLifted;
-    if (pub.stage !== this.shownStage || pub.hunger !== this.shownHunger || lifted !== this.shownLifted) {
-      this.shownStage = pub.stage;
-      this.shownHunger = pub.hunger;
-      this.shownLifted = lifted;
-      this.setFrame(lifted ? DRAGGED_FRAME[pub.stage] : SHEEP_FRAME[pub.stage][pub.hunger]);
-    }
     if (this.fresh) {
       // A newly bound (possibly reused) sprite starts at rest, never sliding in from an old spot.
       this.fresh = false;
       this.prevX = this.currX = pub.x;
       this.prevY = this.currY = pub.y;
       this.lastTick = simTime;
+      this.walking = false;
     } else if (simTime !== this.lastTick) {
       const ticks = (simTime - this.lastTick) / TICK_MS;
       if (ticks > 1) {
@@ -179,6 +194,9 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
       this.currY = pub.y;
       this.lastTick = simTime;
       const dx = this.currX - this.prevX;
+      const dy = this.currY - this.prevY;
+      // A drop's jump to where it was put down is no walk either (snapNext, below).
+      this.walking = dx * dx + dy * dy >= GAIT.walkMinPxPerTick * GAIT.walkMinPxPerTick;
       // A dropped sheep jumps to where it was put down: that is no walk, so the facing holds.
       if (!this.snapNext) {
         if (dx < -FACING_DEADBAND_PX) this.setFlipX(true);
@@ -191,11 +209,36 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
       this.prevX = this.currX = pub.x;
       this.prevY = this.currY = pub.y;
       this.lastTick = simTime;
+      this.walking = false;
     }
     // Held: at the held point every frame, lifted while in the hand (UX-DR60). The sim keeps it at the
     // pickup spot until its Drop applies.
     const x = this.held ? this.heldX : this.prevX + (this.currX - this.prevX) * alpha;
     const y = this.held ? this.heldY - (lifted ? LIFT_PX : 0) : this.prevY + (this.currY - this.prevY) * alpha;
+    // The walk cycle: the stride follows the distance drawn, so it keeps pace with on-screen speed at any
+    // frame rate and stops when the sheep stops. Never while held.
+    const walking = this.walking && !this.held;
+    if (walking) {
+      const sx = x - this.lastDrawnX;
+      const sy = y - this.lastDrawnY;
+      this.stridePx += Math.sqrt(sx * sx + sy * sy);
+    }
+    this.lastDrawnX = x;
+    this.lastDrawnY = y;
+    const step = walking && isStepBeat(pub.gait, this.stridePx);
+    // Any may change alone: a sheep ages while its hunger holds steady, and the reverse. Set only on a change.
+    if (pub.stage !== this.shownStage || pub.hunger !== this.shownHunger || lifted !== this.shownLifted || step !== this.shownStep) {
+      this.shownStage = pub.stage;
+      this.shownHunger = pub.hunger;
+      this.shownLifted = lifted;
+      this.shownStep = step;
+      this.setFrame(lifted ? DRAGGED_FRAME[pub.stage] : step ? STEP_FRAME[pub.stage][pub.hunger] : SHEEP_FRAME[pub.stage][pub.hunger]);
+    }
+    // The off-step's dip, drawn by lowering the origin: the image drops while x/y (hit tests, the tooltip,
+    // drag pickup, depth and every overlay anchor) stay put, so nothing else limps with it. Every sheep
+    // frame is the same height, so the normalised origin holds across frame changes.
+    const originY = 0.5 - (walking ? gaitDipPx(pub.gait, this.stridePx) : 0) / SHEEP_SCALE / this.height;
+    if (originY !== this.originY) this.setOrigin(0.5, originY);
     // Lower sheep draw in front; a sheep in the hand draws above them all.
     const depth = lifted ? FIELD_DEPTH.dragged : y;
     const moved = this.x !== x || this.y !== y;
@@ -427,6 +470,11 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
     this.fresh = true;
     this.shownStage = null;
     this.shownHunger = null;
+    // A reused sprite must never come back mid-stride or dipped.
+    this.walking = false;
+    this.stridePx = 0;
+    this.shownStep = false;
+    this.setOrigin(0.5, 0.5);
     // A reused sprite must never come back held, lifted or dangling.
     this.held = false;
     this.heldLifted = false;

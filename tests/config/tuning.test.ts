@@ -65,3 +65,25 @@ describe('era thresholds (FR27, Story 3.5)', () => {
     TUNING.eraThresholds.forEach((n, i) => expect(n).toBe(TUNING.landCapacities[i]));
   });
 });
+
+describe('Abomination spacing (FR32, Story 4.2)', () => {
+  it('is wider than the normal personal space, so the flock visibly gives it room', () => {
+    expect(TUNING.abominationSpacePx).toBeGreaterThan(TUNING.personalSpacePx);
+  });
+
+  // The 36 px push is a direct distance check (movement.ts), so only personalSpacePx goes through the
+  // grid; keeping both within a cell lets either move to a grid query without breaking the 3×3 scan.
+  it('keeps both radii within one grid cell', () => {
+    expect(TUNING.personalSpacePx).toBeLessThanOrEqual(TUNING.gridCellPx);
+    expect(TUNING.abominationSpacePx).toBeLessThanOrEqual(TUNING.gridCellPx);
+  });
+
+  // A sheep standing on a piece holds a seeker off where its push balances the walk:
+  // space × (1 − 1 / separationWeight). The reach must clear that for both radii, or a blocker that cannot
+  // be pushed (pinned on the rail) stalls the seeker.
+  it('lets a seeker reach past the hold-off of an ordinary sheep and of the Abomination', () => {
+    const holdOff = (space: number): number => space * (1 - 1 / TUNING.separationWeight);
+    expect(TUNING.eatReachPx).toBeGreaterThan(holdOff(TUNING.personalSpacePx));
+    expect(TUNING.eatReachPx).toBeGreaterThan(holdOff(TUNING.abominationSpacePx));
+  });
+});

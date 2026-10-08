@@ -271,3 +271,104 @@ describe('updateMovement seekFood / eating', () => {
     expect(state.sheep.map((x) => [x.x, x.y])).toEqual(before);
   });
 });
+
+/**
+ * Hashes every sheep's exact position and heading after a run: a fingerprint of the path. A number's
+ * default string is its shortest round-trip form, so any change at all in a value changes the hash.
+ */
+function pathHash(state: GameState): string {
+  let h = 0x811c9dc5;
+  const str = state.sheep.map((s) => `${s.x},${s.y},${s.heading}`).join(';');
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16);
+}
+
+describe('updateMovement around the Abomination (FR32, Story 4.2)', () => {
+  /** Two resting sheep 1 px apart, the first optionally the Abomination; settled for 5 s. */
+  function settledPair(abomination: boolean): number {
+    const c = centre(newGame());
+    const state = gameWith([
+      { x: c.x, y: c.y, restUntil: FAR_FUTURE },
+      { x: c.x + 1, y: c.y, restUntil: FAR_FUTURE },
+    ]);
+    state.sheep[0].isAbomination = abomination;
+    runFor(state, 5_000);
+    return dist(state.sheep[0], state.sheep[1]);
+  }
+
+  it('lets two ordinary sheep settle at the normal personal space', () => {
+    const d = settledPair(false);
+    expect(d).toBeGreaterThanOrEqual(0.9 * TUNING.personalSpacePx);
+    expect(d).toBeLessThan(TUNING.abominationSpacePx);
+  });
+
+  it('makes a sheep settle at the wider Abomination space from it', () => {
+    expect(settledPair(true)).toBeGreaterThanOrEqual(0.9 * TUNING.abominationSpacePx);
+  });
+
+  it('pushes the other sheep away while the Abomination itself feels only the normal space', () => {
+    const c = centre(newGame());
+    const gap = (TUNING.personalSpacePx + TUNING.abominationSpacePx) / 2;
+    const state = gameWith([
+      { x: c.x, y: c.y, restUntil: FAR_FUTURE },
+      { x: c.x + gap, y: c.y, restUntil: FAR_FUTURE },
+    ]);
+    const [abom, other] = state.sheep;
+    abom.isAbomination = true;
+    updateMovement(state);
+    expect([abom.x, abom.y]).toEqual([c.x, c.y]);
+    expect(other.x).toBeGreaterThan(c.x + gap);
+  });
+
+  it('lets a dragged Abomination push nobody', () => {
+    const c = centre(newGame());
+    const gap = (TUNING.personalSpacePx + TUNING.abominationSpacePx) / 2;
+    const state = gameWith([
+      { x: c.x, y: c.y, restUntil: FAR_FUTURE },
+      { x: c.x + gap, y: c.y, restUntil: FAR_FUTURE },
+    ]);
+    state.sheep[0].isAbomination = true;
+    state.sheep[0].activity = 'dragged';
+    updateMovement(state);
+    expect([state.sheep[1].x, state.sheep[1].y]).toEqual([c.x + gap, c.y]);
+  });
+
+  it('splits an ordinary sheep standing exactly on the Abomination', () => {
+    const c = centre(newGame());
+    const state = gameWith([
+      { ...c, restUntil: FAR_FUTURE },
+      { ...c, restUntil: FAR_FUTURE },
+    ]);
+    state.sheep[0].isAbomination = true;
+    runFor(state, 3_000);
+    for (const s of state.sheep) expect(Number.isFinite(s.x) && Number.isFinite(s.y)).toBe(true);
+    expect(dist(state.sheep[0], state.sheep[1])).toBeGreaterThan(TUNING.personalSpacePx);
+  });
+
+  it('still caps every step at walk speed with an Abomination in the flock', () => {
+    const state = newGame(11);
+    fillFlock(state, 30);
+    state.sheep[5].isAbomination = true;
+    for (let t = 0; t < 300; t++) {
+      const before = state.sheep.map((s) => [s.x, s.y]);
+      step(state);
+      state.sheep.forEach((s, i) => expect(Math.hypot(s.x - before[i][0], s.y - before[i][1])).toBeLessThanOrEqual(MAX_STEP + 1e-9));
+    }
+  });
+
+  // AC 5: with no Abomination the steering path is bit-for-bit what it was before Story 4.2. The hashes
+  // and rng were recorded on the baseline commit (e3ef9aa) before movement.ts changed.
+  it.each([
+    [11, '15e0eb22', 298150454],
+    [2026, '4e7e4452', 3073683637],
+  ])('takes the pre-4.2 path with no Abomination (seed %i)', (seed, hash, rngAfter) => {
+    const state = newGame(seed);
+    fillFlock(state, 30);
+    runFor(state, 20_000);
+    expect(state.sheep.some((s) => s.isAbomination)).toBe(false);
+    expect([pathHash(state), state.rng]).toEqual([hash, rngAfter]);
+  });
+});

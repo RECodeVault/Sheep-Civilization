@@ -79,10 +79,12 @@ export const TUNING = Object.freeze({
   seekBelowFullness: 90,
   // Kept in 3.6 (2026-10-08).
   foodPieceFullness: 35,
-  // [ASSUMPTION; kept in 3.6, 2026-10-08] A seeker eats once its centre is this close to the piece. Must stay
-  // above ~8 px: a sheep standing on the piece holds a seeker off at personalSpacePx × (1 − 1 /
-  // separationWeight). Then it stands munching for eatMs before it wanders again.
-  eatReachPx: 12,
+  // [ASSUMPTION; kept in 3.6, 2026-10-08; 12 → 14 in Story 4.2 review, Rylan] A seeker eats once its centre is
+  // this close to the piece. Must stay above the hold-off: a sheep standing on the piece holds a seeker
+  // off at space × (1 − 1 / separationWeight), 8 px for personalSpacePx and 12 px for the Abomination's
+  // abominationSpacePx (an Abomination pinned against the rail cannot be pushed off it). Then it stands
+  // munching for eatMs before it wanders again.
+  eatReachPx: 14,
   eatMs: 1_500,
   // FR15 / GDD Virus: "Death 20 s after infection".
   virusDeathMs: 20_000,
@@ -113,9 +115,16 @@ export const TUNING = Object.freeze({
   fenceInset: 40,
   // GDD Feeding: "Walk speed 60 px/s (tune)". The cap on any sheep's total speed.
   walkSpeedPxPerS: 60,
-  // GDD Abomination tells: "normal 24 px personal space (tune)". Story 4.2 adds the 36 px value.
-  // Kept in 3.6 (2026-10-08): no spacing issue in the playtest; the 4.2 tell needs the 24 vs 36 gap.
+  // GDD Abomination tells: "normal 24 px personal space (tune)": the separation radius between ordinary
+  // sheep, and the one the Abomination itself feels. Kept in 3.6 (2026-10-08): no spacing issue in the
+  // playtest; the tell needs the gap to abominationSpacePx.
   personalSpacePx: 24,
+  // GDD The Abomination (Should tier) → Moment-to-moment tells: "other sheep keep 36 px from it instead
+  // of the normal 24 px personal space (tune)" (FR32, Story 4.2). Every other sheep's separation radius
+  // from the living Abomination; it feels only personalSpacePx itself (movement.ts). Must stay above
+  // personalSpacePx (the tell is the gap). Applied by a direct distance check, not a grid query, but kept
+  // within gridCellPx so it could become one; eatReachPx must clear its hold-off (see there).
+  abominationSpacePx: 36,
   // GDD The Abomination (Should tier) → Spawn: "The first Abomination is guaranteed on a random birth
   // between the 8th and 15th birth of a save. After that, 5% per birth. At most 1 alive at a time."
   // A birth is a pending lamb coming due (FR29, Story 4.1); the founding lamb is not one.

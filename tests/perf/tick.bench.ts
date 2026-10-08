@@ -21,6 +21,8 @@ const STEADY_TICKS = 600;
 interface Pile {
   food: number;
   breeding: number;
+  /** Story 4.2: one of the 100 is the Abomination, so every other sheep also takes its 36 px push. */
+  abomination?: boolean;
 }
 
 /** 100 adults at Land III with a pile of pieces, every sheep hungry (half fed enough to want breeding food). */
@@ -36,6 +38,7 @@ function pileGame(pile: Pile): GameState {
     s.breedReady = false;
     s.cooldownUntil = 0;
   });
+  if (pile.abomination === true) state.sheep[0].isAbomination = true;
   const r = innerFence(state);
   for (let i = 0; i < pile.food; i++) {
     createFoodPiece(state, rngRange(state, r.left, r.right), rngRange(state, r.top, r.bottom));
@@ -98,4 +101,5 @@ describe('sim tick, 100 sheep at Land III', () => {
   steadyBench('no pieces · steady 600 ticks', { food: 0, breeding: 0 });
   steadyBench('300 food · steady 600 ticks', { food: 300, breeding: 0 });
   steadyBench('150 food + 150 breeding · steady 600 ticks', { food: 150, breeding: 150 });
+  steadyBench('300 food + Abomination · steady 600 ticks', { food: 300, breeding: 0, abomination: true });
 });

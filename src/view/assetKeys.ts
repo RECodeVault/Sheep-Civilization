@@ -21,6 +21,18 @@ export const FRAME = Object.freeze({
   adultDragged: 'adult-dragged',
   lambDragged: 'lamb-dragged',
   elderDragged: 'elder-dragged',
+  // Story 4.2: walk-cycle step frames, one per pose (legs apart; head and body as the pose). A walking
+  // sheep alternates its pose frame with these; the Abomination's off-step is a rhythm on the same
+  // lamb frames (gait.ts), never frames of its own.
+  lambWalk: 'lamb-walk',
+  lambHungryWalk: 'lamb-hungry-walk',
+  lambStarvingWalk: 'lamb-starving-walk',
+  adultWalk: 'adult-walk',
+  adultHungryWalk: 'adult-hungry-walk',
+  adultStarvingWalk: 'adult-starving-walk',
+  elderWalk: 'elder-walk',
+  elderHungryWalk: 'elder-hungry-walk',
+  elderStarvingWalk: 'elder-starving-walk',
   fencePost: 'fence-post',
   fenceRailH: 'fence-rail-h',
   fenceRailV: 'fence-rail-v',

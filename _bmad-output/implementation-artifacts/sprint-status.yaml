@@ -1,5 +1,5 @@
 # generated: 2026-10-05T14:42:07-07:00
-# last_updated: 2026-10-08T13:35:29-07:00
+# last_updated: 2026-10-08T14:12:39-07:00
 # project: sheep-civilization
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: '2026-10-05T14:42:07-07:00'
-last_updated: '2026-10-08T13:35:29-07:00'
+last_updated: '2026-10-08T14:12:39-07:00'
 project: sheep-civilization
 project_key: NOKEY
 tracking_system: file-system
@@ -78,7 +78,7 @@ development_status:
   # Epic 4: Hidden Threats & Upgrades
   epic-4: in-progress
   4-1-the-abomination-is-born-and-stays-hidden: done
-  4-2-the-abominations-tells: backlog
+  4-2-the-abominations-tells: done
   4-3-the-kill-cycle: backlog
   4-4-sacrifice-reveal: backlog
   4-5-medicine: backlog

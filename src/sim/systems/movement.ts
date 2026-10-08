@@ -1,6 +1,10 @@
 // Movement and flock spacing (AR5): per-tick steering from wander, separation and fence
 // containment, with neighbour queries through the uniform grid. No physics engine (ADR-3). A dragged
 // sheep (FR16) is excluded from steering until it is dropped: it neither moves nor pushes or is pushed.
+// Separation keeps personalSpacePx (24) between ordinary sheep. Every other sheep keeps the wider
+// abominationSpacePx (36) from the living Abomination (FR32, its designed tell, Story 4.2), while the
+// Abomination itself feels only the normal 24: the flock gives it room; it does not shy away. That shows
+// only as spacing: nothing here reaches PublicSheep or emits an event.
 import { TICK_MS } from '../../config/constants';
 import { TUNING } from '../../config/tuning';
 import { assertNever } from '../../core/types';
@@ -8,6 +12,7 @@ import { queryNeighbours, rebuildGrid } from '../grid';
 import { rng, rngRange } from '../rng';
 import { breedingPieceIndex, carcassIndex, fenceBounds, pieceIndex } from '../selectors';
 import type { GameState } from '../state';
+import { abominationIndex } from './abomination';
 
 const TAU = 2 * Math.PI;
 const DT = TICK_MS / 1000;
@@ -73,6 +78,11 @@ export function updateMovement(state: GameState): void {
   const walk = TUNING.walkSpeedPxPerS;
   const space = TUNING.personalSpacePx;
   const sepScale = TUNING.separationWeight * walk;
+  const abomSpace = TUNING.abominationSpacePx;
+  // The living Abomination's index, or -1. A dragged one is in the air and pushes nobody, as any
+  // dragged sheep. With -1 the separation below is exactly the ordinary path (AC 5).
+  let abom = abominationIndex(state);
+  if (abom >= 0 && sheep[abom].activity === 'dragged') abom = -1;
 
   rebuildGrid(sheep);
 
@@ -135,8 +145,11 @@ export function updateMovement(state: GameState): void {
     // Separation: linear falloff from full push at contact to none at the personal-space radius.
     let sx = 0;
     let sy = 0;
+    // Everyone but the Abomination takes its push separately below, over the wider radius.
+    const skip = i === abom ? -1 : abom;
     const count = queryNeighbours(sheep, i, space, neighbours);
     for (let k = 0; k < count; k++) {
+      if (neighbours[k] === skip) continue;
       const o = sheep[neighbours[k]];
       // A dragged sheep is in the air: it pushes nobody (the grid still holds it, so skip on read).
       if (o.activity === 'dragged') continue;
@@ -150,6 +163,24 @@ export function updateMovement(state: GameState): void {
         const w = 1 - d / space;
         sx += (dx / d) * w;
         sy += (dy / d) * w;
+      }
+    }
+    // FR32: the Abomination's push, same falloff over abominationSpacePx. One sheep, so one direct
+    // distance check per sheep (O(n)), and no wider grid query.
+    if (skip >= 0) {
+      const o = sheep[skip];
+      const dx = s.x - o.x;
+      const dy = s.y - o.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < abomSpace * abomSpace) {
+        const d = Math.sqrt(d2);
+        if (d === 0) {
+          sx += s.id > o.id ? 1 : -1;
+        } else {
+          const w = 1 - d / abomSpace;
+          sx += (dx / d) * w;
+          sy += (dy / d) * w;
+        }
       }
     }
 

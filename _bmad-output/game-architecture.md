@@ -523,7 +523,7 @@ sheep-civilization/
 
 #### Game Assets
 
-- kebab-case, `entity-state[-frame]`: `adult-walk-2`, `lamb-offstep-1`, `carcass`, `btn-farm`, `icon-infection`
+- kebab-case, `entity-state[-frame]`: `adult-walk`, `adult-hungry-walk`, `carcass`, `btn-farm`, `icon-infection`
 - Audio sprite markers: `sfx-<name>`: `sfx-pop`, `sfx-thud`, `sfx-suction`, `sfx-fanfare`, `sfx-sting`
 - Backgrounds: era id: `pasture`, `village`, `town`, `wool-empire`
 
@@ -594,6 +594,8 @@ export function killSheep(state: GameState, id: number, cause: DeathCause): void
 - If the victim dies, is sold or is sacrificed before contact, choose a new victim. If no other sheep exists, idle until one does.
 - It counts toward capacity and eras.
 - Tells exposed through `publicSheep`: `gait: 'offstep'`. Wider separation (36 px) is applied inside the sim, so other sheep visibly avoid it.
+  - (Story 4.2) The off-step is a **rhythm on the shared lamb frames**: every sheep walks by alternating its pose frame with a `-walk` step frame, evenly; the Abomination's beats alternate long and short with a one-art-pixel dip on the short one (`src/view/field/gait.ts`). There are no `lamb-offstep-*` frames, so its art is exactly a lamb's.
+  - (Story 4.2) The avoidance is **asymmetric**: every other sheep separates from it over `TUNING.abominationSpacePx` (36), while the Abomination feels only `personalSpacePx` (24) from them, so the flock gives it room and it does not shy away (`movement.ts`). With no Abomination alive the steering path is unchanged.
 - Death toast for `cause: 'abomination'` uses the vague UX string.
 
 **Implementation Guide:**
