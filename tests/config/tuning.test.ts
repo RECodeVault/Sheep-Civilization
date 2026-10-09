@@ -142,3 +142,21 @@ describe('Better Hoe table (FR24, Story 4.7)', () => {
     for (let i = 1; i < pips.length; i++) expect(pips[i]).toBeGreaterThan(pips[i - 1]);
   });
 });
+
+describe('Auto-feeder (FR25, Story 4.8)', () => {
+  it('has a whole-dollar price, a whole-tick interval and a drop beside (not under) the sheep', () => {
+    expect(Number.isInteger(TUNING.autoFeederPrice)).toBe(true);
+    expect(TUNING.autoFeederPrice).toBeGreaterThan(0);
+    expect(TUNING.autoFeederIntervalMs).toBeGreaterThan(0);
+    expect(TUNING.autoFeederIntervalMs % TICK_MS).toBe(0);
+    expect(TUNING.autoFeederDropPx).toBeGreaterThan(TUNING.eatReachPx);
+  });
+
+  it('sustains about 4 sheep (GDD Automation Systems): between 4 and 5 sheep worth of Fullness', () => {
+    const supplyPerS = TUNING.foodPieceFullness / (TUNING.autoFeederIntervalMs / 1000);
+    const drainPerS = TUNING.fullnessMax / (TUNING.starveMs / 1000);
+    const sheep = supplyPerS / drainPerS;
+    expect(sheep).toBeGreaterThanOrEqual(4);
+    expect(sheep).toBeLessThan(5);
+  });
+});

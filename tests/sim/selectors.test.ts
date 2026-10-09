@@ -703,8 +703,25 @@ describe('salePrice (FR17)', () => {
 });
 
 describe('shop selectors (FR22, FR23, UX-DR24)', () => {
-  it('lists the one-time items in GDD order: the Must items, then Better Hoe I–II (Story 4.7)', () => {
-    expect(SHOP_ITEMS).toEqual(['land1', 'land2', 'land3', 'flowerPatch', 'scarecrow', 'hoe1', 'hoe2']);
+  it('lists the one-time items in GDD order: the Must items, Better Hoe I–II (4.7), then the Auto-feeder (4.8)', () => {
+    expect(SHOP_ITEMS).toEqual(['land1', 'land2', 'land3', 'flowerPatch', 'scarecrow', 'hoe1', 'hoe2', 'autoFeeder']);
+  });
+
+  it('prices the Auto-feeder from TUNING; it needs nothing first (FR25, Story 4.8)', () => {
+    expect(shopPrice('autoFeeder')).toBe(TUNING.autoFeederPrice);
+    expect(shopRequires('autoFeeder')).toBeNull();
+  });
+
+  it('buyBlock: the Auto-feeder is poor a dollar short, buyable at its price, then owned (one only)', () => {
+    const state = newGame();
+    state.money = shopPrice('autoFeeder') - 1;
+    expect(buyBlock(state, 'autoFeeder')).toBe('poor');
+    state.money = shopPrice('autoFeeder');
+    expect(buyBlock(state, 'autoFeeder')).toBeNull();
+    applyCommand(state, { type: 'Buy', item: 'autoFeeder' });
+    expect(state.owned).toEqual(['autoFeeder']);
+    state.money = shopPrice('autoFeeder') * 2;
+    expect(buyBlock(state, 'autoFeeder')).toBe('owned');
   });
 
   it('prices Better Hoe I–II from TUNING; II needs I, I needs nothing (FR24)', () => {
@@ -792,6 +809,7 @@ describe('shop selectors (FR22, FR23, UX-DR24)', () => {
     // The pinned looks below need the Flower Patch money to buy Hoe I and Medicine but not Land I or Scarecrow.
     expect(shopPrice('hoe1')).toBeLessThanOrEqual(state.money);
     expect(shopPrice('scarecrow')).toBeGreaterThan(state.money);
+    expect(shopPrice('autoFeeder')).toBeGreaterThan(state.money);
     const out: ShopRowView[] = SHOP_ROWS.map((item) => ({ item, price: -1, block: 'owned' as const }));
     const rows = out.slice();
     expect(selectShopView(state, out)).toBe(out);
@@ -805,6 +823,7 @@ describe('shop selectors (FR22, FR23, UX-DR24)', () => {
       ['scarecrow', shopPrice('scarecrow'), 'poor'],
       ['hoe1', shopPrice('hoe1'), null],
       ['hoe2', shopPrice('hoe2'), 'locked'],
+      ['autoFeeder', shopPrice('autoFeeder'), 'poor'],
       ['medicine', shopPrice('medicine'), null],
     ]);
   });
@@ -847,9 +866,10 @@ describe('land selectors (FR11, FR22, Story 3.3)', () => {
     expect(SHOP_ITEMS.filter(isHoe)).toEqual(['hoe1', 'hoe2']);
   });
 
-  it('every shop item is exactly one of Land, a decoration or a Better Hoe (a new item must be classified on purpose)', () => {
+  it('every shop item is exactly one of Land, a decoration, a Better Hoe or the Auto-feeder (a new item must be classified on purpose)', () => {
     for (const item of SHOP_ITEMS) {
-      expect(Number(isLand(item)) + Number(isDecoration(item)) + Number(isHoe(item)), item).toBe(1);
+      const kinds = Number(isLand(item)) + Number(isDecoration(item)) + Number(isHoe(item)) + Number(item === 'autoFeeder');
+      expect(kinds, item).toBe(1);
     }
   });
 

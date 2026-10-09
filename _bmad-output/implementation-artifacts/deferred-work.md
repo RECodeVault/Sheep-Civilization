@@ -245,6 +245,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **More rows (Stories 4.5, 4.7, 4.8):** each row adds 60 px to the panel (`ShopPanel.ts`); with all 9 rows its top reaches y ≈ 14 and meets the Pause button (16–56). Shrink the row gap and padding, or move Pause. Append the new items to `SHOP_ITEMS`, `ShopItemId`, `shopPrice`, the strings and `SHOP_ICON`, and extend the save validation.
   - **Story 4.5:** 6 rows now (Medicine last, via `SHOP_ROWS`); the panel top is at y 194. 4.7/4.8 add their one-time items to `SHOP_ITEMS` (so they land before Medicine), 3 more rows → top ≈ y 14, which meets Pause: still open for them.
   - **Resolved in Story 4.7 (Rylan, 2026-10-09):** rows 56 → 50 px (a DESIGN.md deviation, noted at `COMPONENTS.shopItemRow`); the geometry moved to `view/field/layout.ts` (`shopPanelHeight`/`shopPanelTop`, `SHOP_PANEL_MAX_ROWS` = 9), and `tests/view/field/layout.test.ts` checks 9 rows clear Pause. 8 rows today: top y 122; with 4.8's Auto-feeder: y 68 (4 px spare). 4.8 must also classify the Auto-feeder for the "exactly one of Land, decoration or Better Hoe" test (`selectors.test.ts`).
+  - **Resolved in Story 4.8:** the Auto-feeder is the 9th row (top y 68, browser-checked at 1280×720 and 960×540) and is classified in that test (`item === 'autoFeeder'`).
 - **Audio (Story 5.6):** a purchase sound on `Bought`.
 - **Reduced motion (Story 5.7):** the money counter's roll (`MONEY_MOTION` in `MoneyCounter.ts`) is juice; show the new balance at once.
 - **The panel appears at once (Story 5.8):** DESIGN's "rises from the bottom bar" is its position; a slide-up on open is optional juice.
@@ -405,3 +406,15 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Audio (Story 5.6):** no hoe-specific sound; the purchase sound on `Bought` (already deferred) covers it.
 - **Playtest (Story 5.10):** whether players buy Better Hoe I early, whether they notice the hoe on the Farm button, and whether Town is reachable at a human rate with hoe + boost (the scripted player says not by itself, see "The Town pacing guard is skipped").
 - **The hoe icon has no tooltip of its own (any time):** the Farm tooltip stays "Farm: fill the bar for 1 food (F)" (sprint change 2026-10-06, R4). If players do not connect the icon to the shop row, a tooltip line such as "Better Hoe II: 3 pips per click" would need Voice-table copy.
+
+## Deferred from: story 4-8-auto-feeder (2026-10-09)
+
+- **Audio (Story 5.6):** no drop sound for the feeder's pieces (a soft one, or none); the purchase sound on `Bought` is already deferred.
+- **Art (Story 5.8):** the feeder icon is a placeholder (`assets/art/ui/icon-feeder.png`, 14×14, from the mockup's `g-feeder` glyph). An optional feeder sprite in the pasture: today the only feedback is the row's "Owned" and the pieces bouncing in beside the hungriest sheep.
+- **Playtest (Story 5.10):** whether players notice it working; whether free pieces pile up with a small flock (they never spoil; a single sheep eats again whenever it drops below 90, so the pile grows about 1 a minute, 69 in an hour, and passes the 300-piece benchmark only after about 4 h; 2–3 sheep build none; the alternative is to skip a drop while no sheep is below `seekBelowFullness`); whether the pacing bot should buy it (it does not, so the pacing guards keep their meaning).
+- **No stat (Story 5.4):** FR36 has no count of feeder drops; none was added.
+
+## Deferred from: code review of 4-8-auto-feeder (2026-10-09)
+
+- **Carcass seekers lose their carcass to any food piece (any time; playtest 5.10):** `updateCarcassEating` (`carcass.ts:106–111`) releases every `seekCarcass` sheep whenever `foodPieces.length > 0`, even when the only piece is already claimed by another sheep. A second Starving sheep then wanders with nothing to claim until that piece is eaten, then goes back to the carcass, losing a second or so. Pre-existing with Farm pieces; the Auto-feeder makes it happen every 10 s. A fix would release only when an unclaimed piece exists.
+

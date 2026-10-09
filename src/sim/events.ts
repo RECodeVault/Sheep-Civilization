@@ -24,7 +24,7 @@ export type SimEvent =
   // Every Farm and FarmBreeding command emits Farmed, after any FoodDropped it caused. `added` is what
   // it made: the pieces (food or breeding) dropped into the pen, 0 until a bar completes.
   | { type: 'Farmed'; resource: FarmResource; added: number }
-  // A food piece landed at (x, y) in the pen (a full Farm bar).
+  // A food piece landed at (x, y) in the pen (a full Farm bar, or the Auto-feeder, Story 4.8).
   | { type: 'FoodDropped'; id: number; x: number; y: number }
   // A sheep ate a piece; (x, y) is where the piece was (the munch particle spot).
   | { type: 'FoodEaten'; sheepId: number; pieceId: number; x: number; y: number }

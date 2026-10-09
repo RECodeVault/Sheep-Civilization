@@ -53,7 +53,7 @@ FR21: Money is earned only by selling and has no cap.
 FR22: The shop offers Land I/II/III ($80/$150/$400; Land I was $50 until Story 3.6) raising capacity 10 → 25 → 50 → 100, each tier requiring the previous one; land growth is shown as the fence expanding.
 FR23: The shop offers Flower Patch ($40) and Scarecrow ($80) as cosmetic decorations.
 FR24: (Should) The shop offers Better Hoe I/II ($30/$100) raising a Farm click to 2/3 pips.
-FR25: (Should) The shop offers an Auto-feeder ($120, one only) that drops 1 food piece next to the hungriest sheep every 10 s [redesign pending since 2026-10-06: there is no food stock, so Story 4.8 decides what feeds it].
+FR25: (Should) The shop offers an Auto-feeder ($120, one only) that drops 1 food piece next to the hungriest sheep every 10 s. The food is free: it makes its own pieces (decision 2026-10-09, Story 4.8).
 FR26: (Should) The shop sells Medicine ($15 per dose); dragging a dose onto an infected sheep cures it immediately.
 
 **Eras**
@@ -1193,7 +1193,7 @@ As a player,
 I want an auto-feeder that drops food for the hungriest sheep,
 So that I get a little help without the game playing itself.
 
-> **Redesign pending (2026-10-06):** there is no food stock any more, so "taking 1 from the food meter" and "the food meter is 0" no longer apply. Decide what feeds the auto-feeder when this story is created. It drops food pieces only; breeding pieces are never produced or targeted by it.
+> **Decided (Rylan, 2026-10-09):** there has been no food stock since 2026-10-06, so the auto-feeder makes its own food: free pieces at its fixed rate, which is what limits it. It drops food pieces only; breeding pieces are never produced or targeted by it.
 
 **Acceptance Criteria:**
 
@@ -1201,17 +1201,17 @@ So that I get a little help without the game playing itself.
 **When** I buy the Auto-feeder ($120, one only)
 **Then** its row shows "Owned" (FR25)
 
-**Given** an owned auto-feeder and food ≥ 1
-**When** every 10 s passes
-**Then** it drops 1 food piece next to the hungriest sheep, taking 1 from the food meter
+**Given** an owned auto-feeder
+**When** every 10 s of game time passes
+**Then** it creates 1 food piece next to the hungriest sheep (lowest Fullness, a dragged sheep skipped); the food is free, and the Farm bar is untouched
 
-**Given** the food meter is 0
+**Given** no sheep can be the target (every sheep is dragged)
 **When** the auto-feeder fires
 **Then** it does nothing
 
-**Given** a seeded test with 4 sheep and a steadily refilled meter
+**Given** a seeded test with the auto-feeder and no other commands
 **When** 5 minutes run with no manual feeding
-**Then** no sheep starves; with 8 sheep, some do
+**Then** 4 sheep never starve; with 8 sheep, some do (and 4 sheep without it starve)
 
 ## Epic 5: Names, Feel & Ship
 

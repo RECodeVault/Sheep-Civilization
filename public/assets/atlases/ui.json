@@ -1,8 +1,80 @@
 {
   "frames": {
-    "icon-flower-patch": {
+    "icon-medicine": {
       "frame": {
         "x": 3,
+        "y": 3,
+        "w": 12,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 12,
+        "h": 16
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "icon-crowd": {
+      "frame": {
+        "x": 21,
+        "y": 3,
+        "w": 14,
+        "h": 12
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 14,
+        "h": 12
+      },
+      "sourceSize": {
+        "w": 14,
+        "h": 12
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "icon-feeder": {
+      "frame": {
+        "x": 21,
+        "y": 21,
+        "w": 14,
+        "h": 14
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 14,
+        "h": 14
+      },
+      "sourceSize": {
+        "w": 14,
+        "h": 14
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "icon-flower-patch": {
+      "frame": {
+        "x": 41,
         "y": 3,
         "w": 14,
         "h": 14
@@ -26,8 +98,8 @@
     },
     "icon-hoe-2": {
       "frame": {
-        "x": 23,
-        "y": 3,
+        "x": 41,
+        "y": 23,
         "w": 14,
         "h": 14
       },
@@ -51,7 +123,7 @@
     "icon-hoe": {
       "frame": {
         "x": 3,
-        "y": 23,
+        "y": 43,
         "w": 14,
         "h": 14
       },
@@ -75,7 +147,7 @@
     "icon-land": {
       "frame": {
         "x": 23,
-        "y": 23,
+        "y": 43,
         "w": 14,
         "h": 14
       },
@@ -98,7 +170,7 @@
     },
     "icon-scarecrow": {
       "frame": {
-        "x": 43,
+        "x": 61,
         "y": 3,
         "w": 14,
         "h": 14
@@ -120,58 +192,10 @@
         "y": 0.5
       }
     },
-    "icon-medicine": {
-      "frame": {
-        "x": 43,
-        "y": 23,
-        "w": 12,
-        "h": 16
-      },
-      "rotated": false,
-      "trimmed": false,
-      "spriteSourceSize": {
-        "x": 0,
-        "y": 0,
-        "w": 12,
-        "h": 16
-      },
-      "sourceSize": {
-        "w": 12,
-        "h": 16
-      },
-      "pivot": {
-        "x": 0.5,
-        "y": 0.5
-      }
-    },
-    "icon-crowd": {
-      "frame": {
-        "x": 3,
-        "y": 43,
-        "w": 14,
-        "h": 12
-      },
-      "rotated": false,
-      "trimmed": false,
-      "spriteSourceSize": {
-        "x": 0,
-        "y": 0,
-        "w": 14,
-        "h": 12
-      },
-      "sourceSize": {
-        "w": 14,
-        "h": 12
-      },
-      "pivot": {
-        "x": 0.5,
-        "y": 0.5
-      }
-    },
     "icon-sheep": {
       "frame": {
-        "x": 23,
-        "y": 43,
+        "x": 61,
+        "y": 23,
         "w": 14,
         "h": 12
       },
@@ -194,46 +218,22 @@
     },
     "icon-starving": {
       "frame": {
-        "x": 43,
-        "y": 45,
-        "w": 14,
-        "h": 12
-      },
-      "rotated": false,
-      "trimmed": false,
-      "spriteSourceSize": {
-        "x": 0,
-        "y": 0,
-        "w": 14,
-        "h": 12
-      },
-      "sourceSize": {
-        "w": 14,
-        "h": 12
-      },
-      "pivot": {
-        "x": 0.5,
-        "y": 0.5
-      }
-    },
-    "icon-infected": {
-      "frame": {
         "x": 61,
-        "y": 23,
-        "w": 11,
-        "h": 11
+        "y": 41,
+        "w": 14,
+        "h": 12
       },
       "rotated": false,
       "trimmed": false,
       "spriteSourceSize": {
         "x": 0,
         "y": 0,
-        "w": 11,
-        "h": 11
+        "w": 14,
+        "h": 12
       },
       "sourceSize": {
-        "w": 11,
-        "h": 11
+        "w": 14,
+        "h": 12
       },
       "pivot": {
         "x": 0.5,
@@ -242,8 +242,8 @@
     },
     "pip-breeding": {
       "frame": {
-        "x": 63,
-        "y": 3,
+        "x": 43,
+        "y": 43,
         "w": 7,
         "h": 14
       },
@@ -266,8 +266,8 @@
     },
     "pip-empty": {
       "frame": {
-        "x": 63,
-        "y": 40,
+        "x": 3,
+        "y": 63,
         "w": 7,
         "h": 14
       },
@@ -290,8 +290,8 @@
     },
     "pip-food": {
       "frame": {
-        "x": 63,
-        "y": 60,
+        "x": 16,
+        "y": 63,
         "w": 7,
         "h": 14
       },
@@ -312,10 +312,34 @@
         "y": 0.5
       }
     },
-    "icon-carcass": {
+    "icon-infected": {
       "frame": {
         "x": 3,
-        "y": 61,
+        "y": 25,
+        "w": 11,
+        "h": 11
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 11,
+        "h": 11
+      },
+      "sourceSize": {
+        "w": 11,
+        "h": 11
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "icon-carcass": {
+      "frame": {
+        "x": 29,
+        "y": 63,
         "w": 10,
         "h": 10
       },
@@ -338,8 +362,8 @@
     },
     "icon-heart": {
       "frame": {
-        "x": 19,
-        "y": 61,
+        "x": 45,
+        "y": 63,
         "w": 9,
         "h": 8
       },
@@ -367,8 +391,8 @@
     "image": "ui.png",
     "format": "RGBA8888",
     "size": {
-      "w": 75,
-      "h": 77
+      "w": 78,
+      "h": 80
     },
     "scale": 1
   }

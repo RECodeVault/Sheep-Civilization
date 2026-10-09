@@ -84,6 +84,8 @@ export const FRAME = Object.freeze({
   // Better Hoe I and II (FR24, Story 4.7): their shop rows and, once owned, the Farm button.
   iconHoe: 'icon-hoe',
   iconHoe2: 'icon-hoe-2',
+  // The Auto-feeder's shop row (FR25, Story 4.8).
+  iconFeeder: 'icon-feeder',
 } as const);
 
 /** Relative URLs (no leading slash) so the build works under any subpath. */

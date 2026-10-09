@@ -95,3 +95,14 @@
 - **Performance:** with 100 sheep at Land III and a 300-piece pile (food, or food + breeding), the sim tick averages ≤ 0.21 ms (p99 ≤ 0.9 ms over 4 runs) against the 2 ms budget (`npm run bench`); one 13–15 ms sample in the first pile case in 3 of 4 runs, likely a GC pause in the bench harness.
 - **Session (Rylan):** Rylan looked at the Phase A build and reported "everything looks good", then waived recording per-run times in the code review. The pacing above is the probe's, not a human session's; human times are deferred to the external playtest (Story 5.10).
 - Source: `implementation-artifacts/3-6-mvp-pacing-playtest-and-tuning-pass.md` (Playtest Record).
+
+## 2026-10-09 · The Auto-feeder makes its own food (Rylan, Story 4.8)
+- Resolves the open item from 2026-10-06 ("what feeds the auto-feeder"). Chosen from: free food, moving existing field food to the hungriest sheep, a hopper filled by Farm, or free food only while a sheep is Hungry.
+- **Free food:** once bought ($120, one only), it creates 1 food piece every 10 s of game time, `TUNING.autoFeederDropPx` (28 px) from the hungriest sheep (lowest Fullness, ties to the first, a dragged sheep skipped), at a seeded-random angle. Food pieces only; never breeding food. The Farm bar is untouched.
+- **Limit:** its rate. 3.5 Fullness/s against 0.83/s per sheep feeds about 4. The hidden-tab pause, old age and click-only breeding keep walking away from being viable.
+- **Clock:** derived from game time (it fires on the tick that crosses each 10 s), so there is no save field and no schema bump.
+- **Guarded by `tests/sim/scenarios/autoFeeder.test.ts`** (seeds 3606/11/2026, 5 min, no commands): 4 adults never starve; 8 do, though fewer than 8 without it; 4 without it starve.
+- **Measured by a throwaway probe (same seeds, not a test):** 4 sheep bottom out at 15–20 Fullness; 5 lose one at 156–198 s; 8 lose two by 72 s. In the code review, 4 young sheep on 15 seeds had no starvation over 60 min.
+- **Target (code review, Rylan):** the hungriest non-dragged sheep, even one that cannot eat now (walking to another piece, eating, or the Abomination mid-visit). The piece then goes to the nearest sheep that can eat, or lies there. Kept as specified: it is rare, and any sheep already seeking food passes a piece by the same way, so it is not a tell.
+- **Open (defaults kept):** a single sheep lets free pieces pile up, about 1 a minute (69 in an hour; 2–3 sheep build none), since pieces never spoil; no feeder sprite or HUD indicator; the pacing bot does not buy it.
+- Source: `implementation-artifacts/4-8-auto-feeder.md`.

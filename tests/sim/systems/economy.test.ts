@@ -125,6 +125,27 @@ describe('buy (Buy command, UX-DR24)', () => {
     expect(capacity(state)).toBe(TUNING.landCapacities[0]);
   });
 
+  it('buys the Auto-feeder once and emits Bought with its price; earnings and rng untouched (FR25, Story 4.8)', () => {
+    const state = newGame(5);
+    state.money = shopPrice('autoFeeder') * 2;
+    const { rng } = state;
+    const earned = state.stats.moneyEarned;
+    drained();
+    buy(state, 'autoFeeder');
+    expect(state.owned).toEqual(['autoFeeder']);
+    expect(state.money).toBe(shopPrice('autoFeeder'));
+    expect(drained()).toEqual([{ type: 'Bought', item: 'autoFeeder', price: shopPrice('autoFeeder') }]);
+    // One only: a second Buy changes nothing and emits nothing.
+    const before = structuredClone(state);
+    buy(state, 'autoFeeder');
+    expect(state).toStrictEqual(before);
+    expect(drained()).toEqual([]);
+    expect(state.stats.moneyEarned).toBe(earned);
+    expect(state.rng).toBe(rng);
+    // Not land: capacity is unchanged.
+    expect(capacity(state)).toBe(TUNING.landCapacities[0]);
+  });
+
   it('buys with exactly the price', () => {
     const state = newGame(5);
     state.money = shopPrice('land1');

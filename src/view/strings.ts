@@ -37,6 +37,10 @@ function landEffect(tier: 1 | 2 | 3): string {
 function hoeEffect(tier: 1 | 2): string {
   return `Farm click fills ${TUNING.hoePipsPerClick[tier - 1]} pips`;
 }
+/** "Drops food every 10 s": the Auto-feeder's row (mockups/hud.html; FR25, Story 4.8), from TUNING. */
+function autoFeederEffect(): string {
+  return `Drops food every ${TUNING.autoFeederIntervalMs / 1000} s`;
+}
 // UX-DR94 / UX-DR95: the era names, for the era badge and the era-up banner.
 const ERA_NAME: Readonly<Record<Era, string>> = Object.freeze({
   pasture: 'Pasture',
@@ -53,6 +57,7 @@ const SHOP_NAME: Readonly<Record<ShopRowId, string>> = Object.freeze({
   scarecrow: 'Scarecrow',
   hoe1: 'Better Hoe I',
   hoe2: 'Better Hoe II',
+  autoFeeder: 'Auto-feeder',
   medicine: 'Medicine',
 });
 const SHOP_EFFECT: Readonly<Record<ShopRowId, string>> = Object.freeze({
@@ -65,6 +70,8 @@ const SHOP_EFFECT: Readonly<Record<ShopRowId, string>> = Object.freeze({
   // the wording from before the Farm bar (2026-10-06).
   hoe1: hoeEffect(1),
   hoe2: hoeEffect(2),
+  // The mockup's "Drops food every 10 s" (GDD Upgrade Trees: "See Automation Systems"; FR25, Story 4.8).
+  autoFeeder: autoFeederEffect(),
   // GDD Upgrade Trees: "Cures 1 infected sheep" (FR26, Story 4.5).
   medicine: 'Cures 1 infected sheep',
 });

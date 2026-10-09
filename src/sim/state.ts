@@ -119,11 +119,11 @@ export interface Carcass {
 }
 
 /**
- * A one-time shop item (FR22, FR23, FR24; Story 3.2): Land I–III, the decorations and Better Hoe I–II
- * (Story 4.7). Story 4.8 appends 'autoFeeder'. Medicine is a consumable with its own dose count
- * (Story 4.5), never in `owned`.
+ * A one-time shop item (FR22–FR25; Story 3.2): Land I–III, the decorations, Better Hoe I–II (Story 4.7)
+ * and the Auto-feeder (Story 4.8). Medicine is a consumable with its own dose count (Story 4.5), never in
+ * `owned`.
  */
-export type ShopItemId = 'land1' | 'land2' | 'land3' | 'flowerPatch' | 'scarecrow' | 'hoe1' | 'hoe2';
+export type ShopItemId = 'land1' | 'land2' | 'land3' | 'flowerPatch' | 'scarecrow' | 'hoe1' | 'hoe2' | 'autoFeeder';
 
 /**
  * A row in the shop panel (Story 4.5): a one-time item, or `'medicine'`, the one consumable. Medicine is

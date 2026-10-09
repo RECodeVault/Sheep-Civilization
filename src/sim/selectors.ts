@@ -117,8 +117,8 @@ export function salePrice(stage: Stage): number {
 }
 
 /**
- * The one-time shop items, in display order (GDD Upgrade Trees, mockups/hud.html; Story 4.8 appends the
- * Auto-feeder). Save validation trusts this list for `owned`, so it never holds a consumable.
+ * The one-time shop items, in display order (GDD Upgrade Trees, mockups/hud.html), the Auto-feeder last
+ * (Story 4.8). Save validation trusts this list for `owned`, so it never holds a consumable.
  */
 export const SHOP_ITEMS: readonly ShopItemId[] = Object.freeze([
   'land1',
@@ -128,6 +128,7 @@ export const SHOP_ITEMS: readonly ShopItemId[] = Object.freeze([
   'scarecrow',
   'hoe1',
   'hoe2',
+  'autoFeeder',
 ]);
 
 /**
@@ -153,6 +154,8 @@ export function shopPrice(item: ShopRowId): number {
       return TUNING.hoePrices[0];
     case 'hoe2':
       return TUNING.hoePrices[1];
+    case 'autoFeeder':
+      return TUNING.autoFeederPrice;
     case 'medicine':
       return TUNING.medicinePrice;
     default:

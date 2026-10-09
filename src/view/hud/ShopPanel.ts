@@ -32,8 +32,8 @@ const ROW_GAP = SHOP_ROW_GAP;
 const PANEL_H = shopPanelHeight(SHOP_ROWS.length);
 const PANEL_Y = shopPanelTop(SHOP_ROWS.length);
 // Each row raises the panel's top (Story 4.5 code review): it must stay below the Pause button, which
-// sits at the same left margin. Since Story 4.7 the 50 px rows fit SHOP_PANEL_MAX_ROWS (9): 8 rows put
-// the top at y 122, 9 at y 68.
+// sits at the same left margin. Since Story 4.7 the 50 px rows fit SHOP_PANEL_MAX_ROWS (9); the 9 rows
+// since Story 4.8 (the Auto-feeder) put the top at y 68.
 invariant(
   SHOP_ROWS.length <= SHOP_PANEL_MAX_ROWS,
   `ShopPanel: ${SHOP_ROWS.length} rows, more than SHOP_PANEL_MAX_ROWS (${SHOP_PANEL_MAX_ROWS}) in layout.ts`,
@@ -56,7 +56,7 @@ const LINE2_Y = 36;
 // SHOP_PANEL_RIGHT (layout.ts) is PANEL_X + PANEL_W, for the field camera.
 
 // Land I–III share one icon; each Better Hoe shows the icon the Farm button wears once it is owned
-// (Story 4.7); Medicine shows the slot's bottle (Story 4.5).
+// (Story 4.7); the Auto-feeder its hopper (Story 4.8); Medicine shows the slot's bottle (Story 4.5).
 const SHOP_ICON: Readonly<Record<ShopRowId, string>> = Object.freeze({
   land1: FRAME.iconLand,
   land2: FRAME.iconLand,
@@ -65,6 +65,7 @@ const SHOP_ICON: Readonly<Record<ShopRowId, string>> = Object.freeze({
   scarecrow: FRAME.iconScarecrow,
   hoe1: FRAME.iconHoe,
   hoe2: FRAME.iconHoe2,
+  autoFeeder: FRAME.iconFeeder,
   medicine: FRAME.iconMedicine,
 });
 

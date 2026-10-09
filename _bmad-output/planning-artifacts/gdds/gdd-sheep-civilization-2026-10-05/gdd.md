@@ -273,7 +273,7 @@ There is one flat shop with no branches.
 ### Automation Systems
 
 - **Auto-feeder ($120, Should tier):**
-  - Drops 1 food piece next to the hungriest sheep every **10 s**. [redesign pending since 2026-10-06: there is no food stock, so Story 4.8 decides what feeds it]
+  - Drops 1 food piece next to the hungriest sheep every **10 s**. The food is free: it makes its own pieces, since there is no stock to draw from (decision 2026-10-09).
   - Its maximum output (+3.5 Fullness/s) sustains about **4 sheep**.
   - It supports active play without replacing it: at 25 or more sheep, the player still hand-feeds most of the flock.
   - Only one can be bought.

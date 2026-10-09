@@ -235,7 +235,7 @@ export const SHOP_HEADER_H = 20;
 export const SHOP_ROW_GAP = 4;
 /**
  * The most rows the panel must hold (Story 4.7, Rylan 2026-10-09): Land I–III, two decorations, Better
- * Hoe I–II, 4.8's Auto-feeder and Medicine.
+ * Hoe I–II, the Auto-feeder (Story 4.8) and Medicine.
  */
 export const SHOP_PANEL_MAX_ROWS = 9;
 /** The highest the panel's top may reach: 8 px below the Pause button at the top-left (HudScene). */

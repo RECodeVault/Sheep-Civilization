@@ -113,7 +113,7 @@ The schedule is a 7-day solo build. Each epic must end in something playable bef
 - Medicine for $15: drag it onto a green sheep to cure it
 - Overcrowding: at 90% or more of capacity, every 30 s a random sheep has a 20% chance of infection
 - Better Hoe I / II for $30 / $100, raising a Farm click to 2 / 3 pips
-- Auto-feeder for $120 (only 1): drops 1 piece next to the hungriest sheep every 10 s [redesign pending since 2026-10-06: there is no food stock, so Story 4.8 decides what feeds it]
+- Auto-feeder for $120 (only 1): drops 1 piece next to the hungriest sheep every 10 s; the food is free (decision 2026-10-09)
 
 **Out of scope:** an Abomination payout or achievement.
 

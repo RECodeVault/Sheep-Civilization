@@ -180,6 +180,9 @@ describe('validateState', () => {
       // Better Hoe I–II (Story 4.7): II after I, in any place among the others.
       ['land1', 'hoe1', 'hoe2'],
       ['hoe1', 'land1', 'scarecrow', 'hoe2', 'land2', 'land3', 'flowerPatch'],
+      // The Auto-feeder (Story 4.8): needs nothing first.
+      ['land1', 'autoFeeder'],
+      ['autoFeeder', 'land1', 'hoe1', 'hoe2', 'land2', 'land3', 'flowerPatch', 'scarecrow'],
     ];
     for (const owned of sets) {
       const r = raw();
@@ -281,6 +284,7 @@ describe('validateState', () => {
     ['Better Hoe II without I', (r) => (r.owned = ['land1', 'hoe2']), 'state.owned'],
     ['Better Hoe II bought before I', (r) => (r.owned = ['land1', 'hoe2', 'hoe1']), 'state.owned'],
     ['Better Hoe I bought twice', (r) => (r.owned = ['land1', 'hoe1', 'hoe1']), 'state.owned'],
+    ['the Auto-feeder bought twice', (r) => (r.owned = ['land1', 'autoFeeder', 'autoFeeder']), 'state.owned'],
     ['a missing boostUntil', (r) => delete r.boostUntil, 'state.boostUntil'],
     ['a fractional boostUntil', (r) => (r.boostUntil = 1.5), 'state.boostUntil'],
     ['a negative boostUntil', (r) => (r.boostUntil = -1), 'state.boostUntil'],

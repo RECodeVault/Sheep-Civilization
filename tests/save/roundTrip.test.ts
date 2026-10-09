@@ -88,6 +88,26 @@ describe('save round trip', () => {
     expect(farmPipsPerClick(loaded)).toBe(TUNING.hoePipsPerClick[1] * boost);
   });
 
+  it('a game with the Auto-feeder reloaded mid-cycle keeps its drops: same pieces, same rng (Story 4.8)', () => {
+    const a = busyGame();
+    // Owned here, not in the shared fixture, so the older-version saves the migration tests build from
+    // busyGame stay ones that could exist.
+    a.owned.push('autoFeeder');
+    // Run to half an interval before the next drop, reload, then both run across the drop.
+    const interval = TUNING.autoFeederIntervalMs;
+    const half = interval / 2;
+    runFor(a, (half - (a.time % interval) + interval) % interval || interval);
+    expect(interval - (a.time % interval)).toBe(half);
+    const b = reload(a);
+    const eventsA = runFor(a, interval);
+    const eventsB = runFor(b, interval);
+    expect(eventsA.filter((e) => e.type === 'FoodDropped')).toHaveLength(1);
+    expect(eventsB).toStrictEqual(eventsA);
+    expect(b.foodPieces).toStrictEqual(a.foodPieces);
+    expect(b.rng).toBe(a.rng);
+    expect(b).toStrictEqual(a);
+  });
+
   it('a lost game round-trips and is still lost', () => {
     const state = newGame(17);
     runFor(state, TUNING.starveMs);

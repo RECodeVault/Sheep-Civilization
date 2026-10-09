@@ -69,6 +69,8 @@ export const TUNING = Object.freeze({
   // FR24 / GDD Upgrade Trees (Should tier): "Better Hoe I / II | Click power | $30 / $100". II needs I
   // (selectors.ts shopRequires). Story 4.7.
   hoePrices: Object.freeze([30, 100] as const),
+  // FR25 / GDD Upgrade Trees (Should tier): "Auto-feeder | Automation | $120". One only. Story 4.8.
+  autoFeederPrice: 120,
   // FR10 / GDD Breeding: "each adult can breed once every 60 s (tune)", starting at breeding.
   // Kept in 3.6 (2026-10-08): Town is click-bound, not cooldown-bound.
   breedCooldownMs: 60_000,
@@ -103,6 +105,14 @@ export const TUNING = Object.freeze({
   overcrowdFraction: 0.9,
   overcrowdIntervalMs: 30_000,
   overcrowdInfectChance: 0.2,
+  // FR25 / GDD Automation Systems (Should tier): "Drops 1 food piece next to the hungriest sheep every 10 s".
+  // The food is free (Rylan, 2026-10-09, Story 4.8): there is no stock to draw from since 2026-10-06.
+  // 35 Fullness every 10 s is 3.5/s, against 0.83/s per sheep: it feeds about 4 sheep
+  // (tuning.test.ts checks 4–5), so a growing flock still needs the Farm. autoFeeder.ts.
+  autoFeederIntervalMs: 10_000,
+  // [ASSUMPTION] "Next to": the piece lands this far from the sheep's centre, beside it rather than under
+  // it. Above eatReachPx, so the sheep takes a step to eat, and well inside one sprite width.
+  autoFeederDropPx: 28,
   // [ASSUMPTION, Story 2.5 Open Question 1; kept in 3.6, 2026-10-08] A carcass feeds like a food piece, so the virus
   // (not hunger) is what kills the sheep that ate it.
   carcassFullness: 35,
