@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { COMPONENTS, LAYOUT, SPACING } from '../../../src/config/constants';
 import { TUNING, type Rect } from '../../../src/config/tuning';
+import { SHOP_ROWS } from '../../../src/sim/selectors';
 import {
   BETTER_PLACE_BOUNDS,
   EDGE,
@@ -8,7 +10,12 @@ import {
   layoutProblems,
   MARKET_BOUNDS,
   playAreaFor,
+  SHOP_PANEL_MAX_ROWS,
+  SHOP_PANEL_MIN_TOP,
   SHOP_PANEL_RIGHT,
+  SHOP_ROW_GAP,
+  shopPanelHeight,
+  shopPanelTop,
   VIEW_H,
   VIEW_W,
   viewExtent,
@@ -67,5 +74,28 @@ describe('field layout (Stories 3.3–3.5, checked in npm test since 3.6)', () =
         expect(v.y + v.height).toBeLessThanOrEqual(ERA_BACKGROUND_BOUNDS.y + ERA_BACKGROUND_BOUNDS.height);
       }
     }
+  });
+});
+
+describe('the shop panel (Story 4.7, Rylan 2026-10-09)', () => {
+  it('holds SHOP_PANEL_MAX_ROWS rows below the Pause button (its bottom plus a spacing step)', () => {
+    const pauseBottom = LAYOUT.safeMargin + COMPONENTS.buttonPause.height;
+    expect(shopPanelTop(SHOP_PANEL_MAX_ROWS)).toBeGreaterThanOrEqual(pauseBottom + SPACING[2]);
+    expect(shopPanelTop(SHOP_PANEL_MAX_ROWS)).toBeGreaterThanOrEqual(SHOP_PANEL_MIN_TOP);
+  });
+
+  it('room is kept for every row the shop lists today', () => {
+    expect(SHOP_ROWS.length).toBeLessThanOrEqual(SHOP_PANEL_MAX_ROWS);
+    expect(shopPanelTop(SHOP_ROWS.length)).toBeGreaterThanOrEqual(SHOP_PANEL_MIN_TOP);
+  });
+
+  it('stands on the bar and grows by one row height plus the gap per row', () => {
+    const barTop = LAYOUT.canvasHeight - LAYOUT.hudBarHeight;
+    expect(shopPanelTop(3) + shopPanelHeight(3)).toBe(barTop);
+    expect(shopPanelHeight(4) - shopPanelHeight(3)).toBe(COMPONENTS.shopItemRow.height + SHOP_ROW_GAP);
+  });
+
+  it('a row still meets the 40 px hit minimum', () => {
+    expect(COMPONENTS.shopItemRow.height).toBeGreaterThanOrEqual(LAYOUT.hitMin);
   });
 });

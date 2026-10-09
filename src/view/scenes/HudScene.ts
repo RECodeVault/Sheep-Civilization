@@ -60,6 +60,7 @@ export class HudScene extends Phaser.Scene {
     capacity: 0,
     medicine: 0,
     crowded: false,
+    hoeTier: 0,
     threats: { starving: 0, infected: 0, carcasses: 0 },
   };
   // Deaths since the last frame, by cause: one toast per cause per frame (UX-DR41/UX-DR92), so a wipe
@@ -155,6 +156,8 @@ export class HudScene extends Phaser.Scene {
       this.bar.threats.set(v.threats);
       // FR19 / UX-DR27 / UX-DR38: the boosted Farm look and the countdown, both no-ops without a change.
       this.bar.farmBoost.setBoosted(v.boostRemainingMs > 0);
+      // FR24: the Better Hoe owned, on the Farm button (Story 4.7); a no-op without a change.
+      this.bar.setHoeTier(v.hoeTier);
       this.bar.boostTimer.set(v.boostRemainingMs);
       // UX-DR34: rolls to a new balance; no work while it shows the current one.
       this.bar.money.set(v.money, this.game.loop.time);

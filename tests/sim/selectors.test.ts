@@ -15,6 +15,8 @@ import {
   ERAS,
   eraIndex,
   farmPipsPerClick,
+  hoeTier,
+  isHoe,
   fenceBounds,
   FULLNESS_EPSILON,
   DECORATIONS,
@@ -269,7 +271,7 @@ describe('Abomination secrecy (AR18, UX-DR64; the mandatory secrecy test, Story 
 describe('selectHudView', () => {
   it('fills the Farm bar from state and TUNING into the given object', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: -1, farmPipsPerFood: -1, breedingProgress: -1, breedingPipsPerFood: -1, breedBlock: 'capacity', boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, crowded: false, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: -1, farmPipsPerFood: -1, breedingProgress: -1, breedingPipsPerFood: -1, breedBlock: 'capacity', boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, crowded: false, hoeTier: 0, threats: { starving: -1, infected: -1, carcasses: -1 } };
     expect(selectHudView(state, out)).toBe(out);
     expect(out).toEqual({
       farmProgress: 0,
@@ -283,6 +285,7 @@ describe('selectHudView', () => {
       capacity: TUNING.landCapacities[0],
       medicine: 0,
       crowded: false,
+      hoeTier: 0,
       threats: { starving: 0, infected: 0, carcasses: 0 },
     });
   });
@@ -290,13 +293,13 @@ describe('selectHudView', () => {
   it('fills the doses owned (the Medicine slot, UX-DR33, Story 4.5)', () => {
     const state = newGame();
     state.medicine = 3;
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, crowded: false, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, crowded: false, hoeTier: 0, threats: { starving: -1, infected: -1, carcasses: -1 } };
     expect(selectHudView(state, out).medicine).toBe(3);
   });
 
   it('reflects a Farm on the next read', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, crowded: false, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, crowded: false, hoeTier: 0, threats: { starving: -1, infected: -1, carcasses: -1 } };
     selectHudView(state, out);
     applyCommand(state, { type: 'Farm' });
     selectHudView(state, out);
@@ -306,13 +309,13 @@ describe('selectHudView', () => {
   it('fills the balance (UX-DR34)', () => {
     const state = newGame();
     state.money = 145;
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, crowded: false, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, crowded: false, hoeTier: 0, threats: { starving: -1, infected: -1, carcasses: -1 } };
     expect(selectHudView(state, out).money).toBe(145);
   });
 
   it('reflects a FarmBreeding on the next read', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, crowded: false, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, crowded: false, hoeTier: 0, threats: { starving: -1, infected: -1, carcasses: -1 } };
     selectHudView(state, out);
     applyCommand(state, { type: 'FarmBreeding' });
     selectHudView(state, out);
@@ -333,6 +336,7 @@ describe('selectHudView threats (UX-DR39)', () => {
     capacity: -1,
     medicine: -1,
     crowded: false,
+    hoeTier: 0,
     threats: { starving: -1, infected: -1, carcasses: -1 },
   });
 
@@ -469,7 +473,7 @@ describe('breeding selectors (FR10, FR11, AR21)', () => {
 
   it('selectHudView fills breedBlock', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, crowded: false, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, crowded: false, hoeTier: 0, threats: { starving: -1, infected: -1, carcasses: -1 } };
     expect(selectHudView(state, out).breedBlock).toBe('notReady');
     state.sheep[0].breedReady = state.sheep[1].breedReady = true;
     expect(selectHudView(state, out).breedBlock).toBe(null);
@@ -517,7 +521,7 @@ describe('crowding (FR34, UX-DR35, Story 4.6)', () => {
 
   it('selectHudView fills crowded from the same rule', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, crowded: true, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, crowded: true, hoeTier: 0, threats: { starving: -1, infected: -1, carcasses: -1 } };
     expect(selectHudView(state, out).crowded).toBe(false);
     fillFlock(state, crowdThreshold(TUNING.landCapacities[0], TUNING.overcrowdFraction));
     expect(selectHudView(state, out).crowded).toBe(true);
@@ -636,10 +640,56 @@ describe('the boost selectors (FR19)', () => {
     expect(farmPipsPerClick(state)).toBe(TUNING.farmPipsPerClick);
   });
 
+  it('hoeTier is the highest Better Hoe owned; II wins even without I (Story 4.7)', () => {
+    const state = newGame();
+    expect(hoeTier(state)).toBe(0);
+    state.owned.push('hoe1');
+    expect(hoeTier(state)).toBe(1);
+    state.owned.push('hoe2');
+    expect(hoeTier(state)).toBe(2);
+    state.owned = ['hoe2'];
+    expect(hoeTier(state)).toBe(2);
+  });
+
+  it('a Better Hoe replaces the base click value and the boost doubles it (FR24, FR19)', () => {
+    const state = newGame();
+    state.time = 10_000;
+    const bases = [TUNING.farmPipsPerClick, TUNING.hoePipsPerClick[0], TUNING.hoePipsPerClick[1]];
+    const owned = [[], ['hoe1'], ['hoe1', 'hoe2']] as const;
+    for (let tier = 0; tier < bases.length; tier++) {
+      state.owned = [...owned[tier]];
+      state.boostUntil = 0;
+      expect(farmPipsPerClick(state), `tier ${tier}`).toBe(bases[tier]);
+      state.boostUntil = state.time + TUNING.boostMs;
+      expect(farmPipsPerClick(state), `tier ${tier} boosted`).toBe(bases[tier] * TUNING.boostPipMultiplier);
+    }
+    // The tiers rise (2 then 3 pips), so each purchase is worth something.
+    expect(bases[1]).toBeGreaterThan(bases[0]);
+    expect(bases[2]).toBeGreaterThan(bases[1]);
+  });
+
+  it('a lost game with Better Hoe II and a boost deadline ahead is not boosted', () => {
+    const state = newGame();
+    state.owned = ['hoe1', 'hoe2'];
+    state.boostUntil = state.time + TUNING.boostMs;
+    state.lostAt = state.time;
+    expect(farmPipsPerClick(state)).toBe(TUNING.hoePipsPerClick[1]);
+  });
+
+  it('selectHudView reports the Better Hoe owned (the Farm button icon, Story 4.7)', () => {
+    const state = newGame();
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, crowded: false, hoeTier: 2, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    expect(selectHudView(state, out).hoeTier).toBe(0);
+    state.owned.push('hoe1');
+    expect(selectHudView(state, out).hoeTier).toBe(1);
+    state.owned.push('hoe2');
+    expect(selectHudView(state, out).hoeTier).toBe(2);
+  });
+
   it('selectHudView reports the time left', () => {
     const state = newGame();
     state.boostUntil = state.time + TUNING.boostMs;
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, crowded: false, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, crowded: false, hoeTier: 0, threats: { starving: -1, infected: -1, carcasses: -1 } };
     expect(selectHudView(state, out).boostRemainingMs).toBe(TUNING.boostMs);
   });
 });
@@ -653,8 +703,30 @@ describe('salePrice (FR17)', () => {
 });
 
 describe('shop selectors (FR22, FR23, UX-DR24)', () => {
-  it('lists the Must items in GDD order', () => {
-    expect(SHOP_ITEMS).toEqual(['land1', 'land2', 'land3', 'flowerPatch', 'scarecrow']);
+  it('lists the one-time items in GDD order: the Must items, then Better Hoe I–II (Story 4.7)', () => {
+    expect(SHOP_ITEMS).toEqual(['land1', 'land2', 'land3', 'flowerPatch', 'scarecrow', 'hoe1', 'hoe2']);
+  });
+
+  it('prices Better Hoe I–II from TUNING; II needs I, I needs nothing (FR24)', () => {
+    expect(shopPrice('hoe1')).toBe(TUNING.hoePrices[0]);
+    expect(shopPrice('hoe2')).toBe(TUNING.hoePrices[1]);
+    expect(shopRequires('hoe1')).toBeNull();
+    expect(shopRequires('hoe2')).toBe('hoe1');
+  });
+
+  it('buyBlock: Better Hoe II is locked without I even when affordable, then poor, buyable, owned', () => {
+    const state = newGame();
+    state.money = shopPrice('hoe2') + shopPrice('hoe1');
+    expect(buyBlock(state, 'hoe1')).toBeNull();
+    expect(buyBlock(state, 'hoe2')).toBe('locked');
+    applyCommand(state, { type: 'Buy', item: 'hoe1' });
+    expect(buyBlock(state, 'hoe1')).toBe('owned');
+    expect(buyBlock(state, 'hoe2')).toBeNull();
+    state.money = shopPrice('hoe2') - 1;
+    expect(buyBlock(state, 'hoe2')).toBe('poor');
+    state.money = shopPrice('hoe2');
+    applyCommand(state, { type: 'Buy', item: 'hoe2' });
+    expect(buyBlock(state, 'hoe2')).toBe('owned');
   });
 
   it('prices every item from TUNING', () => {
@@ -717,6 +789,9 @@ describe('shop selectors (FR22, FR23, UX-DR24)', () => {
   it('selectShopView fills the given rows in place, one per row', () => {
     const state = newGame();
     state.money = shopPrice('flowerPatch');
+    // The pinned looks below need the Flower Patch money to buy Hoe I and Medicine but not Land I or Scarecrow.
+    expect(shopPrice('hoe1')).toBeLessThanOrEqual(state.money);
+    expect(shopPrice('scarecrow')).toBeGreaterThan(state.money);
     const out: ShopRowView[] = SHOP_ROWS.map((item) => ({ item, price: -1, block: 'owned' as const }));
     const rows = out.slice();
     expect(selectShopView(state, out)).toBe(out);
@@ -728,6 +803,8 @@ describe('shop selectors (FR22, FR23, UX-DR24)', () => {
       ['land3', shopPrice('land3'), 'locked'],
       ['flowerPatch', shopPrice('flowerPatch'), null],
       ['scarecrow', shopPrice('scarecrow'), 'poor'],
+      ['hoe1', shopPrice('hoe1'), null],
+      ['hoe2', shopPrice('hoe2'), 'locked'],
       ['medicine', shopPrice('medicine'), null],
     ]);
   });
@@ -766,8 +843,14 @@ describe('land selectors (FR11, FR22, Story 3.3)', () => {
     expect(DECORATIONS).toEqual(SHOP_ITEMS.filter(isDecoration));
   });
 
-  it('every shop item is Land or a decoration, never both (a new item must be classified on purpose)', () => {
-    for (const item of SHOP_ITEMS) expect(Number(isLand(item)) + Number(isDecoration(item))).toBe(1);
+  it('isHoe picks out Better Hoe I–II (Story 4.7)', () => {
+    expect(SHOP_ITEMS.filter(isHoe)).toEqual(['hoe1', 'hoe2']);
+  });
+
+  it('every shop item is exactly one of Land, a decoration or a Better Hoe (a new item must be classified on purpose)', () => {
+    for (const item of SHOP_ITEMS) {
+      expect(Number(isLand(item)) + Number(isDecoration(item)) + Number(isHoe(item)), item).toBe(1);
+    }
   });
 
   it('selectHudView fills the flock (living sheep only) and the capacity (UX-DR35)', () => {
@@ -786,6 +869,7 @@ describe('land selectors (FR11, FR22, Story 3.3)', () => {
       capacity: -1,
       medicine: -1,
       crowded: false,
+      hoeTier: 0,
       threats: { starving: 0, infected: 0, carcasses: 0 },
     });
     expect(out.flock).toBe(state.sheep.length);

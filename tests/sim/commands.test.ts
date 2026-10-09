@@ -278,3 +278,48 @@ describe('Farm while boosted (FR19)', () => {
     expect(state.farmProgress).toBe(boosted);
   });
 });
+
+describe('Farm with a Better Hoe (FR24, Story 4.7)', () => {
+  function hoeGame(owned: readonly ('hoe1' | 'hoe2')[], boosted: boolean): GameState {
+    const state = newGame();
+    state.owned = [...owned];
+    state.time = 5_000;
+    if (boosted) state.boostUntil = state.time + TUNING.boostMs;
+    drained();
+    return state;
+  }
+
+  it('fills hoePipsPerClick pips per click: Better Hoe I, then II', () => {
+    const one = hoeGame(['hoe1'], false);
+    farm(one, 1);
+    expect(one.farmProgress).toBe(TUNING.hoePipsPerClick[0]);
+    const two = hoeGame(['hoe1', 'hoe2'], false);
+    farm(two, 1);
+    expect(two.farmProgress).toBe(TUNING.hoePipsPerClick[1]);
+  });
+
+  it('with the boost, fills the hoe value × boostPipMultiplier', () => {
+    const one = hoeGame(['hoe1'], true);
+    farm(one, 1);
+    expect(one.farmProgress).toBe(TUNING.hoePipsPerClick[0] * TUNING.boostPipMultiplier);
+  });
+
+  it('carries leftover pips: a bar one short plus a boosted Hoe II click drops exactly one piece', () => {
+    const state = hoeGame(['hoe1', 'hoe2'], true);
+    state.farmProgress = TUNING.farmPipsPerFood - 1;
+    const pips = TUNING.hoePipsPerClick[1] * TUNING.boostPipMultiplier;
+    const pieces = Math.floor((TUNING.farmPipsPerFood - 1 + pips) / TUNING.farmPipsPerFood);
+    farm(state, 1);
+    expect(state.foodPieces).toHaveLength(pieces);
+    expect(state.farmProgress).toBe(TUNING.farmPipsPerFood - 1 + pips - pieces * TUNING.farmPipsPerFood);
+    const events = drained();
+    expect(events.filter((e) => e.type === 'FoodDropped')).toHaveLength(pieces);
+    expect(events[events.length - 1]).toEqual({ type: 'Farmed', resource: 'food', added: pieces });
+  });
+
+  it('never applies to the breeding bar, boosted or not (FR8)', () => {
+    const state = hoeGame(['hoe1', 'hoe2'], true);
+    applyCommand(state, { type: 'FarmBreeding' });
+    expect(state.breedingProgress).toBe(TUNING.breedingPipsPerClick);
+  });
+});

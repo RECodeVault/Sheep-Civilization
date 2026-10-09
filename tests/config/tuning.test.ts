@@ -125,3 +125,20 @@ describe('overcrowding (FR34, Story 4.6)', () => {
     expect(TUNING.overcrowdIntervalMs % TICK_MS).toBe(0);
   });
 });
+
+describe('Better Hoe table (FR24, Story 4.7)', () => {
+  it('has a price and a click value for each of Hoe I and II; prices are whole dollars', () => {
+    expect(TUNING.hoePrices).toHaveLength(2);
+    expect(TUNING.hoePipsPerClick).toHaveLength(TUNING.hoePrices.length);
+    for (const p of TUNING.hoePrices) {
+      expect(Number.isInteger(p)).toBe(true);
+      expect(p).toBeGreaterThan(0);
+    }
+  });
+
+  it('each tier fills more whole pips than the one before, starting above the bare click', () => {
+    const pips = [TUNING.farmPipsPerClick, ...TUNING.hoePipsPerClick];
+    for (const n of pips) expect(Number.isInteger(n)).toBe(true);
+    for (let i = 1; i < pips.length; i++) expect(pips[i]).toBeGreaterThan(pips[i - 1]);
+  });
+});

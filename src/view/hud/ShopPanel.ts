@@ -6,45 +6,65 @@ import { SHOP_ROWS, shopRequires, type ShopRowView } from '../../sim/selectors';
 import type { ShopRowId } from '../../sim/state';
 import { ATLAS, FRAME } from '../assetKeys';
 import { FIELD_DEPTH } from '../field/depths';
-import { SHOP_PANEL_W, SHOP_PANEL_X } from '../field/layout';
+import {
+  SHOP_HEADER_H,
+  SHOP_PANEL_BORDER,
+  SHOP_PANEL_MAX_ROWS,
+  SHOP_PANEL_MIN_TOP,
+  SHOP_PANEL_W,
+  SHOP_PANEL_X,
+  SHOP_ROW_GAP,
+  shopPanelHeight,
+  shopPanelTop,
+} from '../field/layout';
 import { STRINGS } from '../strings';
 import { boxTexture, DROP_PX, OUTLINE_PX, textStyle } from '../widgets/box';
 
 const PANEL = COMPONENTS.shopPanel;
 const ROW = COMPONENTS.shopItemRow;
-// Geometry from mockups/hud.html `.shop` / `.row` / `.shop-hd` [ASSUMPTION, browser-checked]: the panel
-// stands on the bottom bar at the left safe margin, 360 wide, with a 2 px wood border, 16 px padding, the
-// "Shop" header on a 20 px line, then the 56 px rows 4 px apart.
+// The panel stands on the bottom bar at the left safe margin; its geometry is in field/layout.ts, where
+// tests/view/field/layout.test.ts checks that SHOP_PANEL_MAX_ROWS rows clear the Pause button.
 const BAR_TOP = LAYOUT.canvasHeight - LAYOUT.hudBarHeight;
 const PANEL_X = SHOP_PANEL_X;
 const PANEL_W = SHOP_PANEL_W;
-const HEADER_H = 20;
-const ROW_GAP = 4;
-const PANEL_H = OUTLINE_PX + PANEL.padding + HEADER_H + SHOP_ROWS.length * (ROW_GAP + ROW.height) + PANEL.padding;
-const PANEL_Y = BAR_TOP - PANEL_H;
+const HEADER_H = SHOP_HEADER_H;
+const ROW_GAP = SHOP_ROW_GAP;
+const PANEL_H = shopPanelHeight(SHOP_ROWS.length);
+const PANEL_Y = shopPanelTop(SHOP_ROWS.length);
 // Each row raises the panel's top (Story 4.5 code review): it must stay below the Pause button, which
-// sits at the same left margin. 6 rows put the top at y 194; 4.7/4.8's 3 more would not fit.
+// sits at the same left margin. Since Story 4.7 the 50 px rows fit SHOP_PANEL_MAX_ROWS (9): 8 rows put
+// the top at y 122, 9 at y 68.
 invariant(
-  PANEL_Y >= LAYOUT.safeMargin + COMPONENTS.buttonPause.height + SPACING[2],
+  SHOP_ROWS.length <= SHOP_PANEL_MAX_ROWS,
+  `ShopPanel: ${SHOP_ROWS.length} rows, more than SHOP_PANEL_MAX_ROWS (${SHOP_PANEL_MAX_ROWS}) in layout.ts`,
+);
+invariant(
+  PANEL_Y >= SHOP_PANEL_MIN_TOP,
   `ShopPanel: ${SHOP_ROWS.length} rows make the panel ${PANEL_H} px tall; its top (y ${PANEL_Y}) meets the Pause button`,
 );
+invariant(SHOP_PANEL_BORDER === OUTLINE_PX, 'ShopPanel: layout.ts SHOP_PANEL_BORDER is not the box outline');
 const ROW_X = PANEL_X + OUTLINE_PX + PANEL.padding;
 const ROW_W = PANEL_W - (OUTLINE_PX + PANEL.padding) * 2;
 const ROW_PAD = SPACING[2];
 const ICON_SIZE = 28;
 const ICON_SCALE = 2;
-// The two text lines inside a 56 px row (name/price on a 22 px line, the effect on a 23 px one).
-const LINE1_Y = 16;
-const LINE2_Y = 39;
+// The two text lines inside a 50 px row: the name/price on a 22 px line centred at 14 (3–25), the effect on
+// a 23 px line centred at 36 (24.5–47.5). The line boxes overlap by about 1 px; the glyphs do not
+// (browser-checked, Story 4.7). 56 px rows had them at 16 and 39.
+const LINE1_Y = 14;
+const LINE2_Y = 36;
 // SHOP_PANEL_RIGHT (layout.ts) is PANEL_X + PANEL_W, for the field camera.
 
-// Land I–III share one icon; Medicine shows the slot's bottle (Story 4.5).
+// Land I–III share one icon; each Better Hoe shows the icon the Farm button wears once it is owned
+// (Story 4.7); Medicine shows the slot's bottle (Story 4.5).
 const SHOP_ICON: Readonly<Record<ShopRowId, string>> = Object.freeze({
   land1: FRAME.iconLand,
   land2: FRAME.iconLand,
   land3: FRAME.iconLand,
   flowerPatch: FRAME.iconFlowerPatch,
   scarecrow: FRAME.iconScarecrow,
+  hoe1: FRAME.iconHoe,
+  hoe2: FRAME.iconHoe2,
   medicine: FRAME.iconMedicine,
 });
 

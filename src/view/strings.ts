@@ -33,6 +33,10 @@ function landEffect(tier: 1 | 2 | 3): string {
   const c = TUNING.landCapacities;
   return `Capacity ${c[tier - 1]} → ${c[tier]}`;
 }
+/** "Farm click fills 2 pips": what Better Hoe tier `tier` (1–2) does to a Farm click (FR24, Story 4.7). */
+function hoeEffect(tier: 1 | 2): string {
+  return `Farm click fills ${TUNING.hoePipsPerClick[tier - 1]} pips`;
+}
 // UX-DR94 / UX-DR95: the era names, for the era badge and the era-up banner.
 const ERA_NAME: Readonly<Record<Era, string>> = Object.freeze({
   pasture: 'Pasture',
@@ -47,6 +51,8 @@ const SHOP_NAME: Readonly<Record<ShopRowId, string>> = Object.freeze({
   land3: 'Land III',
   flowerPatch: 'Flower Patch',
   scarecrow: 'Scarecrow',
+  hoe1: 'Better Hoe I',
+  hoe2: 'Better Hoe II',
   medicine: 'Medicine',
 });
 const SHOP_EFFECT: Readonly<Record<ShopRowId, string>> = Object.freeze({
@@ -55,6 +61,10 @@ const SHOP_EFFECT: Readonly<Record<ShopRowId, string>> = Object.freeze({
   land3: landEffect(3),
   flowerPatch: 'Cosmetic',
   scarecrow: 'Cosmetic',
+  // GDD Upgrade Trees: "Farm click fills 2 / 3 pips" (FR24, Story 4.7). The mockup's "Farm click +2" is
+  // the wording from before the Farm bar (2026-10-06).
+  hoe1: hoeEffect(1),
+  hoe2: hoeEffect(2),
   // GDD Upgrade Trees: "Cures 1 infected sheep" (FR26, Story 4.5).
   medicine: 'Cures 1 infected sheep',
 });

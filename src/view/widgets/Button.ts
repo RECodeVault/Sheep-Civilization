@@ -82,7 +82,9 @@ export class Button implements TooltipSource {
   /** Baked box texture per visual state, built once in the constructor. */
   private readonly textures: Readonly<Record<Visual, string>>;
   private readonly label: Phaser.GameObjects.Text;
-  private readonly icon: Phaser.GameObjects.Image | null = null;
+  private icon: Phaser.GameObjects.Image | null = null;
+  // undefined until the constructor's first setIcon, so a button without an icon still lays out its label.
+  private iconFrame: string | null | undefined = undefined;
   private readonly zone: Phaser.GameObjects.Zone;
   private visual: Visual | null = null;
   private hovered = false;
@@ -115,21 +117,9 @@ export class Button implements TooltipSource {
       toggled: spec.activeBackgroundColor === undefined ? '' : boxTexture(scene, w, h, this.boxStyle('toggled')),
     };
     this.box = scene.add.image(-w / 2, -h, this.textures.normal).setOrigin(0, 0);
-    const centred = options.labelAlign === 'center';
-    this.label = scene.add
-      .text(centred ? 0 : -w / 2 + pad, -h / 2, options.label, textStyle(spec.typography, spec.textColor))
-      .setOrigin(centred ? 0.5 : 0, 0.5);
+    this.label = scene.add.text(0, -h / 2, options.label, textStyle(spec.typography, spec.textColor));
     this.root.add([this.box, this.label]);
-    if (options.icon !== undefined) {
-      // The icon sits left of the label; centred, the pair is centred together (mockups `.btn-breed`).
-      const icon = scene.add.image(0, -h / 2, ATLAS.ui, options.icon).setScale(ICON_SCALE).setOrigin(0, 0.5);
-      const iconW = icon.displayWidth + SPACING[2];
-      const left = centred ? -(iconW + this.label.width) / 2 : -w / 2 + pad;
-      icon.setX(left);
-      this.label.setOrigin(0, 0.5).setX(left + iconW);
-      this.icon = icon;
-      this.root.add(icon);
-    }
+    this.setIcon(options.icon ?? null);
 
     if (options.keyHint !== undefined) {
       const kx = w / 2 - pad - KEY_SIZE;
@@ -215,6 +205,44 @@ export class Button implements TooltipSource {
     if (on === this.toggled) return this;
     this.toggled = on;
     this.refresh();
+    return this;
+  }
+
+  /**
+   * Shows `frame` (a `ui` atlas frame) left of the label, or no icon for null, and lays the label out
+   * again. A no-op unless it changes. The Breed tool's heart is set once; the Farm button's Better Hoe
+   * icon changes with the hoe owned (Story 4.7).
+   */
+  setIcon(frame: string | null): this {
+    if (frame === this.iconFrame) return this;
+    this.iconFrame = frame;
+    const w = this.width;
+    const h = this.height;
+    const pad = this.spec.padding ?? SPACING[3];
+    const centred = this.options.labelAlign === 'center';
+    if (frame === null) {
+      this.icon?.setVisible(false);
+      this.label.setOrigin(centred ? 0.5 : 0, 0.5).setX(centred ? 0 : -w / 2 + pad);
+      return this;
+    }
+    if (this.icon === null) {
+      this.icon = this.scene.add.image(0, -h / 2, ATLAS.ui, frame).setScale(ICON_SCALE).setOrigin(0, 0.5);
+      this.root.add(this.icon);
+    } else {
+      // The atlas gives every frame a pivot, so setFrame resets the origin to it (0.5): set ours again.
+      this.icon.setFrame(frame).setOrigin(0, 0.5).setVisible(true);
+    }
+    // The icon sits left of the label; centred, the pair is centred together (mockups `.btn-breed`).
+    const iconW = this.icon.displayWidth + SPACING[2];
+    const left = centred ? -(iconW + this.label.width) / 2 : -w / 2 + pad;
+    this.icon.setX(left);
+    this.label.setOrigin(0, 0.5).setX(left + iconW);
+    // A new or changed icon takes the current state's tint (refresh skips an unchanged look). In the
+    // constructor nothing is drawn yet; its own refresh() follows.
+    if (this.visual !== null) {
+      this.visual = null;
+      this.refresh();
+    }
     return this;
   }
 

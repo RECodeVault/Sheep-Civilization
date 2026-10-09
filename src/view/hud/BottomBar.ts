@@ -1,6 +1,7 @@
 import type Phaser from 'phaser';
 import { COMPONENTS, LAYOUT, RADIUS, SPACING } from '../../config/constants';
 import { TUNING } from '../../config/tuning';
+import type { HoeTier } from '../../sim/selectors';
 import { invariant } from '../../core/invariant';
 import { STRINGS } from '../strings';
 import { Button, type ButtonSpec } from '../widgets/Button';
@@ -72,6 +73,9 @@ invariant(
   FLOCK_X + FLOCK_COUNTER_W <= THREAT_X - GROUP_GAP,
   'BottomBar: the Medicine slot and the money and flock counters overrun the threat summary',
 );
+// The Farm button's icon by Better Hoe owned (FR24, Story 4.7; Rylan 2026-10-09): none, then the shop
+// rows' hoe icons, left of the "Farm" label as the Breed tool's heart is.
+const HOE_ICON: Readonly<Record<HoeTier, string | null>> = Object.freeze({ 0: null, 1: FRAME.iconHoe, 2: FRAME.iconHoe2 });
 // The toggle's look from DESIGN.md `shop-toggle`: its open look is the Button's toggled one.
 const SHOP_SPEC: ButtonSpec = {
   backgroundColor: COMPONENTS.shopToggle.backgroundColor,
@@ -89,7 +93,7 @@ const SHOP_SPEC: ButtonSpec = {
  * the Farm button with the Farm progress bar and its count beneath it (1.7), 2.2 the Farm Breeding
  * Food button with the breeding bar, 2.3 the Breed tool, 2.6 the threat summary on the right, 2.8 the
  * Farm button's boosted glow and badge and the boost timer, 3.2 the money counter and the Shop toggle,
- * 3.3 the flock counter, 4.5 the Medicine slot after Breed.
+ * 3.3 the flock counter, 4.5 the Medicine slot after Breed, 4.7 the Better Hoe icon on the Farm button.
  */
 export class BottomBar {
   readonly farmButton: Button;
@@ -182,5 +186,10 @@ export class BottomBar {
       activateOn: 'release',
       onActivate: onShop,
     });
+  }
+
+  /** Shows the Better Hoe owned on the Farm button (Story 4.7). A no-op unless the tier changes. */
+  setHoeTier(tier: HoeTier): void {
+    this.farmButton.setIcon(HOE_ICON[tier]);
   }
 }

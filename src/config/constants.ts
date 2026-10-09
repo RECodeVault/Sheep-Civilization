@@ -272,7 +272,9 @@ export const COMPONENTS = defineComponents({
     priceTypography: 'numeric',
     effectTypography: 'caption',
     rounded: 'md',
-    height: 56,
+    // DESIGN.md says 56. Story 4.7 (Rylan, 2026-10-09): 50, so all nine rows (with 4.8's Auto-feeder)
+    // fit between the bar and the Pause button (view/field/layout.ts shopPanelTop).
+    height: 50,
   },
   slider: {
     trackColor: 'woolShade',

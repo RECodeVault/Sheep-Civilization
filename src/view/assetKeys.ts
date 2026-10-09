@@ -81,6 +81,9 @@ export const FRAME = Object.freeze({
   iconScarecrow: 'icon-scarecrow',
   // The Medicine slot, its dragged dose and its shop row (UX-DR33, Story 4.5).
   iconMedicine: 'icon-medicine',
+  // Better Hoe I and II (FR24, Story 4.7): their shop rows and, once owned, the Farm button.
+  iconHoe: 'icon-hoe',
+  iconHoe2: 'icon-hoe-2',
 } as const);
 
 /** Relative URLs (no leading slash) so the build works under any subpath. */

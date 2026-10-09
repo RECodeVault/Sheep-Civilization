@@ -3,7 +3,7 @@ import { TUNING } from '../../src/config/tuning';
 import { decodeSave, encodeSave } from '../../src/save/saveFile';
 import { applyCommand } from '../../src/sim/commands';
 import type { SimEvent } from '../../src/sim/events';
-import { currentEra, isLost } from '../../src/sim/selectors';
+import { currentEra, farmPipsPerClick, isBoosted, isLost, shopPrice } from '../../src/sim/selectors';
 import { syncEra } from '../../src/sim/systems/eras';
 import type { GameState } from '../../src/sim/state';
 import { newGame, runFor } from '../sim/helpers';
@@ -74,6 +74,18 @@ describe('save round trip', () => {
     expect(eventsB).toStrictEqual(eventsA);
     // The run must have done something worth comparing.
     expect(eventsA.filter((e) => e.type === 'FoodEaten').length).toBeGreaterThanOrEqual(5);
+  });
+
+  it('a game with both Better Hoes round-trips and still farms at Hoe II (Story 4.7)', () => {
+    const state = busyGame();
+    state.money = shopPrice('hoe1') + shopPrice('hoe2');
+    applyCommand(state, { type: 'Buy', item: 'hoe1' });
+    applyCommand(state, { type: 'Buy', item: 'hoe2' });
+    expect(state.owned).toContain('hoe2');
+    const loaded = reload(state);
+    expect(loaded).toStrictEqual(state);
+    const boost = isBoosted(loaded) ? TUNING.boostPipMultiplier : 1;
+    expect(farmPipsPerClick(loaded)).toBe(TUNING.hoePipsPerClick[1] * boost);
   });
 
   it('a lost game round-trips and is still lost', () => {

@@ -22,6 +22,18 @@ export function isDecoration(item: ShopRowId): item is Decoration {
   return item === 'flowerPatch' || item === 'scarecrow';
 }
 
+/** Better Hoe I and II (FR24, Story 4.7). */
+export type Hoe = 'hoe1' | 'hoe2';
+
+/**
+ * True for Better Hoe I and II (FR24, Story 4.7): neither Land nor a decoration, so buying one moves no
+ * fence and drops nothing. Today only the "every item is classified" test uses it; the click value reads
+ * the tier (hoeTier).
+ */
+export function isHoe(item: ShopRowId): item is Hoe {
+  return item === 'hoe1' || item === 'hoe2';
+}
+
 /**
  * The highest Land tier owned (Story 3.3). Derived from `owned`, never stored. Save validation and the
  * shop's lock guarantee every lower tier is owned too. Movement calls this every tick (via fenceBounds),
@@ -105,14 +117,22 @@ export function salePrice(stage: Stage): number {
 }
 
 /**
- * The one-time shop items, in display order (GDD Upgrade Trees; Epic 4 appends its items). Save
- * validation trusts this list for `owned`, so it never holds a consumable.
+ * The one-time shop items, in display order (GDD Upgrade Trees, mockups/hud.html; Story 4.8 appends the
+ * Auto-feeder). Save validation trusts this list for `owned`, so it never holds a consumable.
  */
-export const SHOP_ITEMS: readonly ShopItemId[] = Object.freeze(['land1', 'land2', 'land3', 'flowerPatch', 'scarecrow']);
+export const SHOP_ITEMS: readonly ShopItemId[] = Object.freeze([
+  'land1',
+  'land2',
+  'land3',
+  'flowerPatch',
+  'scarecrow',
+  'hoe1',
+  'hoe2',
+]);
 
 /**
  * The shop panel's rows, in display order (GDD Upgrade Trees): the one-time items, then the consumables
- * (Story 4.5). 4.7/4.8 add Better Hoe and the Auto-feeder to SHOP_ITEMS, before Medicine.
+ * (Story 4.5). Better Hoe (4.7) and the Auto-feeder (4.8) are in SHOP_ITEMS, so they come before Medicine.
  */
 export const SHOP_ROWS: readonly ShopRowId[] = Object.freeze([...SHOP_ITEMS, 'medicine']);
 
@@ -129,6 +149,10 @@ export function shopPrice(item: ShopRowId): number {
       return TUNING.flowerPatchPrice;
     case 'scarecrow':
       return TUNING.scarecrowPrice;
+    case 'hoe1':
+      return TUNING.hoePrices[0];
+    case 'hoe2':
+      return TUNING.hoePrices[1];
     case 'medicine':
       return TUNING.medicinePrice;
     default:
@@ -138,11 +162,12 @@ export function shopPrice(item: ShopRowId): number {
 
 /**
  * The item `item` needs first, or null (GDD Upgrade Trees: "each Land tier needs the previous one.
- * Everything else is available from the start").
+ * Everything else is available from the start"), and Better Hoe II needs I (epics Story 4.7).
  */
 export function shopRequires(item: ShopRowId): ShopItemId | null {
   if (item === 'land2') return 'land1';
   if (item === 'land3') return 'land2';
+  if (item === 'hoe2') return 'hoe1';
   return null;
 }
 
@@ -467,12 +492,28 @@ export function boostRemainingMs(state: GameState): number {
   return isBoosted(state) ? state.boostUntil - state.time : 0;
 }
 
+/** The Better Hoe owned (FR24): 0 for none, 1 or 2. Derived from `owned`, never stored. */
+export type HoeTier = 0 | 1 | 2;
+
 /**
- * The pips one Farm click fills (FR3, FR19). Better Hoe (4.7) raises the base here; the boost
- * doubles whatever the base is. The breeding bar never uses this (FR8).
+ * The highest Better Hoe owned (Story 4.7). II is checked first, so it wins even in a hand-built state
+ * without I (validation and the shop's lock keep I before II in real saves).
+ */
+export function hoeTier(state: GameState): HoeTier {
+  if (isOwned(state, 'hoe2')) return 2;
+  if (isOwned(state, 'hoe1')) return 1;
+  return 0;
+}
+
+/**
+ * The pips one Farm click fills (FR3, FR19, FR24): farmPipsPerClick, or a Better Hoe's
+ * hoePipsPerClick in its place; the boost doubles whatever the base is (2 / 4 / 6). The breeding bar
+ * never uses this (FR8).
  */
 export function farmPipsPerClick(state: GameState): number {
-  return TUNING.farmPipsPerClick * (isBoosted(state) ? TUNING.boostPipMultiplier : 1);
+  const tier = hoeTier(state);
+  const base = tier === 0 ? TUNING.farmPipsPerClick : TUNING.hoePipsPerClick[tier - 1];
+  return base * (isBoosted(state) ? TUNING.boostPipMultiplier : 1);
 }
 
 /** The eras in order (FR27). Era `i ≥ 1` needs TUNING.eraThresholds[i − 1] living sheep. */
@@ -522,6 +563,8 @@ export interface HudView {
   medicine: number;
   /** ≥ 90% of capacity (crowdedAt): the flock counter's crowded style (UX-DR35) and the overcrowding roll (FR34). */
   crowded: boolean;
+  /** The Better Hoe owned (FR24): the hoe icon on the Farm button (Story 4.7). */
+  hoeTier: HoeTier;
   /** The threat summary (UX-DR39), filled in place. */
   threats: ThreatCounts;
 }
@@ -539,6 +582,7 @@ export function selectHudView(state: GameState, out: HudView): HudView {
   out.capacity = capacity(state);
   out.medicine = state.medicine;
   out.crowded = crowdedAt(out.flock, out.capacity);
+  out.hoeTier = hoeTier(state);
   const t = out.threats;
   let starving = 0;
   let infected = 0;

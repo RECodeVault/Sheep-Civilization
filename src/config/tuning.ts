@@ -33,8 +33,8 @@ export const TUNING = Object.freeze({
   // GDD Starting flock: every founding sheep starts at Fullness 60.
   startFullness: 60,
   // FR3 (changed 2026-10-06): a Farm click fills farmPipsPerClick pips of a 6-pip bar; every full
-  // bar drops 1 food piece at a random spot in the pen. There is no food stock. Better Hoe (4.7)
-  // raises the pips per click and the boost doubles them (selectors.ts farmPipsPerClick).
+  // bar drops 1 food piece at a random spot in the pen. There is no food stock. Better Hoe raises
+  // the pips per click and the boost doubles them (selectors.ts farmPipsPerClick).
   // Tuned in 3.6 (Rylan, 2026-10-08): was 8. Feeding 10 sheep takes ~1.4 clicks/s, 25 sheep ~3.6.
   farmPipsPerFood: 6,
   farmPipsPerClick: 1,
@@ -42,6 +42,10 @@ export const TUNING = Object.freeze({
   // sacrifice during a boost resets it to 30 s; boosts never stack. Farm (food) only, never breeding.
   boostMs: 30_000,
   boostPipMultiplier: 2,
+  // FR24 / GDD Click value progression: Better Hoe I / II make a Farm click fill 2 / 3 pips (replacing
+  // farmPipsPerClick, not adding to it); the boost doubles them (4 / 6). Farm (food) only, never the
+  // breeding bar. Story 4.7.
+  hoePipsPerClick: Object.freeze([2, 3] as const),
   // FR8 (changed 2026-10-06): Farm Breeding Food works like Farm. A click fills breedingPipsPerClick
   // pips of an 8-pip bar; every full bar drops 1 breeding piece in the pen, which an adult eats to
   // become ready (FR8a). No stock, no cap. Never boosted, and Better Hoe does not apply.
@@ -62,6 +66,9 @@ export const TUNING = Object.freeze({
   scarecrowPrice: 80,
   // FR26 / GDD Upgrade Trees: "Medicine (per dose) | Consumable | $15". Repeatable (Story 4.5).
   medicinePrice: 15,
+  // FR24 / GDD Upgrade Trees (Should tier): "Better Hoe I / II | Click power | $30 / $100". II needs I
+  // (selectors.ts shopRequires). Story 4.7.
+  hoePrices: Object.freeze([30, 100] as const),
   // FR10 / GDD Breeding: "each adult can breed once every 60 s (tune)", starting at breeding.
   // Kept in 3.6 (2026-10-08): Town is click-bound, not cooldown-bound.
   breedCooldownMs: 60_000,

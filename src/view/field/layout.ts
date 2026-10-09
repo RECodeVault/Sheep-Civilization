@@ -3,7 +3,7 @@
 // imports this module (tests/view/field/layout.test.ts), so a retune of TUNING.landFences or new art sizes
 // is covered by `npm test`, not only by a DEV build loading GameScene. The view classes (BetterPlace,
 // Market, Decorations, EraBackground, Fence, PenCamera, ShopPanel) read their geometry from here.
-import { COMPONENTS, LAYOUT } from '../../config/constants';
+import { COMPONENTS, LAYOUT, SPACING } from '../../config/constants';
 import { TUNING, type Rect } from '../../config/tuning';
 import { DECORATIONS, type Decoration } from '../../sim/selectors';
 
@@ -227,6 +227,30 @@ export const SHOP_PANEL_X = LAYOUT.safeMargin;
 export const SHOP_PANEL_W = COMPONENTS.shopPanel.width;
 /** The panel's right edge in canvas px, for the field camera (it keeps the play area right of it). */
 export const SHOP_PANEL_RIGHT = SHOP_PANEL_X + SHOP_PANEL_W;
+// Geometry from mockups/hud.html `.shop` / `.row` / `.shop-hd` [ASSUMPTION, browser-checked]: a 2 px wood
+// border (widgets/box OUTLINE_PX; ShopPanel checks they agree), 16 px padding, the "Shop" header on a
+// 20 px line, then the rows SHOP_ROW_GAP apart. Rows are COMPONENTS.shopItemRow.height (50 since 4.7).
+export const SHOP_PANEL_BORDER = 2;
+export const SHOP_HEADER_H = 20;
+export const SHOP_ROW_GAP = 4;
+/**
+ * The most rows the panel must hold (Story 4.7, Rylan 2026-10-09): Land I–III, two decorations, Better
+ * Hoe I–II, 4.8's Auto-feeder and Medicine.
+ */
+export const SHOP_PANEL_MAX_ROWS = 9;
+/** The highest the panel's top may reach: 8 px below the Pause button at the top-left (HudScene). */
+export const SHOP_PANEL_MIN_TOP = LAYOUT.safeMargin + COMPONENTS.buttonPause.height + SPACING[2];
+
+/** The panel's height in canvas px with `rows` rows (it stands on the bar and grows upward). */
+export function shopPanelHeight(rows: number): number {
+  const p = COMPONENTS.shopPanel.padding;
+  return SHOP_PANEL_BORDER + p + SHOP_HEADER_H + rows * (SHOP_ROW_GAP + COMPONENTS.shopItemRow.height) + p;
+}
+
+/** The panel's top edge in canvas px with `rows` rows. */
+export function shopPanelTop(rows: number): number {
+  return LAYOUT.canvasHeight - LAYOUT.hudBarHeight - shopPanelHeight(rows);
+}
 
 // --- The checks ----------------------------------------------------------------------------------
 

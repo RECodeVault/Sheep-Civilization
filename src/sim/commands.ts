@@ -80,7 +80,7 @@ export function applyCommand(state: GameState, cmd: Command): void {
 /**
  * FR3 (changed 2026-10-06): a click fills pips of the Farm bar, and every full bar drops one food
  * piece at a random reachable spot in the pen. There is no food stock. The pips per click come from
- * farmPipsPerClick: Better Hoe (4.7) raises the base and a sacrifice boost doubles it (FR19), so one
+ * farmPipsPerClick: a Better Hoe raises the base (FR24) and a sacrifice boost doubles it (FR19), so one
  * click may complete several bars.
  */
 function farm(state: GameState): void {

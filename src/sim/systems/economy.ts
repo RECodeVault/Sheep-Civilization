@@ -2,8 +2,8 @@
 // spends the price and records a one-time item in `state.owned`, with no confirmation (UX-DR68), or
 // adds a dose to `state.medicine`, the one repeatable consumable (FR26, Story 4.5). The
 // rule for what can be bought is selectors.ts buyBlock, shared with the shop panel. What an owned item
-// does is derived elsewhere from `owned`: capacity and the fence (selectors.ts landTier, 3.3), Better
-// Hoe (4.7). Decorations have no sim effect at all: the view draws the owned ones (Story 3.4).
+// does is derived elsewhere from `owned`: capacity and the fence (selectors.ts landTier, 3.3), the
+// Farm click value (selectors.ts hoeTier and farmPipsPerClick, Better Hoe, 4.7). Decorations have no sim effect at all: the view draws the owned ones (Story 3.4).
 // Purchases are commands, so this module has no update function.
 // Draws no rng.
 import { emit } from '../events';

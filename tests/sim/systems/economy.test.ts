@@ -101,6 +101,30 @@ describe('buy (Buy command, UX-DR24)', () => {
     expect(state.money).toBe(0);
   });
 
+  it('locks Better Hoe II behind I, buys each once, and emits Bought with its price (FR24, Story 4.7)', () => {
+    const state = newGame(5);
+    state.money = shopPrice('hoe1') + shopPrice('hoe2');
+    const { rng } = state;
+    const earned = state.stats.moneyEarned;
+    drained();
+    const before = structuredClone(state);
+    buy(state, 'hoe2');
+    expect(state).toStrictEqual(before);
+    expect(drained()).toEqual([]);
+    buy(state, 'hoe1');
+    buy(state, 'hoe1');
+    expect(state.owned).toEqual(['hoe1']);
+    expect(drained()).toEqual([{ type: 'Bought', item: 'hoe1', price: shopPrice('hoe1') }]);
+    buy(state, 'hoe2');
+    expect(state.owned).toEqual(['hoe1', 'hoe2']);
+    expect(state.money).toBe(0);
+    expect(state.stats.moneyEarned).toBe(earned);
+    expect(state.rng).toBe(rng);
+    expect(drained()).toEqual([{ type: 'Bought', item: 'hoe2', price: shopPrice('hoe2') }]);
+    // A hoe is not land: capacity is unchanged.
+    expect(capacity(state)).toBe(TUNING.landCapacities[0]);
+  });
+
   it('buys with exactly the price', () => {
     const state = newGame(5);
     state.money = shopPrice('land1');
