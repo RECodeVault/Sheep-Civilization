@@ -1,0 +1,53 @@
+{
+  "resources": [
+    "sfx.ogg",
+    "sfx.mp3"
+  ],
+  "spritemap": {
+    "sfx-bleat": {
+      "start": 0,
+      "end": 0.42,
+      "loop": false
+    },
+    "sfx-descend": {
+      "start": 1.42,
+      "end": 2.32,
+      "loop": false
+    },
+    "sfx-ding": {
+      "start": 3.32,
+      "end": 3.87,
+      "loop": false
+    },
+    "sfx-fanfare": {
+      "start": 4.87,
+      "end": 6.17,
+      "loop": false
+    },
+    "sfx-pop": {
+      "start": 7.17,
+      "end": 7.27,
+      "loop": false
+    },
+    "sfx-screech": {
+      "start": 8.27,
+      "end": 8.72,
+      "loop": false
+    },
+    "sfx-sting": {
+      "start": 9.72,
+      "end": 10.42,
+      "loop": false
+    },
+    "sfx-suction": {
+      "start": 11.42,
+      "end": 11.92,
+      "loop": false
+    },
+    "sfx-thud": {
+      "start": 12.92,
+      "end": 13.54,
+      "loop": false
+    }
+  }
+}

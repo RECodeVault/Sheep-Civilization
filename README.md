@@ -54,7 +54,7 @@ npm run dev      # dev server
 | `npm test` | Vitest (core, sim and save tests) |
 | `npm run lint` | ESLint, including the architecture boundary rules |
 | `npm run typecheck` | `tsc --noEmit` for `src/` and `tests/`, then for `scripts/` (Node types) |
-| `npm run assets` | Pack the texture atlases and sync fonts into `public/assets/` (see below) |
+| `npm run assets` | Pack the texture atlases, sync fonts and build the audio into `public/assets/` (see below; needs ffmpeg) |
 | `npm run zip` | Package `dist/` for itch.io (arrives in Story 5.2) |
 
 ### Assets
@@ -66,7 +66,9 @@ Source art lives in `assets/art/` as loose PNGs, one file per frame, named in ke
 | `assets/art/sheep/`, `assets/art/world/` | `public/assets/atlases/sheep-world.{png,json}` |
 | `assets/art/ui/` | `public/assets/atlases/ui.{png,json}` |
 
-It also copies `assets/fonts/*.woff2` to `public/assets/fonts/`. The output is committed, so deploying needs only `vite build`. Re-run `npm run assets` after changing any source art or font, and credit new assets in `assets/CREDITS.md`. The audio sprite arrives in Story 5.6.
+It also copies `assets/fonts/*.woff2` to `public/assets/fonts/`. The output is committed, so deploying needs only `vite build`. Re-run `npm run assets` after changing any source art, audio or font, and credit new assets in `assets/CREDITS.md`.
+
+Audio: every `assets/audio/sfx/*.wav` becomes one marker `sfx-<name>` in a single audio sprite, and `assets/audio/music/music.wav` is the music loop; both are encoded to OGG and MP3 (≤ 128 kbps) in `public/assets/audio/`. This step needs **ffmpeg** with libvorbis and libmp3lame on your PATH (`sudo apt install ffmpeg`). CI never runs `npm run assets`, so it needs nothing.
 
 A change is done when `npm test`, `npm run typecheck` and `npm run lint` all pass.
 

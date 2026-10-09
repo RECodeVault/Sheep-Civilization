@@ -69,7 +69,7 @@ ux_experience: 'planning-artifacts/ux-designs/ux-sheep-civilization-2026-10-05/E
 | Overcrowding infection roll | Low | Overcrowding |
 | Save/load & visibility pause | Medium | Platform-Specific |
 | HUD / UI scenes (start, pause, shop, lose, credits, toasts, captions) | Medium | UX EXPERIENCE.md |
-| Audio (music, ~10 SFX, hunger-scaled bleats, captions) | Low | Audio |
+| Audio (music, ~10 SFX, captions) | Low | Audio |
 | Juice / feedback (popups, particles, shake w/ reduced-motion) | Low | Core Click, UX Game Feel |
 
 ### Technical Requirements
@@ -233,7 +233,7 @@ The template's sample scenes are replaced by the structure defined in Project St
 ### Randomness
 
 - `sim/rng.ts`: mulberry32 seeded PRNG. `state.rng` holds the current 32-bit state; every random draw in the sim goes through it.
-- `Math.random()` is allowed only in view-only cosmetic code (particle jitter, idle bleat variation).
+- `Math.random()` is allowed only in view-only cosmetic code (particle jitter, SFX pitch variation).
 
 ### Asset Management
 
@@ -241,7 +241,10 @@ The template's sample scenes are replaced by the structure defined in Project St
 
 - Atlases: `sheep-world` (sheep frames, carcass, food, Market, Better Place, decorations, fence) and `ui` (buttons, panels, icons, pips). Packed with free-tex-packer to JSON-hash format Phaser reads natively. Pixel art: `pixelArt: true`, nearest-neighbour filtering.
 - Era backgrounds: 4 separate images (large, swapped rarely).
-- Audio: SFX in one audio sprite (OGG + MP3 fallback); one music loop. Audio unlocks on first pointer input.
+- Audio: SFX in one audio sprite (OGG + MP3 fallback); one music loop. Audio unlocks on first user input (pointer or key).
+  - (Story 5.6, as built) `npm run assets` decodes every `assets/audio/sfx/*.wav` with ffmpeg to 16-bit mono 44.1 kHz PCM, joins them with 1 s of silence, and encodes one sprite (`sfx.ogg` Vorbis q3, `sfx.mp3` 96 kbps) plus `sfx.json` in Phaser's audiosprite format (`spritemap` markers `sfx-<file>`); `music.wav` becomes `music.{ogg,mp3}`. ffmpeg is a dev-time tool only (outputs are committed; CI never runs `assets`). The placeholders are synthesised (credited in `assets/CREDITS.md`).
+  - (Story 5.6) `src/view/audio/AudioDirector.ts` is created once per page by PreloadScene (before the title) and outlives every scene, so the music never restarts and its bus and game listeners are registered once and never removed. It is the only code that plays sound. Nothing plays or queues until the first pointer or key press on the page **and** Phaser's Web Audio unlock (a browser may start the context running with no gesture). It maps sim events (an exhaustive `switch` with `assertNever`, so Story 5.5's `LastSheep` must add its sting there) and UI events to SFX, throttles a repeated cue (60 ms) and a repeated caption (1 s), caps 8 voices (the reveal is forced past the cap), skips cues while the context is suspended (window blur), pauses the music on `HIDDEN`. Sheep are quiet apart from the `LambBorn` bleat: no hunger bleats and no eating sounds (cut in Story 5.6 at the product owner's request). Death sounds are cause-blind; `Sacrificed.wasAbomination` plays the screech then the sting.
+  - (Story 5.6) Live settings: `src/save/settingsStore.ts` loads/saves `sheepciv.settings` field by field (bad fields fall back alone); `src/view/settings.ts` holds the current `Settings` and `updateSettings(patch)` saves and emits `settings:changed`. Story 5.7's Volume panel edits them there.
 - Fonts: Pixelify Sans and Nunito self-hosted as WOFF2 and loaded with the CSS Font Loading API before `Title` renders (no network calls to Google Fonts at runtime).
 
 ### Testing
@@ -344,6 +347,7 @@ Sim code reads tuning values from `TUNING`, never literals. View code reads colo
 
 1. **Sim events (sim → view):** the sim appends to a per-tick `SimEvent[]` queue kept outside `GameState` (events are never saved); after each tick the Game scene drains it and publishes on the `EventBus`. Synchronous, ordered.
 2. **UI events (UI ↔ UI):** typed `EventBus` (thin wrapper over Phaser's EventEmitter with a type map).
+   - (Story 5.6) Audio-related UI events: `button:activated` (every `Button`, before its action; the pop), `era:announced { regress }` (HudScene's once-per-frame era fold, so ×16 plays one cue), `caption:requested { text }` (AudioDirector → HudScene `Captions`, only when captions are on) and `settings:changed`.
 
 **Event naming:** sim events are past-tense PascalCase discriminated-union `type`s (`SheepDied`, `CarcassSpawned`, `Infected`, `Cured`, `EraChanged`, `Sacrificed`, `AbominationRevealed`, `Sold`, `BoostStarted`, `BoostEnded`, `LambBorn`, `LastSheep`, `Lost`). UI events are `noun:verb` strings (`shop:toggled`, `pause:opened`, `settings:changed`). Listeners are removed in the scene's `shutdown` handler.
 
@@ -455,7 +459,7 @@ sheep-civilization/
 │   │   ├── widgets/              # Button, Panel, Slider, Toggle, Tooltip (DESIGN.md components)
 │   │   ├── juice/                # popups, particles, shake (respects reduced motion)
 │   │   ├── strings.ts            # all player-facing copy (EXPERIENCE.md Voice table)
-│   │   └── audio/AudioDirector.ts  # maps SimEvents → SFX, captions, hunger bleats
+│   │   └── audio/AudioDirector.ts  # maps SimEvents → SFX, captions
 │   └── debug/
 │       └── DebugOverlay.ts       # DEV only
 ├── tests/

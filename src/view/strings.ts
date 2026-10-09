@@ -183,4 +183,14 @@ export const STRINGS = Object.freeze({
   // regress banner, e.g. "Back to Pasture." (a full stop, never "!").
   eraName: ERA_NAME,
   eraBack: (name: string): string => `Back to ${name}.`,
+  // Audio captions (UX-DR88, EXPERIENCE Accessibility Floor; Story 5.6), bracketed. `lastSheep` is for
+  // Story 5.5's sting, and the one "!" the copy allows.
+  captions: Object.freeze({
+    thud: '[thud]',
+    suction: '[suction]',
+    screech: '[screech]',
+    fanfare: '[fanfare]',
+    descendingNote: '[descending note]',
+    lastSheep: '[sting] Last sheep!',
+  }),
 } as const);

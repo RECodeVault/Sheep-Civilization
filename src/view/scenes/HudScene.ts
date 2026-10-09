@@ -6,6 +6,7 @@ import { eraIndex, selectHudView, type HudView } from '../../sim/selectors';
 import type { Era } from '../../sim/state';
 import { bus } from '../bus';
 import { BottomBar } from '../hud/BottomBar';
+import { Captions } from '../hud/Captions';
 import { EraBanner } from '../hud/EraBanner';
 import { FloatPopups } from '../juice/FloatPopups';
 import { reportError, showToast } from '../safetyNet';
@@ -19,6 +20,8 @@ import type { OverlayScene } from './OverlayScene';
 // Within this scene: popups over the bar, the tooltip over everything.
 // The era banner (Story 3.5): above the bar and the Pause button, under the popups and the tooltip.
 const BANNER_DEPTH = 50;
+// Audio captions (Story 5.6): above the bar and the banner, under the popups and the tooltip.
+const CAPTION_DEPTH = 60;
 const POPUP_DEPTH = 100;
 // The dose in hand (Story 4.5): above the bar and the popups, under the tooltip.
 const HELD_DOSE_DEPTH = 150;
@@ -67,6 +70,7 @@ export class HudScene extends Phaser.Scene {
   // of many sheep on one tick reads "5 sheep starved." instead of overflowing the 3-toast stack.
   private readonly deaths: Record<DeathCause, number> = { starved: 0, oldAge: 0, virus: 0, abomination: 0 };
   private banner!: EraBanner;
+  private captions!: Captions;
   // This frame's era change, played once in refresh: the first `from` and the last `to` since the last
   // refresh, so ×16 ticks that cross twice show one banner (or none, for a flip there and back).
   private eraFrom: Era | null = null;
@@ -106,6 +110,7 @@ export class HudScene extends Phaser.Scene {
     // The Medicine slot (Story 4.5) is a source too: tooltip, hover clear and controlAt, while shown.
     this.tooltipSources = [...this.tooltipButtons, this.bar.medicine, ...this.bar.threats.sources];
     this.banner = new EraBanner(this, BANNER_DEPTH);
+    this.captions = new Captions(this, CAPTION_DEPTH);
     this.popups = new FloatPopups(this, POPUP_DEPTH);
     this.tooltip = new Tooltip(this, TOOLTIP_DEPTH);
 
@@ -115,6 +120,7 @@ export class HudScene extends Phaser.Scene {
     bus.on('breedMode:changed', this.onBreedMode, this);
     bus.on('shop:toggled', this.onShopToggled, this);
     bus.on('sacrifice:landed', this.onSacrificeLanded, this);
+    bus.on('caption:requested', this.onCaption, this);
     this.input.on(Phaser.Input.Events.POINTER_DOWN, this.onPointerDown, this);
     // Phaser updates scenes in REVERSE array order (SceneManager.update), so HudScene's update()
     // would run before GameScene ticks and show last frame's food. PRE_RENDER fires after every
@@ -128,6 +134,7 @@ export class HudScene extends Phaser.Scene {
       bus.off('breedMode:changed', this.onBreedMode, this);
       bus.off('shop:toggled', this.onShopToggled, this);
       bus.off('sacrifice:landed', this.onSacrificeLanded, this);
+      bus.off('caption:requested', this.onCaption, this);
       this.input.off(Phaser.Input.Events.POINTER_DOWN, this.onPointerDown, this);
       this.events.off(Phaser.Scenes.Events.PRE_RENDER, this.refresh, this);
     });
@@ -371,6 +378,15 @@ export class HudScene extends Phaser.Scene {
     }
   };
 
+  /** UX-DR45 / UX-DR88 (Story 5.6): AudioDirector raised a caption (captions are on). */
+  private readonly onCaption = (e: { text: string }): void => {
+    try {
+      this.captions.show(e.text);
+    } catch (err) {
+      reportError('ui', err);
+    }
+  };
+
   /**
    * The frame's era change (UX-DR37, UX-DR94): the new era's name going up, "Back to {era}." going down.
    * A jump over several eras names only the last; a flip there and back shows nothing.
@@ -383,8 +399,10 @@ export class HudScene extends Phaser.Scene {
     this.eraTo = null;
     if (from === to) return;
     const name = STRINGS.eraName[to];
-    if (eraIndex(to) > eraIndex(from)) this.banner.play(name, false);
-    else this.banner.play(STRINGS.eraBack(name), true);
+    const regress = eraIndex(to) < eraIndex(from);
+    this.banner.play(regress ? STRINGS.eraBack(name) : name, regress);
+    // Once per frame, like the banner: AudioDirector plays the fanfare or the descending note (Story 5.6).
+    bus.emit('era:announced', { regress });
   }
 
   /** One announcement per cause for the frame's deaths, in the deaths map's order. */

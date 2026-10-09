@@ -11,6 +11,7 @@ import {
   type TypographyToken,
 } from '../../config/constants';
 import { ATLAS } from '../assetKeys';
+import { bus } from '../bus';
 import { boxTexture, DROP_PX, textStyle, type BoxStyle } from './box';
 import type { TooltipSource } from './tooltipSource';
 
@@ -326,14 +327,21 @@ export class Button implements TooltipSource {
     this.pressed = true;
     this.suppressTooltip();
     this.refresh();
-    if (this.options.activateOn === 'press') this.options.onActivate();
+    if (this.options.activateOn === 'press') this.activate();
   }
 
   private onUp(pointer: Phaser.Input.Pointer): void {
     if (!this.pressed || !pointer.leftButtonReleased()) return;
     this.pressed = false;
     this.refresh();
-    if (this.enabled && this.options.activateOn === 'release') this.options.onActivate();
+    if (this.enabled && this.options.activateOn === 'release') this.activate();
+  }
+
+  // Every activation pops (UX-DR77, Story 5.6): AudioDirector hears it before the action runs. A greyed
+  // button never gets here.
+  private activate(): void {
+    bus.emit('button:activated', undefined);
+    this.options.onActivate();
   }
 
   private refresh(): void {

@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { CANVAS_HEIGHT, CANVAS_WIDTH, COLOR_INT, COLORS } from '../../config/constants';
 import { log } from '../../core/log';
 import { ERAS } from '../../sim/selectors';
-import { ATLAS, atlasUrls, backgroundUrl } from '../assetKeys';
+import { ATLAS, atlasUrls, AUDIO, audioSpriteUrls, backgroundUrl, musicUrls } from '../assetKeys';
+import { createAudioDirector } from '../audio/AudioDirector';
 import { showToast } from '../safetyNet';
 import { STRINGS } from '../strings';
 
@@ -11,8 +12,8 @@ const BAR_HEIGHT = 16;
 const BAR_OUTLINE = 2;
 const ATLASES = [ATLAS.sheepWorld, ATLAS.ui] as const;
 
-// Loads every runtime asset behind a loading bar on dusk, then shows the title, which decides
-// between Continue and New Game (it owns the save load).
+// Loads every runtime asset behind a loading bar on dusk, creates the page's AudioDirector, then shows
+// the title, which decides between Continue and New Game (it owns the save load).
 // A failed file is a recoverable boundary failure: log a warning, tell the player once, carry on.
 export class PreloadScene extends Phaser.Scene {
   constructor() {
@@ -47,6 +48,10 @@ export class PreloadScene extends Phaser.Scene {
     }
     // The era backgrounds (Story 3.5), keyed by Era id.
     for (const era of ERAS) this.load.image(era, backgroundUrl(era));
+    // Story 5.6: the SFX audio sprite and the music loop (OGG first, MP3 fallback).
+    const sfx = audioSpriteUrls();
+    this.load.audioSprite(AUDIO.sfx, sfx.json, sfx.audio);
+    this.load.audio(AUDIO.music, musicUrls());
   }
 
   create(): void {
@@ -58,6 +63,14 @@ export class PreloadScene extends Phaser.Scene {
       showToast(STRINGS.assetLoadFailed);
     } else {
       log.info('boot', 'Assets loaded');
+    }
+    // Missing audio only warns (inside the director) and plays silently: no toast blocks play (AC 2).
+    // Made once per page, before the title, so the music starts there on the first input.
+    // A failure here is a recoverable boundary failure: the game runs silent rather than not at all.
+    try {
+      createAudioDirector(this.game);
+    } catch (err) {
+      log.warn('audio', 'Audio unavailable; playing silently', err);
     }
     this.scene.start('TitleScene');
   }

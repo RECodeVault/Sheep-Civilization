@@ -1,6 +1,7 @@
 // The shared typed event bus. GameScene publishes drained sim events on 'sim'; later stories add
 // UI `noun:verb` events here. Listeners pass their scene as context and are removed on shutdown.
 import { EventBus } from '../core/eventBus';
+import type { Settings } from '../save/settingsStore';
 import type { SimEvent } from '../sim/events';
 
 export type BusEvents = {
@@ -25,6 +26,16 @@ export type BusEvents = {
   // A left press on the Medicine slot (HudScene), which captures it from GameScene; InputController arms
   // a dose drag (Story 4.5).
   'medicine:pressed': undefined;
+  // A Button activated (widgets/Button.ts), just before its action runs; AudioDirector pops (Story 5.6).
+  'button:activated': undefined;
+  // HudScene played the frame's era banner (flushEraBanner): once per frame, however many EraChanged
+  // events the ticks made. AudioDirector plays the fanfare, or the descending note on a regress.
+  'era:announced': { regress: boolean };
+  // AudioDirector raised a caption (captions on only, UX-DR88); HudScene's Captions shows it.
+  'caption:requested': { text: string };
+  // The live settings changed (view/settings.ts updateSettings): AudioDirector applies volumes and
+  // captions at once; Story 5.7's Volume panel sends them.
+  'settings:changed': Readonly<Settings>;
 };
 
 export const bus = new EventBus<BusEvents>();

@@ -79,7 +79,7 @@ const PREGNANCY_POOL_SIZE = 10;
 // Architecture N3: carcasses stay until clicked (FR13), so the pool grows on demand.
 const CARCASS_POOL_SIZE = 40;
 // UX-DR78 munch crumbs: a short hay burst where a piece was eaten. Visual only (Math.random inside
-// the emitter is fine); the munch SFX arrives with AudioDirector in Story 5.6.
+// the emitter is fine). Eating has no sound (Story 5.6).
 const MUNCH_CRUMBS = 6;
 const MUNCH = {
   lifespan: 400,

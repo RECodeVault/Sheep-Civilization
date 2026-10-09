@@ -106,3 +106,37 @@ export function backgroundUrl(era: Era): string {
  * `npm run assets`), hotspot at its centre, with the hand as the fallback. Relative URL, like atlasUrls.
  */
 export const HEART_CURSOR = 'url(assets/cursors/heart.png) 16 16, pointer';
+
+/** Audio cache keys (Story 5.6): the SFX audio sprite and the music loop. */
+export const AUDIO = Object.freeze({
+  sfx: 'sfx',
+  music: 'music',
+} as const);
+
+/**
+ * The SFX sprite's markers, `sfx-<source file>` (architecture Game Assets naming), built by
+ * `npm run assets` from assets/audio/sfx/. Only AudioDirector plays them.
+ */
+export const SFX = Object.freeze({
+  pop: 'sfx-pop',
+  thud: 'sfx-thud',
+  suction: 'sfx-suction',
+  screech: 'sfx-screech',
+  sting: 'sfx-sting',
+  ding: 'sfx-ding',
+  fanfare: 'sfx-fanfare',
+  descend: 'sfx-descend',
+  bleat: 'sfx-bleat',
+} as const);
+
+export type SfxMarker = (typeof SFX)[keyof typeof SFX];
+
+/** The sprite's JSON and its audio, OGG first then MP3 (Phaser plays the first the browser supports). */
+export function audioSpriteUrls(): { json: string; audio: string[] } {
+  return { json: 'assets/audio/sfx.json', audio: ['assets/audio/sfx.ogg', 'assets/audio/sfx.mp3'] };
+}
+
+/** The music loop, OGG first then MP3. Relative URLs, like atlasUrls. */
+export function musicUrls(): string[] {
+  return ['assets/audio/music.ogg', 'assets/audio/music.mp3'];
+}

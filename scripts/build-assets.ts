@@ -1,7 +1,11 @@
 // Asset pipeline (`npm run assets`): packs the source PNGs in assets/art/ into the two runtime
-// atlases and syncs the fonts, CSS cursors and era backgrounds, writing everything to public/assets/
-// (committed, so deploy is `vite build` only). Run by Node 24 type stripping: erasable TypeScript only, one file.
-import { copyFile, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+// atlases, syncs the fonts, CSS cursors and era backgrounds, and builds the SFX audio sprite and the
+// music loop (Story 5.6), writing everything to public/assets/ (committed, so deploy is `vite build`
+// only). Run by Node 24 type stripping: erasable TypeScript only, one file.
+// Audio needs ffmpeg (with libvorbis and libmp3lame) on PATH; only this script does, never CI.
+import { execFile, spawnSync } from 'node:child_process';
+import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { packAsync } from 'free-tex-packer-core';
@@ -20,6 +24,19 @@ const OUT_CURSORS = path.join(ROOT, 'public', 'assets', 'cursors');
 const SRC_BACKGROUNDS = path.join(ART, 'backgrounds');
 const OUT_BACKGROUNDS = path.join(ROOT, 'public', 'assets', 'backgrounds');
 const ERA_BACKGROUNDS: readonly string[] = ['pasture.png', 'town.png', 'village.png', 'wool-empire.png'];
+
+// Story 5.6: SFX sources (one sprite marker each, `sfx-<file name>`) and the one music loop.
+const SRC_SFX = path.join(ROOT, 'assets', 'audio', 'sfx');
+const SRC_MUSIC = path.join(ROOT, 'assets', 'audio', 'music', 'music.wav');
+const OUT_AUDIO = path.join(ROOT, 'public', 'assets', 'audio');
+// The sprite is decoded and joined as 16-bit mono PCM at this rate, whatever the sources are.
+const AUDIO_RATE = 44_100;
+// Silence after each sound: no bleed between markers, and room for the MP3 encoder's start delay
+// (about 26 ms) to shift a marker without clipping its neighbour.
+const SPRITE_GAP_S = 1;
+// Project-context: audio at ≤ 128 kbps. Vorbis q3 is about 112 kbps at most; MP3 is a fixed 96 kbps.
+const OGG_ARGS: readonly string[] = ['-c:a', 'libvorbis', '-q:a', '3'];
+const MP3_ARGS: readonly string[] = ['-c:a', 'libmp3lame', '-b:a', '96k'];
 
 const MAX_SIZE = 2048;
 // Frame names are kebab-case `entity-state[-n]` (architecture, Game Assets naming).
@@ -193,12 +210,167 @@ async function syncBackgrounds(files: readonly string[]): Promise<void> {
   console.log(`[assets] backgrounds: ${files.length} copied`);
 }
 
+// --- Audio (Story 5.6) -----------------------------------------------------------------------
+
+/** Phaser's audiosprite JSON: `spritemap` entries become markers of duration `end − start` (seconds). */
+interface SpriteJson {
+  resources: string[];
+  spritemap: Record<string, { start: number; end: number; loop: boolean }>;
+}
+
+interface BuiltAudio {
+  /** Temp dir holding the five outputs, moved into public/assets/audio/ only after everything built. */
+  dir: string;
+  files: readonly string[];
+  sfx: number;
+  spriteS: number;
+  musicS: number;
+}
+
+const AUDIO_FILES: readonly string[] = ['sfx.json', 'sfx.ogg', 'sfx.mp3', 'music.ogg', 'music.mp3'];
+
+/** ffmpeg on the PATH with both encoders the outputs need (some builds ship without libmp3lame). */
+function requireFfmpeg(): void {
+  const r = spawnSync('ffmpeg', ['-hide_banner', '-encoders'], { encoding: 'utf8' });
+  if (r.error !== undefined || r.status !== 0) {
+    throw new AssetError('ffmpeg is required for audio (sudo apt install ffmpeg); nothing was written');
+  }
+  for (const enc of ['libvorbis', 'libmp3lame']) {
+    if (!new RegExp(`\\b${enc}\\b`).test(r.stdout)) {
+      throw new AssetError(`ffmpeg has no ${enc} encoder (install a full ffmpeg build); nothing was written`);
+    }
+  }
+}
+
+/** Runs ffmpeg with an argument array (never a shell string); optional stdin; resolves with stdout. */
+function ffmpeg(args: readonly string[], input?: Buffer): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const child = execFile(
+      'ffmpeg',
+      ['-y', '-hide_banner', '-loglevel', 'error', ...args],
+      { encoding: 'buffer', maxBuffer: 256 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        if (err)
+          reject(new AssetError(`ffmpeg ${args.join(' ')} failed: ${stderr.toString('utf8').trim() || err.message}`));
+        else resolve(stdout);
+      },
+    );
+    // An early ffmpeg exit closes stdin mid-write (EPIPE); the exit callback above reports the real error.
+    child.stdin?.on('error', () => {});
+    if (input !== undefined) child.stdin?.end(input);
+  });
+}
+
+/**
+ * The SFX sources, sorted. Every one must be a lowercase-.wav file with a kebab-case name; any other
+ * file (an .ogg from a free pack, say) fails loudly rather than silently missing from the sprite.
+ */
+async function listSfx(): Promise<string[]> {
+  let entries;
+  try {
+    entries = await readdir(SRC_SFX, { withFileTypes: true });
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    throw new AssetError(`assets/audio/sfx/ is ${code === 'ENOENT' ? 'missing' : `unreadable (${code})`}`);
+  }
+  const names: string[] = [];
+  for (const e of entries) {
+    if (e.name.startsWith('.')) continue;
+    if (!e.name.toLowerCase().endsWith('.wav')) {
+      throw new AssetError(`audio/sfx/${e.name}: only .wav sources are built (convert it first)`);
+    }
+    if (!e.isFile()) throw new AssetError(`audio/sfx/${e.name} is not a file`);
+    if (!e.name.endsWith('.wav')) throw new AssetError(`audio/sfx/${e.name}: use a lowercase .wav extension`);
+    const name = e.name.slice(0, -'.wav'.length);
+    if (!FRAME_NAME.test(name)) throw new AssetError(`audio/sfx/${e.name}: "${name}" is not kebab-case`);
+    names.push(name);
+  }
+  if (names.length === 0) throw new AssetError('no .wav files in assets/audio/sfx/');
+  return names.sort();
+}
+
+const PCM_IN: readonly string[] = ['-f', 's16le', '-ac', '1', '-ar', String(AUDIO_RATE)];
+const round3 = (s: number): number => Math.round(s * 1000) / 1000;
+
+/** Builds the sprite and the music into a temp dir. Writes nothing under public/. */
+async function buildAudio(): Promise<BuiltAudio> {
+  requireFfmpeg();
+  const names = await listSfx();
+  try {
+    if (!(await stat(SRC_MUSIC)).isFile()) throw new AssetError('assets/audio/music/music.wav is not a file');
+  } catch (err) {
+    if (err instanceof AssetError) throw err;
+    throw new AssetError('assets/audio/music/music.wav is missing');
+  }
+
+  const gap = Buffer.alloc(Math.round(SPRITE_GAP_S * AUDIO_RATE) * 2);
+  const parts: Buffer[] = [];
+  const json: SpriteJson = { resources: ['sfx.ogg', 'sfx.mp3'], spritemap: {} };
+  let samples = 0;
+  for (const name of names) {
+    // Decoded to the sprite's PCM format, so sources of any rate or channel count join cleanly.
+    const pcm = await ffmpeg(['-i', path.join(SRC_SFX, `${name}.wav`), ...PCM_IN, '-']);
+    if (pcm.length < 2) throw new AssetError(`audio/sfx/${name}.wav decoded to no audio`);
+    const start = samples / AUDIO_RATE;
+    samples += pcm.length / 2;
+    json.spritemap[`sfx-${name}`] = { start: round3(start), end: round3(samples / AUDIO_RATE), loop: false };
+    parts.push(pcm, gap);
+    samples += gap.length / 2;
+  }
+  const joined = Buffer.concat(parts);
+
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'sheepciv-audio-'));
+  try {
+    const pcmArgs = [...PCM_IN, '-i', '-'];
+    await ffmpeg([...pcmArgs, ...OGG_ARGS, path.join(dir, 'sfx.ogg')], joined);
+    await ffmpeg([...pcmArgs, ...MP3_ARGS, path.join(dir, 'sfx.mp3')], joined);
+    await writeFile(path.join(dir, 'sfx.json'), `${JSON.stringify(json, null, 2)}\n`);
+    // Music: mono at the sprite's rate (half the size of stereo; the loop is a soft mono mix).
+    const musicPcm = await ffmpeg(['-i', SRC_MUSIC, ...PCM_IN, '-']);
+    await ffmpeg([...pcmArgs, ...OGG_ARGS, path.join(dir, 'music.ogg')], musicPcm);
+    await ffmpeg([...pcmArgs, ...MP3_ARGS, path.join(dir, 'music.mp3')], musicPcm);
+    return {
+      dir,
+      files: AUDIO_FILES,
+      sfx: names.length,
+      spriteS: samples / AUDIO_RATE,
+      musicS: musicPcm.length / 2 / AUDIO_RATE,
+    };
+  } catch (err) {
+    await rm(dir, { recursive: true, force: true });
+    throw err;
+  }
+}
+
+/** Copies the built audio into public/assets/audio/ and prunes stale files (main removes the temp dir). */
+async function syncAudio(a: BuiltAudio): Promise<void> {
+  await mkdir(OUT_AUDIO, { recursive: true });
+  let bytes = 0;
+  for (const f of a.files) {
+    await copyFile(path.join(a.dir, f), path.join(OUT_AUDIO, f));
+    bytes += (await stat(path.join(OUT_AUDIO, f))).size;
+  }
+  await prune(OUT_AUDIO, new Set(a.files));
+  console.log(
+    `[assets] audio: ${a.sfx} sfx in sprite (${a.spriteS.toFixed(1)} s), music ${a.musicS.toFixed(1)} s, total ${Math.round(bytes / 1024)} KB`,
+  );
+}
+
 async function main(): Promise<void> {
   // Pack everything before writing anything, so a failure never leaves public/assets/ half-updated.
   const packed: PackedAtlas[] = [];
   for (const a of ATLASES) packed.push(await packAtlas(a.name, a.folders));
   const backgrounds = await listBackgrounds();
+  const audio = await buildAudio();
+  try {
+    await writeAll(packed, backgrounds, audio);
+  } finally {
+    // Gone after a failed write as well as a good one (syncAudio has already copied out of it).
+    await rm(audio.dir, { recursive: true, force: true });
+  }
+}
 
+async function writeAll(packed: PackedAtlas[], backgrounds: string[], audio: BuiltAudio): Promise<void> {
   await mkdir(OUT_ATLASES, { recursive: true });
   const keep = new Set<string>();
   for (const a of packed) {
@@ -211,7 +383,7 @@ async function main(): Promise<void> {
   await syncFonts();
   await syncCursors();
   await syncBackgrounds(backgrounds);
-  console.log('[assets] audio: none yet (Story 5.6)');
+  await syncAudio(audio);
 }
 
 main().catch((err: unknown) => {

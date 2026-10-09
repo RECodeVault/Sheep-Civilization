@@ -40,7 +40,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **Listener cleanup:** every `bus.on`/`input.on`/`events.on` in a scene is removed in `this.events.once(Phaser.Scenes.Events.SHUTDOWN, …)`. Restart must not double-subscribe.
 - **Input:** a single `InputController` registers pointer/keyboard listeners. Do not use `setInteractive()` + `on('pointerdown')` on individual sprites for gameplay actions; hit-testing goes through the controller (UI widgets in HUD/Overlay may use `setInteractive`). Disable the browser context menu on the canvas (right-click cancels breed mode; right-drag pans the field camera, `view/field/PenCamera.ts`). The field camera can scroll, so field hit tests use the camera's world point (`camera.getWorldPoint`), never raw pointer x/y.
 - **Text:** HUD numbers that change often use `BitmapText` (or cached `Text` updated only on value change), never re-`setText` every frame.
-- **Audio:** sounds play only through `AudioDirector`; respect the WebAudio unlock (first pointer input). Volumes come from settings, never hard-coded.
+- **Audio:** sounds play only through `AudioDirector`; respect the WebAudio unlock (first pointer or key input). Volumes come from settings, never hard-coded.
 - **Fonts:** Pixelify Sans / Nunito must be loaded (CSS Font Loading API in `main.ts`) **before** any `Text` is created, or Phaser caches fallback metrics.
 
 ### Performance Rules
@@ -85,7 +85,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **Input:** mouse primary; keys `F` (Farm), `G` (Farm Breeding Food), `Esc` (priority chain: confirm → sub-panel → cancel drag → exit breed mode → close shop → pause). Ignore key repeats for F/G (`event.repeat`), and ignore shortcuts while a modal is open. Click vs drag threshold = 6 px.
 - **Visibility:** on `document.visibilitychange` → hidden: stop sim accumulation, force a save, pause music. On visible: resume with no overlay and reset the frame delta (no catch-up burst).
 - **Persistence:** `localStorage` keys `sheepciv.save.v1`, `sheepciv.settings` and `sheepciv.save.v1.bad` (a one-slot backup of the last discarded save, never read by the game) only. Wrap every access in try/catch (private mode / quota / blocked storage) and fall back gracefully; the game must run with storage unavailable.
-- **Audio autoplay:** nothing plays before the first pointer input; music starts on the Title screen after that input.
+- **Audio autoplay:** nothing plays before the first user input (a pointer press or a key press); music starts on the Title screen after that input.
 - **Build:** `vite build` with `base: './'` → `dist/` works from any subpath (GitHub Pages) and inside the itch.io iframe. Use relative asset URLs only; never absolute `/assets/...`.
 - **Dev-only code** is gated by `import.meta.env.DEV` (debug overlay, `invariant` throws, `log.debug/info`). Production builds must contain none of it.
 - **Deploy:** push to `main` → GitHub Actions (test → build → Pages). itch.io: `npm run zip`, upload as HTML5, embed size 1280×720 with fullscreen button enabled.

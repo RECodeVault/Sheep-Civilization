@@ -22,9 +22,11 @@ import { abominationAlive, makeAbomination } from '../sim/systems/abomination';
 import { createCarcass } from '../sim/systems/carcass';
 import { createBreedingPiece, createFoodPiece } from '../sim/systems/feeding';
 import { infectSheep } from '../sim/systems/virus';
+import { audioDirector } from '../view/audio/AudioDirector';
 import { bus } from '../view/bus';
 import { FIELD_DEPTH } from '../view/field/depths';
 import type { GameScene } from '../view/scenes/GameScene';
+import { getSettings, updateSettings } from '../view/settings';
 import { PlaytestRecord } from './playtestRecord';
 
 const SPEEDS = [1, 4, 16] as const;
@@ -35,6 +37,8 @@ const ADD_FOOD = 5;
 const ADD_PILE = 50;
 const ADD_SHEEP = 10;
 const ADD_MONEY = 100;
+// Story 5.6: the gap between sounds in the Play all SFX ear check.
+const PLAY_ALL_GAP_MS = 700;
 // Story 4.1: the Reveal Abomination ring, sized to circle a 64×52 sheep.
 const OUTLINE_RADIUS = 40;
 const OUTLINE_WIDTH = 2;
@@ -360,6 +364,24 @@ export function installDebugOverlay(game: Phaser.Game): void {
   button(row4, 'Reject test promise', () => {
     void Promise.reject(new Error('debug probe: rejected promise'));
     setStatus('test rejection raised');
+  });
+
+  // Story 5.6: captions before 5.7's Volume panel exists, and an ear check of every SFX (through the
+  // director, never `sound` directly). Settings, not sim state, so these work on the title too.
+  const audioRow = buttonRow(panel);
+  const captionsLabel = (): string => `Captions: ${getSettings().captions ? 'on' : 'off'}`;
+  const captionsButton = button(audioRow, captionsLabel(), () => {
+    updateSettings({ captions: !getSettings().captions });
+    captionsButton.textContent = captionsLabel();
+    setStatus(captionsLabel().toLowerCase());
+  });
+  button(audioRow, 'Play all SFX', () => {
+    const director = audioDirector();
+    if (director === null) setStatus('no audio director');
+    else {
+      director.playAll(PLAY_ALL_GAP_MS);
+      setStatus('playing every SFX (click the page first if audio is locked)');
+    }
   });
 
   const simButtons = [

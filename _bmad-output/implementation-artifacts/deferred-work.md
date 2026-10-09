@@ -133,7 +133,9 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Two pause sources (Story 1.10):** the hidden-tab pause is `GameScene.hidden` (set from Phaser's HIDDEN/VISIBLE game events). The Esc pause needs its own flag beside it; either one stops the clock, and unhiding must not unpause a paused menu.
   - **Resolved in Story 1.10:** `GameScene.paused` (set by OverlayScene) sits beside `hidden`; either stops the clock, and neither handler touches the other flag (browser-verified: hide/show while paused stays paused).
 - **Settings store (Story 5.7):** there is no `settingsStore.ts` yet. Add it under `SETTINGS_KEY` with the same pattern as `saveStore` (injected `StorageLike`, try/catch on every access). `wipeSave` already leaves the settings key alone (unit-tested).
+  - **Resolved in Story 5.6:** `src/save/settingsStore.ts` (`loadSettings` / `saveSettings`, field-by-field fallback, tested in `tests/save/settingsStore.test.ts`).
 - **Music on hide (Story 5.6):** AR25 also pauses music when the tab is hidden; there is no audio yet.
+  - **Resolved in Story 5.6:** `AudioDirector` pauses the music on `HIDDEN` and resumes it on `VISIBLE` (only a pause it made).
 
 ## Deferred from: code review of 1-9-save-resume-and-hidden-tab-pause (2026-10-06)
 
@@ -195,6 +197,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **The reveal (Story 4.4):** `Sacrificed.wasAbomination` carries the sheep's real `isAbomination` since Story 4.1, but the view still ignores it: the HUD toast and `GameScene.suck` must branch on it only in 4.4.
   - **Resolved in Story 4.4:** `GameScene.suck` plays the true-form flash for the Abomination, and HudScene shows "Good riddance." / "…that was just a sheep." when the ghost lands (`sacrifice:landed`).
 - **Audio (Story 5.6):** the `[suction]` caption and SFX on `Sacrificed`.
+  - **Done in Story 5.6:** `sfx-suction` and `[suction]` on every `Sacrificed`.
 - **Reduced motion (Story 5.7):** the suction spiral (`SUCTION`), the ring spin and hole suck (`BP_MOTION` in `BetterPlace.ts`) and the 4 px lift are juice; the lit rim, glow and label are information and stay.
 
 ## Deferred from: code review of 2-7-drag-a-sheep-into-the-better-place (2026-10-07)
@@ -205,6 +208,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 ## Deferred from: story 2-8-sacrifice-food-boost (2026-10-07)
 
 - **Audio (Story 5.6):** a cue when a boost starts (`BoostStarted`). An end cue would need a `BoostEnded` event, which is not emitted (the end is derived from `boostUntil`); 5.6 would add a small system that emits it once when `time` reaches `boostUntil`.
+  - **Resolved in Story 5.6 (no cue):** the suction already marks the sacrifice that starts the boost; no `BoostEnded` system was added.
 - **Reduced motion (Story 5.7):** the Farm glow pulse (`BOOST_MOTION` in `FarmBoost.ts`), the timer pop (`BOOST_TIMER_MOTION` in `BoostTimer.ts`) and the "×2" float popup are juice. The glow itself, the badge and the timer are information and stay.
 - **Better Hoe (Story 4.7):** raise the base in `farmPipsPerClick(state)` (`selectors.ts`); the boost doubles whatever the base is (2 → 4, 3 → 6).
   - **Resolved in Story 4.7:** `hoeTier(state)` picks `TUNING.hoePipsPerClick[tier − 1]` in place of `farmPipsPerClick`; boosted 4 / 6.
@@ -227,6 +231,7 @@ Real issues found in reviews that are not actionable in the story where they wer
   - **Resolved in Story 4.1:** `stageOf` returns `'lamb'` for the Abomination at any age, which also keeps it from breeding and from breeding food. Tested in `market.test.ts` (an elder-aged Abomination is put down unsold) and in the browser (the stall shows "Too young").
 - **Names (Story 5.3):** the sold toast says "A sheep sold. $10."; 5.3 puts the name in place of "A sheep", in `halo`.
 - **Audio (Story 5.6):** the cash-register ding on `Sold` (UX-DR82), and a caption if captions cover it.
+  - **Done in Story 5.6:** `sfx-ding` on `Sold`; no caption (UX-DR88 has none).
 - **Reduced motion (Story 5.7):** the outline pulse, awning flap, tag growth and stall nudge (`MARKET_MOTION` in `Market.ts`) and the sale hop (`SALE` in `GameScene.ts`) are juice; the outline, tag and "Too young" are information and stay.
 - **An intermittent first drag in the browser probe (investigate any time):** in the scratchpad Playwright probe, about 1 in 10 runs the first drag after the session's first debug Load never starts (the sheep stays put; no command is sent). It happens on the pre-3.1 commit too (2 of 10 runs), so 3.1 did not cause it, and it never happened on a later drag in the same session (10 of 10 fast sales passed). Unknown whether it is the probe's synthetic pointer timing or a real drag-start edge case in `InputController.updateClick`; worth a look with real mouse input.
 
@@ -247,6 +252,7 @@ Real issues found in reviews that are not actionable in the story where they wer
   - **Resolved in Story 4.7 (Rylan, 2026-10-09):** rows 56 → 50 px (a DESIGN.md deviation, noted at `COMPONENTS.shopItemRow`); the geometry moved to `view/field/layout.ts` (`shopPanelHeight`/`shopPanelTop`, `SHOP_PANEL_MAX_ROWS` = 9), and `tests/view/field/layout.test.ts` checks 9 rows clear Pause. 8 rows today: top y 122; with 4.8's Auto-feeder: y 68 (4 px spare). 4.8 must also classify the Auto-feeder for the "exactly one of Land, decoration or Better Hoe" test (`selectors.test.ts`).
   - **Resolved in Story 4.8:** the Auto-feeder is the 9th row (top y 68, browser-checked at 1280×720 and 960×540) and is classified in that test (`item === 'autoFeeder'`).
 - **Audio (Story 5.6):** a purchase sound on `Bought`.
+  - **Done in Story 5.6:** `sfx-ding` on every `Bought`.
 - **Reduced motion (Story 5.7):** the money counter's roll (`MONEY_MOTION` in `MoneyCounter.ts`) is juice; show the new balance at once.
 - **The panel appears at once (Story 5.8):** DESIGN's "rises from the bottom bar" is its position; a slide-up on open is optional juice.
 - **Hunger test timeout under load (any time):** `tests/sim/systems/hunger.test.ts` "every half-point start value …" steps about 120 000 ticks. It takes 1.1–1.6 s alone, but under heavy machine load (load average 7–8 from repeated full runs and browser probes) the whole suite pushes it past Vitest's 5 s default timeout; it passes on a quiet machine. Give it an explicit timeout or fewer start values if it fails in CI.
@@ -270,6 +276,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Pieces under the open shop (Story 3.6 / 5.x):** at Land II/III the open panel covers the left of the pen, and food or breeding pieces can drop there (pings still draw above the panel). Harmless, since sheep reach them and the panel is transient; revisit if playtests show players missing them.
   - **Story 3.6:** no problem reported in the playtest. Left open for 5.10.
 - **Audio (Story 5.6):** a cue when land is bought (the fence grows; `Bought` with a land item).
+  - **Done in Story 5.6:** land is a `Bought`, so it dings like any purchase.
 - **Reduced motion (Story 5.7):** the dust burst along the new fence (`GameScene.growLand`) is juice; the grown fence is information and stays.
 
 ## Deferred from: code review of 3-3-buy-land-and-grow-the-fence (2026-10-07)
@@ -284,6 +291,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Era backgrounds (Story 3.5):** draw the era art below `FIELD_DEPTH.ground`, so the decorations (depth = foot y, about 176) stay above it. Their spots (`DECORATION_SPOTS`, the grass strip above the fence between the Better Place and the Market) stay the same in every era; check that each era's art leaves that strip readable.
   - **Resolved in Story 3.5:** `EraBackground` draws at `FIELD_DEPTH.background` (−100), and the era art keeps the decoration spots plain grass (era features stay out of them); both decorations were browser-checked readable in all four eras.
 - **Audio (Story 5.6):** the purchase sound on `Bought` covers decorations too; no separate cue is needed.
+  - **Done in Story 5.6:** as planned, the `Bought` ding.
 - **Reduced motion (Story 5.7):** the decoration pop-in (`POP` in `Decorations.ts`) and its dust puff (`GameScene.decorationBought`) are juice; under reduced motion show the decoration at once.
 - **Real art (Story 3.6 / 5.x):** the flower patch (28×14) and scarecrow (20×32) are placeholders. Free-pack art must keep these sizes, or update `FRAME_SIZE`/`DECORATION_SPOTS` in `Decorations.ts`; the DEV checks (frame size, and the layout invariant in `GameScene`) catch a mismatch. Like the land fit (3.3), the decoration layout invariant is DEV-only and not covered by `npm test`.
   - **Story 3.6:** out of scope for the tuning pass; moved to **5.x** (5.8 juice/polish or an art pass).
@@ -296,6 +304,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 ## Deferred from: story 3-5-eras-and-their-transitions (2026-10-08)
 
 - **Audio and captions (Story 5.6):** the era fanfare on an advance and the soft descending note on a regress, with their `[fanfare]` / `[descending note]` captions (UX-DR83, UX-DR88). Hook them to `EraChanged` the way the banner is: once per frame (HudScene's first `from` / last `to`), so ×16 changes play one cue.
+  - **Done in Story 5.6:** HudScene emits `era:announced { regress }` from its once-per-frame fold; AudioDirector plays `sfx-fanfare` / `sfx-descend` and the captions.
 - **Reduced motion (Story 5.7):** the era banner's slide-in (`ERA_BANNER_MOTION` in `EraBanner.ts`) becomes a fade. Decide whether the 1 s background crossfade (`ERA_FADE_MS` in `EraBackground.ts`) stays; it is slow and gentle, so it may.
 - **Real era art (Story 3.6 / 5.x):** the four backgrounds (`assets/art/backgrounds/`) are placeholders. Free-pack art must stay 864 × 344 (shown at 2× from world (0, −16)) or `ERA_BACKGROUND_BOUNDS` changes; the build-time size check and the DEV frame-size check catch a mismatch. Only four strips of each texture are drawn (`STRIPS` in `EraBackground.ts`: the far line along the top, the top band left of the Better Place and between it and the Market, and everything right of the Market); the rest must stay flat `pasture`, which the camera's clear colour stands in for. `npm run assets` rejects a background that is not 864 × 344, and a DEV check (`flatOutsideStrips`) rejects art outside the strips that is not exactly `pasture`. That cut the probe's FPS cost from about 10 to within noise. Keep the decoration spots plain inside the mid strip. A real GPU would draw a full-field image cheaply; if real art wants texture everywhere, re-measure on real hardware first.
   - **Story 3.6:** out of scope for the tuning pass; moved to **5.x**.
@@ -354,6 +363,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **The pacing bot cannot survive the Abomination (Stories 4.7, 5.10):** at Village the probe sells 8 of its 10 sheep to buy Land I. The Abomination arrives about then (seed 3606: by 6 min), and a 2–4 sheep flock cannot out-breed a visit every ~50 s. By 14 min only the Abomination is left, and the bot (which never sacrifices) fed it to the 20 min limit; since the code review's loss rule (only the Abomination left = lost) it lost there instead (about 12 min at every rate), so the bot now sacrifices the Abomination after its 2nd victim dies (Rylan's choice; `SPOT_AFTER_VISITS`, it reads the secret flag as a stand-in for spotting the tells). With that, seed 3606: Village unchanged, no loss at any rate, Town at 6 cps 18:00 (was 14:57 before 4.3). The 4.7 re-check starts from there. Village times are unchanged (5:13 / 4:03 / 3:41 / 3:30 at 2/3/5/6 cps), and the Village guard passes. Town is no longer reached at any rate (6 cps was 14:57). The Town guard stays skipped. The 4.7 re-check needs a probe policy that removes the Abomination the way an attentive player would (the bot may read `isAbomination`, after a delay that models spotting the tells), or a decision on the kill rate in small flocks.
   - **Story 4.7:** the re-check ran with `SPOT_AFTER_VISITS` unchanged; the flock still collapses after selling 8 of 10 for Land I, and Better Hoe does not change that (see "The Town pacing guard is skipped"). Still open for 5.10 / Rylan.
 - **Death sounds must not tell the cause (Story 5.6):** `SheepDied.cause` is `'abomination'` for a victim. The death SFX and the `[thud]` caption must be the same for every cause; the cause only picks the toast (already vague).
+  - **Done in Story 5.6:** `sfx-thud` and `[thud]` for every `cause`.
 - **Stats by cause (Story 5.4):** the Stats panel may count deaths, but never an "Abomination" line (UX-DR64). Count `abomination` deaths with the rest.
 - **Names in the victim toast (Story 5.3):** "{name} just… fell over." once names exist (`DEATH_TOAST.abomination` today reads "A sheep just… fell over.").
 - **A pending doom survives the reveal (Story 4.4):** sacrificing the Abomination does not cancel a victim's doom (FR31: the victim dies 5–10 s after the visit). If 4.4 wants catching it to save the last victim, cancel `doomedAt` there.
@@ -368,6 +378,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 ## Deferred from: story 4-4-sacrifice-reveal (2026-10-08)
 
 - **Audio and captions (Story 5.6):** the screech, then the sting, on `Sacrificed { wasAbomination: true }` (UX-DR81), started with the true-form flash (`GameScene.revealTrueForm`), and the `[screech]` caption (UX-DR88). The `[suction]` cue stays on every sacrifice (deferred from 2.7).
+  - **Done in Story 5.6:** screech at once with `[screech]`, then the sting delayed by the screech's length, in the frame the flash starts.
 - **Reduced motion (Story 5.7):** the reveal's swell and shake (`REVEAL.swellScale`, `REVEAL.shakePx` in `GameScene.ts`) are juice and go; the flash itself is information (the truth) and stays.
 - **Names in the reveal (Story 5.3):** "…that was just {name}." (and "{name} went to a Better Place."), the name in `halo`.
 - **True-form art (Story 5.8, optional):** the true form is a `void` FILL silhouette of the lamb frame; the GDD art list has no true-form sprite. Art could replace it.
@@ -381,6 +392,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 ## Deferred from: story 4-5-medicine (2026-10-08)
 
 - **Audio (Story 5.6):** a cure sound on `Cured`, and pick-up / put-back sounds for the dose; a caption only if 5.6's caption list grows (UX-DR88 has no cure cue).
+  - **Done in Story 5.6 (cure only):** `Cured` plays a brighter pop; dose pick-up / put-back sounds are not added (re-deferred to 5.8).
 - **Reduced motion (Story 5.7):** the bottle's ×1.2 over an infected sheep is the only drop cue (information, keep it); the cure sparkle (`CURE_SPARKLES` in `GameScene.ts`) is juice.
 - **Art (Story 5.8):** the bottle is a placeholder from the mockup's `g-bottle` glyph (`assets/art/ui/icon-medicine.png`); a pack sprite can replace it at the same 12×16. The slot's count is 18 px (the mockup's 20 px does not fit "×99" with the bottle in the 64 px tile).
 - **No cure stat (Story 5.4):** FR36 lists alive, sold, died, sacrificed and money earned; none was added for cures.
@@ -395,6 +407,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 ## Deferred from: story 4-6-overcrowding (2026-10-09)
 
 - **Audio (Story 5.6):** no cue when the flock becomes crowded (UX-DR88 lists none); an overcrowding infection sounds like any infection.
+  - **Resolved in Story 5.6:** as planned, no crowd cue; an infection is silent (its ping carries it).
 - **Playtest (Story 5.10):** watch whether players notice the red flock counter before the first roll, and whether 20 % every 30 s bites at era entry as intended (decision log "Overcrowding at era thresholds"). The clock runs from new game, so a flock that turns crowded just before a deadline can roll within a second; the alternative (a clock that starts when crowding starts) was Story 4.6 Open Question 1.
 - **No stat (Story 5.4):** FR36 has no count of overcrowding infections; none was added.
 - **Art (Story 5.8):** the crowd icon is a placeholder (`assets/art/ui/icon-crowd.png`, 14×12: two overlapping sheep in the DESIGN.md palette); a pack sprite can replace it at the same size.
@@ -404,12 +417,14 @@ Real issues found in reviews that are not actionable in the story where they wer
 
 - **Art (Story 5.8):** the hoe icons are placeholders (`assets/art/ui/icon-hoe.png`, `icon-hoe-2.png`, 14×14: a diagonal handle with the blade bent at its end; II has a bigger steel blade). A pack sprite can replace them at the same size; they also show on the Farm button (`hay` fill), so keep them readable there.
 - **Audio (Story 5.6):** no hoe-specific sound; the purchase sound on `Bought` (already deferred) covers it.
+  - **Done in Story 5.6:** the `Bought` ding.
 - **Playtest (Story 5.10):** whether players buy Better Hoe I early, whether they notice the hoe on the Farm button, and whether Town is reachable at a human rate with hoe + boost (the scripted player says not by itself, see "The Town pacing guard is skipped").
 - **The hoe icon has no tooltip of its own (any time):** the Farm tooltip stays "Farm: fill the bar for 1 food (F)" (sprint change 2026-10-06, R4). If players do not connect the icon to the shop row, a tooltip line such as "Better Hoe II: 3 pips per click" would need Voice-table copy.
 
 ## Deferred from: story 4-8-auto-feeder (2026-10-09)
 
 - **Audio (Story 5.6):** no drop sound for the feeder's pieces (a soft one, or none); the purchase sound on `Bought` is already deferred.
+  - **Resolved in Story 5.6:** no drop sound (`FoodDropped` is silent, and eating is silent too: the munch and the hunger bleats were cut after implementation at the product owner's request).
 - **Art (Story 5.8):** the feeder icon is a placeholder (`assets/art/ui/icon-feeder.png`, 14×14, from the mockup's `g-feeder` glyph). An optional feeder sprite in the pasture: today the only feedback is the row's "Owned" and the pieces bouncing in beside the hungriest sheep.
 - **Playtest (Story 5.10):** whether players notice it working; whether free pieces pile up with a small flock (they never spoil; a single sheep eats again whenever it drops below 90, so the pile grows about 1 a minute, 69 in an hour, and passes the 300-piece benchmark only after about 4 h; 2–3 sheep build none; the alternative is to skip a drop while no sheep is below `seekBelowFullness`); whether the pacing bot should buy it (it does not, so the pacing guards keep their meaning).
 - **No stat (Story 5.4):** FR36 has no count of feeder drops; none was added.
@@ -418,3 +433,21 @@ Real issues found in reviews that are not actionable in the story where they wer
 
 - **Carcass seekers lose their carcass to any food piece (any time; playtest 5.10):** `updateCarcassEating` (`carcass.ts:106–111`) releases every `seekCarcass` sheep whenever `foodPieces.length > 0`, even when the only piece is already claimed by another sheep. A second Starving sheep then wanders with nothing to claim until that piece is eaten, then goes back to the carcass, losing a second or so. Pre-existing with Farm pieces; the Auto-feeder makes it happen every 10 s. A fix would release only when an unclaimed piece exists.
 
+## Deferred from: story 5-6-audio-pass-and-captions (2026-10-09)
+
+- **Last sheep sting (Story 5.5):** `sfx-sting` and `STRINGS.captions.lastSheep` ("[sting] Last sheep!") exist. When 5.5 adds `LastSheep` to `SimEvent`, AudioDirector's exhaustive switch fails to compile until its case plays the sting and raises the caption.
+- **Volume panel (Story 5.7):** `src/view/settings.ts` `updateSettings` is the entry point; AudioDirector already applies `musicVolume`, `sfxVolume` and `captions` on `settings:changed`. Release of the SFX slider can preview with a bleat through a new public director method (none exists yet). `reducedMotion` is stored but read by nothing.
+- **Real audio (any time):** the 9 SFX and the music loop are synthesised placeholders (`assets/audio/`). Free-pack audio (Kenney CC0 etc.) can replace them under the same file names with no code change; credit each in `assets/CREDITS.md`.
+- **Dose sounds (Story 5.8):** no pick-up / put-back sound for the Medicine dose.
+- **Planning docs still ask for hunger bleats (cut in 5.6):** the munch and the hunger-scaled and frantic bleats, with the `[frantic bleating]` caption, were cut at the product owner's request. The GDD Hunger table and Audio section, EXPERIENCE State Patterns and UX-DR88's caption list still require them. Update those docs (correct-course) so 5.7 and the 5.10 playtest don't reintroduce them.
+- **Mix by ear (playtest 5.10):** `CUE_GAIN`, the default volumes (music 0.5, SFX 0.8) are guesses, tuned only by an automated check, not by ear.
+
+## Deferred from: code review of 5-6-audio-pass-and-captions (2026-10-09)
+
+- **AudioDirector unit tests:** none yet; Phaser does not load in the node test environment. Needs a fake SoundManager/bus harness to cover cause-blind deaths, the autoplay gate, the throttle and voice cap, and `pausedByHide` ownership.
+- **ffmpeg for art-only runs:** `npm run assets` always builds audio, so an art-only change needs ffmpeg. A `--no-audio` flag, or skipping when the sources are unchanged, would fix it.
+- **Non-reproducible audio encodes:** every assets run re-encodes the OGG/MP3, so different ffmpeg versions create binary diffs. Consider a source-hash manifest or bitexact flags.
+- **MP3 encoder delay (Safari):** the markers are not compensated for LAME's delay and padding, and the music loop may have a gap at the seam. Check in Safari once real audio is in.
+- **AudioDirector teardown:** the page-lifetime singleton is never destroyed, so Vite HMR leaves a stale director. DEV-only.
+- **Debug Captions label:** the label is not refreshed on `settings:changed`, which matters once 5.7's panel toggles captions.
+- **UNLOCKED never firing:** if `context.resume()` rejects, the page stays silent with no retry.
