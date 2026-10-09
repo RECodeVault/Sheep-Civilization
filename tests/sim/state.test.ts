@@ -10,7 +10,7 @@ const START_FLOCK = TUNING.startFlockAdults + TUNING.startFlockLambs;
 describe('createNewGame', () => {
   it('has exactly the GameState fields', () => {
     expect(Object.keys(newGame()).sort()).toEqual(
-      ['abomination', 'boostUntil', 'breedingPieces', 'breedingProgress', 'carcasses', 'farmProgress', 'foodPieces', 'lastEra', 'money', 'nextId', 'owned', 'pregnancies', 'rng', 'sheep', 'stats', 'time'].sort(),
+      ['abomination', 'boostUntil', 'breedingPieces', 'breedingProgress', 'carcasses', 'farmProgress', 'foodPieces', 'lastEra', 'medicine', 'money', 'nextId', 'owned', 'pregnancies', 'rng', 'sheep', 'stats', 'time'].sort(),
     );
   });
 

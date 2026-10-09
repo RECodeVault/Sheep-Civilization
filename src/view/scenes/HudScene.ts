@@ -20,6 +20,8 @@ import type { OverlayScene } from './OverlayScene';
 // The era banner (Story 3.5): above the bar and the Pause button, under the popups and the tooltip.
 const BANNER_DEPTH = 50;
 const POPUP_DEPTH = 100;
+// The dose in hand (Story 4.5): above the bar and the popups, under the tooltip.
+const HELD_DOSE_DEPTH = 150;
 const TOOLTIP_DEPTH = 200;
 // Popups start just above the Farm button's top edge.
 const POPUP_LIFT_PX = 4;
@@ -56,6 +58,7 @@ export class HudScene extends Phaser.Scene {
     money: 0,
     flock: 0,
     capacity: 0,
+    medicine: 0,
     threats: { starving: 0, infected: 0, carcasses: 0 },
   };
   // Deaths since the last frame, by cause: one toast per cause per frame (UX-DR41/UX-DR92), so a wipe
@@ -84,7 +87,7 @@ export class HudScene extends Phaser.Scene {
     for (const k in this.deaths) this.deaths[k as DeathCause] = 0;
     this.eraFrom = null;
     this.eraTo = null;
-    this.bar = new BottomBar(this, this.farm, this.farmBreeding, this.breedTool, this.shopTool);
+    this.bar = new BottomBar(this, this.farm, this.farmBreeding, this.breedTool, this.shopTool, HELD_DOSE_DEPTH);
     this.pauseButton = new Button(this, PAUSE, {
       x: LAYOUT.safeMargin,
       y: LAYOUT.safeMargin,
@@ -98,7 +101,8 @@ export class HudScene extends Phaser.Scene {
     // The Shop toggle has no tooltip, but is listed so its hover clears under modals and drags and
     // controlAt covers it.
     this.tooltipButtons = [this.pauseButton, this.bar.farmButton, this.bar.breedFoodButton, this.bar.breedButton, this.bar.shopButton];
-    this.tooltipSources = [...this.tooltipButtons, ...this.bar.threats.sources];
+    // The Medicine slot (Story 4.5) is a source too: tooltip, hover clear and controlAt, while shown.
+    this.tooltipSources = [...this.tooltipButtons, this.bar.medicine, ...this.bar.threats.sources];
     this.banner = new EraBanner(this, BANNER_DEPTH);
     this.popups = new FloatPopups(this, POPUP_DEPTH);
     this.tooltip = new Tooltip(this, TOOLTIP_DEPTH);
@@ -154,6 +158,11 @@ export class HudScene extends Phaser.Scene {
       // UX-DR34: rolls to a new balance; no work while it shows the current one.
       this.bar.money.set(v.money, this.game.loop.time);
       this.bar.flock.set(v.flock, v.capacity);
+      // UX-DR33: the doses owned, less any out of the slot; the held one follows the pointer.
+      this.bar.medicine.set(v.medicine, this.gameScene.dosesInHand);
+      const dose = this.gameScene.heldDose;
+      if (dose.live) this.bar.medicine.setHeld(dose.screenX, dose.screenY, dose.overTarget);
+      else this.bar.medicine.hideHeld();
       const modal = this.gameScene.modalOpen;
       // The boost's time stops under a modal, so its glow stops pulsing too.
       this.bar.farmBoost.setFrozen(modal);
@@ -244,6 +253,11 @@ export class HudScene extends Phaser.Scene {
     return null;
   }
 
+  /** True while the pointer is on the shown Medicine slot (GameScene restores its hand cursor too). */
+  get medicineHovered(): boolean {
+    return this.bar.medicine.active && this.bar.medicine.isHovered;
+  }
+
   /**
    * The Shop toggle (UX-DR40): GameScene owns the panel and its open state, and answers with
    * `shop:toggled`. Guarded like pause.
@@ -275,7 +289,7 @@ export class HudScene extends Phaser.Scene {
    */
   get pointerOverControl(): boolean {
     const sources = this.tooltipSources;
-    for (let i = 0; i < sources.length; i++) if (sources[i].isHovered) return true;
+    for (let i = 0; i < sources.length; i++) if (sources[i].active !== false && sources[i].isHovered) return true;
     return false;
   }
 
@@ -284,6 +298,7 @@ export class HudScene extends Phaser.Scene {
     const sources = this.tooltipSources;
     for (let i = 0; i < sources.length; i++) {
       const s = sources[i];
+      if (s.active === false) continue;
       if (x >= s.x && x < s.x + s.width && y >= s.y && y < s.y + s.height) return true;
     }
     return false;

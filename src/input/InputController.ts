@@ -45,6 +45,17 @@ export interface InputHooks {
   /** False once the dragged sheep is gone (it died mid-drag): the drag ends with no command. */
   dragAlive(): boolean;
   /**
+   * A press on the Medicine slot at canvas point (sx, sy) passed the drag threshold: take a dose (FR26,
+   * Story 4.5). False if none is free; the press is then dropped.
+   */
+  beginDose(screenX: number, screenY: number): boolean;
+  /** The held pointer is at canvas point (sx, sy); called every frame of a dose drag. */
+  moveDose(screenX: number, screenY: number): void;
+  /** Released at canvas point (sx, sy): cures the infected sheep under it, else the dose goes back. */
+  endDose(screenX: number, screenY: number): void;
+  /** Puts the held dose back in the slot (nothing is sent). */
+  cancelDose(): void;
+  /**
    * True while the pointer is on a HUD control (the Pause button can sit over the panned field) or on
    * the open shop panel (Story 3.2): no field press, pan or sheep hover there.
    */
@@ -65,8 +76,11 @@ const FIELD_BOTTOM = LAYOUT.canvasHeight - LAYOUT.hudBarHeight;
  * modal cancel it. 2.4 added field clicks in `idle` (a click on a carcass clears it, FR13). 2.7 added
  * `dragging` (FR16): a left press on a sheep in `idle` that moves past 6 px picks it up; the release
  * puts it down, sacrifices it or (3.1) sells it, and Esc, a modal, blur or a release off the canvas cancel it. The
- * drag's geometry and commands live in the view (SheepDrag, through the hooks). Turns input into
- * commands or UI events; never touches GameState.
+ * drag's geometry and commands live in the view (SheepDrag, through the hooks). 4.5 added the dose drag
+ * (`dragKind` 'dose', still mode `dragging`): a left press on the Medicine slot (HudScene, over the bus)
+ * that moves past 6 px takes a dose; the release cures the infected sheep under it (MedicineDrag), and
+ * the same cancels as a sheep drag put it back. Turns input into commands or UI events; never touches
+ * GameState.
  */
 export class InputController {
   private readonly keyboard: Phaser.Input.Keyboard.KeyboardPlugin | null;
@@ -83,6 +97,8 @@ export class InputController {
   private panLastY = 0;
   // The input mode (AR8). pickA is breed mode's first-picked adult, 0 for none.
   private mode: 'idle' | 'breeding' | 'dragging' = 'idle';
+  // What a `dragging` mode holds: a sheep (2.7) or a dose of medicine (4.5).
+  private dragKind: 'sheep' | 'dose' = 'sheep';
   private pickA = 0;
   // A left press on the field, in either mode: a click if released within the threshold, acting on
   // what was under the press (hit-tested at the press, so a sheep wandering under a held pointer is
@@ -99,6 +115,12 @@ export class InputController {
   // The live drag's press (pointer.downTime): a different one means the button went up and down again
   // between two frames, so the drag ended.
   private dragDownTime = 0;
+  // A left press on the Medicine slot (Story 4.5), in canvas px: moved past the threshold, it takes a
+  // dose. Its own press, since the slot's zone captures it from this scene.
+  private doseArmed = false;
+  private doseDownX = 0;
+  private doseDownY = 0;
+  private doseDownTime = 0;
   // Phaser's KeyboardManager replays its whole per-step queue on every new key event, and its
   // duplicate check compares only with the event before, so with three or more key events in one
   // step an earlier keydown is dispatched again (KeyboardPlugin.update). Each handler ignores an
@@ -113,6 +135,7 @@ export class InputController {
     input.on('pointerdown', this.onPointerDown, this);
     bus.on('breedTool:pressed', this.toggleBreedMode, this);
     bus.on('hud:rightPressed', this.onHudRightPress, this);
+    bus.on('medicine:pressed', this.onMedicinePress, this);
     // A press released outside the canvas, or a pointer that leaves it, is no click (Task 7.3).
     input.on(Phaser.Input.Events.POINTER_UP_OUTSIDE, this.onUpOutside, this);
     input.on(Phaser.Input.Events.GAME_OUT, this.cancelClick, this);
@@ -130,7 +153,7 @@ export class InputController {
     this.keyboard.on('keydown-ESC', this.onEscKey, this);
   }
 
-  /** True while a sheep is being dragged. */
+  /** True while a sheep or a dose of medicine is being dragged. */
   get dragging(): boolean {
     return this.mode === 'dragging';
   }
@@ -162,6 +185,7 @@ export class InputController {
       this.pickA = 0;
       this.notifyBreedMode();
     }
+    this.updateDoseArm();
     this.updateDrag();
     this.updateClick();
     this.updatePan();
@@ -192,12 +216,22 @@ export class InputController {
   }
 
   /**
-   * Cancels a drag: the sheep goes back where it was picked up. Returns true if one was live (the Esc
-   * chain step, after closing a sub-panel and before exiting breed mode).
+   * Cancels a drag: the sheep goes back where it was picked up, or the dose back into the slot. Returns
+   * true if one was live (the Esc chain step, after closing a sub-panel and before exiting breed mode).
+   * A slot press not yet past the threshold counts too: it is dropped, so moving on takes no dose (the
+   * steps before this one are modals, which drop it anyway).
    */
   cancelDrag(): boolean {
+    if (this.doseArmed) {
+      this.doseArmed = false;
+      return true;
+    }
     if (this.mode !== 'dragging') return false;
     this.mode = 'idle';
+    if (this.dragKind === 'dose') {
+      this.hooks.cancelDose();
+      return true;
+    }
     // The sheep died since the last frame: nothing to cancel, so Esc goes on down the chain.
     if (!this.hooks.dragAlive()) return false;
     this.hooks.cancelDrag();
@@ -209,6 +243,7 @@ export class InputController {
     this.panArmed = false;
     this.panning = false;
     this.clickArmed = false;
+    this.doseArmed = false;
     this.cancelDrag();
   }
 
@@ -218,6 +253,7 @@ export class InputController {
     this.input.off(Phaser.Input.Events.GAME_OUT, this.cancelClick, this);
     bus.off('breedTool:pressed', this.toggleBreedMode, this);
     bus.off('hud:rightPressed', this.onHudRightPress, this);
+    bus.off('medicine:pressed', this.onMedicinePress, this);
     this.keyboard?.off('keydown-F', this.onFarmKey, this);
     this.keyboard?.off('keydown-G', this.onFarmBreedingKey, this);
     this.keyboard?.off('keydown-ESC', this.onEscKey, this);
@@ -248,6 +284,7 @@ export class InputController {
         this.hooks.beginDrag(target, this.clickDownX, this.clickDownY)
       ) {
         this.mode = 'dragging';
+        this.dragKind = 'sheep';
         this.dragDownTime = p.downTime;
         // Released in the same frame: put it down at once (updateDrag would see the release next frame,
         // but the pointer may be pressed again by then). Otherwise it is drawn at the pointer this frame.
@@ -279,11 +316,53 @@ export class InputController {
   }
 
   /**
+   * A left press on the Medicine slot (UX-DR33). Breed mode is left first (taking a dose is a new action,
+   * Story 4.5 Open Question 6); under a modal, mid-drag or mid-pan it does nothing.
+   */
+  private onMedicinePress(): void {
+    if (this.hooks.modalOpen() || this.mode === 'dragging' || this.panning) return;
+    this.exitBreedMode();
+    const p = this.input.activePointer;
+    this.doseArmed = true;
+    this.doseDownX = p.x;
+    this.doseDownY = p.y;
+    this.doseDownTime = p.downTime;
+  }
+
+  /**
+   * A slot press held past the threshold takes a dose (UX-DR66); one released before it is a click, which
+   * does nothing. Checked at the release point too, so a press, move and release in one frame is a drag.
+   */
+  private updateDoseArm(): void {
+    if (!this.doseArmed) return;
+    const p = this.input.activePointer;
+    if (this.mode === 'dragging' || this.hooks.modalOpen() || p.downTime !== this.doseDownTime) {
+      this.doseArmed = false;
+      return;
+    }
+    const down = p.leftButtonDown();
+    const dx = (down ? p.x : p.upX) - this.doseDownX;
+    const dy = (down ? p.y : p.upY) - this.doseDownY;
+    if (dx * dx + dy * dy <= DRAG_THRESHOLD2) {
+      if (!down) this.doseArmed = false;
+      return;
+    }
+    this.doseArmed = false;
+    if (!this.hooks.beginDose(this.doseDownX, this.doseDownY)) return;
+    this.mode = 'dragging';
+    this.dragKind = 'dose';
+    this.dragDownTime = p.downTime;
+    if (!down) this.finishDrag(p.upX, p.upY);
+    else this.hooks.moveDose(p.x, p.y);
+  }
+
+  /**
    * A release outside the canvas: no click, and a drag is cancelled. Leaving the canvas while holding
    * (GAME_OUT) does not cancel a drag: the sheep waits at the last point until the pointer comes back.
    */
   private onUpOutside(): void {
     this.cancelClick();
+    this.doseArmed = false;
     // Only the left button holds the sheep: a right or middle release out there changes nothing.
     if (!this.input.activePointer.leftButtonDown()) this.cancelDrag();
   }
@@ -294,7 +373,7 @@ export class InputController {
    */
   private updateDrag(): void {
     if (this.mode !== 'dragging') return;
-    if (!this.hooks.dragAlive()) {
+    if (this.dragKind === 'sheep' && !this.hooks.dragAlive()) {
       this.mode = 'idle';
       return;
     }
@@ -305,13 +384,16 @@ export class InputController {
     const p = this.input.activePointer;
     // A new downTime means a release and a new press both happened since the last frame: the release
     // ends the drag where it happened (the new press, swallowed while dragging, does nothing).
-    if (p.leftButtonDown() && p.downTime === this.dragDownTime) this.hooks.moveDrag(p.x, p.y);
-    else this.finishDrag(p.upX, p.upY);
+    const held = p.leftButtonDown() && p.downTime === this.dragDownTime;
+    if (!held) this.finishDrag(p.upX, p.upY);
+    else if (this.dragKind === 'dose') this.hooks.moveDose(p.x, p.y);
+    else this.hooks.moveDrag(p.x, p.y);
   }
 
   private finishDrag(x: number, y: number): void {
     this.mode = 'idle';
-    this.hooks.endDrag(x, y);
+    if (this.dragKind === 'dose') this.hooks.endDose(x, y);
+    else this.hooks.endDrag(x, y);
   }
 
   /**

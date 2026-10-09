@@ -64,6 +64,8 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = Object.freeze({
     const nextKillAt = (s.time as number) + rngInt(roll, TUNING.abominationKillMinMs, TUNING.abominationKillMaxMs);
     return { ...s, rng: roll.rng, abomination: { ...s.abomination, nextKillAt } };
   },
+  // Story 4.5: no dose had been bought (FR26).
+  10: (s) => ({ ...s, medicine: 0 }),
 });
 
 export type MigrationResult = { ok: true; state: unknown } | { ok: false; reason: string };

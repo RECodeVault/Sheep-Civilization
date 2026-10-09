@@ -31,7 +31,10 @@ export const AUTOSAVE_MS = 10_000;
 // 8 since Story 3.2: `owned`, the one-time shop purchases (a version-7 save gets []).
 // 9 since Story 4.1: sheep `isAbomination` and `abomination` (birthsSeen, guaranteedAtBirth); a
 // version-8 save gets no Abomination, births counted from 0 and a guaranteed birth rolled from its rng.
-export const SAVE_SCHEMA_VERSION = 10;
+// 10 since Story 4.3: `abomination.nextKillAt`, the kill cycle's deadline, and the Abomination's visit
+// (`stalking`, `stalk`, victim `doomedAt`).
+// 11 since Story 4.5: `medicine`, the doses owned (a version-10 save gets 0).
+export const SAVE_SCHEMA_VERSION = 11;
 
 /*
  * Colour-usage rules (DESIGN.md Colors, Do's and Don'ts — UX-DR2):
@@ -418,8 +421,11 @@ export const COMPONENTS = defineComponents({
   },
   medicineSlot: {
     backgroundColor: 'wool',
+    // mockups/hud.html `.med`: a 2 px bark-soft border (DESIGN's map gives none). Story 4.5.
+    borderColor: 'barkSoft',
     iconColor: 'infection',
     textColor: 'bark',
+    typography: 'numeric',
     rounded: 'md',
   },
 });

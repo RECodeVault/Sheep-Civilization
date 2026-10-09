@@ -29,6 +29,41 @@ describe('buy (Buy command, UX-DR24)', () => {
     expect(drained()).toEqual([{ type: 'Bought', item: 'flowerPatch', price }]);
   });
 
+  it('buys Medicine again and again: a dose each, never in owned (FR26, Story 4.5)', () => {
+    const state = newGame(5);
+    const price = shopPrice('medicine');
+    state.money = price * 2;
+    const { rng, nextId } = state;
+    const earned = state.stats.moneyEarned;
+    drained();
+    applyCommand(state, { type: 'Buy', item: 'medicine' });
+    applyCommand(state, { type: 'Buy', item: 'medicine' });
+    expect(state.medicine).toBe(2);
+    expect(state.money).toBe(0);
+    expect(state.owned).toEqual([]);
+    expect(state.stats.moneyEarned).toBe(earned);
+    expect(state.rng).toBe(rng);
+    expect(state.nextId).toBe(nextId);
+    expect(drained()).toEqual([
+      { type: 'Bought', item: 'medicine', price },
+      { type: 'Bought', item: 'medicine', price },
+    ]);
+    // A third with no money left: nothing.
+    applyCommand(state, { type: 'Buy', item: 'medicine' });
+    expect(state.medicine).toBe(2);
+    expect(drained()).toEqual([]);
+  });
+
+  it('refuses Medicine a dollar short: nothing changes and nothing is emitted', () => {
+    const state = newGame(5);
+    state.money = shopPrice('medicine') - 1;
+    drained();
+    const before = structuredClone(state);
+    buy(state, 'medicine');
+    expect(state).toStrictEqual(before);
+    expect(drained()).toEqual([]);
+  });
+
   it('refuses an unaffordable item: nothing changes and nothing is emitted', () => {
     const state = newGame(5);
     state.money = shopPrice('scarecrow') - 1;

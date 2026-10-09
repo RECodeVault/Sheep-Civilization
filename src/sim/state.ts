@@ -58,7 +58,7 @@ export interface Sheep {
   cooldownUntil: number;
   /**
    * Game-ms of infection (FR15), omitted while healthy. Infected is derived from it, and so is the
-   * virus death at `infectedAt + TUNING.virusDeathMs` (virus.ts).
+   * virus death at `infectedAt + TUNING.virusDeathMs` (virus.ts). Medicine deletes it (medicine.ts).
    */
   infectedAt?: number;
   /**
@@ -123,6 +123,12 @@ export interface Carcass {
  */
 export type ShopItemId = 'land1' | 'land2' | 'land3' | 'flowerPatch' | 'scarecrow';
 
+/**
+ * A row in the shop panel (Story 4.5): a one-time item, or `'medicine'`, the one consumable. Medicine is
+ * counted in `GameState.medicine` and is never in `owned`.
+ */
+export type ShopRowId = ShopItemId | 'medicine';
+
 /** Era ids double as background texture keys. */
 export type Era = 'pasture' | 'village' | 'town' | 'wool-empire';
 
@@ -183,6 +189,11 @@ export interface GameState {
    * decorations shown are derived from it (Stories 3.3, 3.4), never stored.
    */
   owned: ShopItemId[];
+  /**
+   * Doses of medicine owned (FR26, Story 4.5): bought in the shop (economy.ts), used by ApplyMedicine
+   * (medicine.ts). Whole number >= 0. A dose in the player's hand is view-only and still counted here.
+   */
+  medicine: number;
   pregnancies: Pregnancy[];
   carcasses: Carcass[];
   stats: Stats;
@@ -233,6 +244,7 @@ export function createNewGame(seed: number): GameState {
     boostUntil: 0,
     money: 0,
     owned: [],
+    medicine: 0,
     pregnancies: [],
     carcasses: [],
     stats: { died: 0, sold: 0, sacrificed: 0, moneyEarned: 0, peakFlock: 0 },

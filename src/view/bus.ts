@@ -22,6 +22,9 @@ export type BusEvents = {
   // GameScene: a sacrificed sheep's ghost reached the hole (or no ghost could play, so at once).
   // HudScene shows the reveal toast (FR33, Story 4.4).
   'sacrifice:landed': { wasAbomination: boolean };
+  // A left press on the Medicine slot (HudScene), which captures it from GameScene; InputController arms
+  // a dose drag (Story 4.5).
+  'medicine:pressed': undefined;
 };
 
 export const bus = new EventBus<BusEvents>();

@@ -88,6 +88,8 @@ function check(x: unknown): void {
   // FR21: whole dollars, no cap beyond the counter ceiling. Not checked against stats.moneyEarned: the
   // DEV "+$100" button (3.2) adds money that was never earned.
   int(s, 'money', 'state', 0);
+  // FR26 (Story 4.5): whole doses of medicine, no cap. Not tied to money (the DEV "+$100" button).
+  int(s, 'medicine', 'state', 0);
   // FR22 / FR23: known one-time items in purchase order, each bought once, every Land tier after the one
   // before it. Not checked against money or earnings (the DEV "+$100" button breaks any such link).
   // Checked before any position: the fence below is derived from the owned land tier (Story 3.3).

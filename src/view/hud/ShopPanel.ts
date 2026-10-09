@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
 import { COLORS, COMPONENTS, LAYOUT, RADIUS, SPACING, type ColorToken } from '../../config/constants';
 import { formatMoney } from '../../core/format';
-import { SHOP_ITEMS, shopRequires, type ShopRowView } from '../../sim/selectors';
-import type { ShopItemId } from '../../sim/state';
+import { invariant } from '../../core/invariant';
+import { SHOP_ROWS, shopRequires, type ShopRowView } from '../../sim/selectors';
+import type { ShopRowId } from '../../sim/state';
 import { ATLAS, FRAME } from '../assetKeys';
 import { FIELD_DEPTH } from '../field/depths';
 import { SHOP_PANEL_W, SHOP_PANEL_X } from '../field/layout';
@@ -19,8 +20,14 @@ const PANEL_X = SHOP_PANEL_X;
 const PANEL_W = SHOP_PANEL_W;
 const HEADER_H = 20;
 const ROW_GAP = 4;
-const PANEL_H = OUTLINE_PX + PANEL.padding + HEADER_H + SHOP_ITEMS.length * (ROW_GAP + ROW.height) + PANEL.padding;
+const PANEL_H = OUTLINE_PX + PANEL.padding + HEADER_H + SHOP_ROWS.length * (ROW_GAP + ROW.height) + PANEL.padding;
 const PANEL_Y = BAR_TOP - PANEL_H;
+// Each row raises the panel's top (Story 4.5 code review): it must stay below the Pause button, which
+// sits at the same left margin. 6 rows put the top at y 194; 4.7/4.8's 3 more would not fit.
+invariant(
+  PANEL_Y >= LAYOUT.safeMargin + COMPONENTS.buttonPause.height + SPACING[2],
+  `ShopPanel: ${SHOP_ROWS.length} rows make the panel ${PANEL_H} px tall; its top (y ${PANEL_Y}) meets the Pause button`,
+);
 const ROW_X = PANEL_X + OUTLINE_PX + PANEL.padding;
 const ROW_W = PANEL_W - (OUTLINE_PX + PANEL.padding) * 2;
 const ROW_PAD = SPACING[2];
@@ -31,13 +38,14 @@ const LINE1_Y = 16;
 const LINE2_Y = 39;
 // SHOP_PANEL_RIGHT (layout.ts) is PANEL_X + PANEL_W, for the field camera.
 
-// Land I–III share one icon.
-const SHOP_ICON: Readonly<Record<ShopItemId, string>> = Object.freeze({
+// Land I–III share one icon; Medicine shows the slot's bottle (Story 4.5).
+const SHOP_ICON: Readonly<Record<ShopRowId, string>> = Object.freeze({
   land1: FRAME.iconLand,
   land2: FRAME.iconLand,
   land3: FRAME.iconLand,
   flowerPatch: FRAME.iconFlowerPatch,
   scarecrow: FRAME.iconScarecrow,
+  medicine: FRAME.iconMedicine,
 });
 
 /** What a row shows (UX-DR24): buyable, unaffordable, locked behind a Land tier, or owned. */
@@ -46,7 +54,7 @@ type Look = 'buy' | 'poor' | 'locked' | 'owned';
 const LOOK_OF = (block: ShopRowView['block']): Look => (block === null ? 'buy' : block);
 
 interface Row {
-  readonly item: ShopItemId;
+  readonly item: ShopRowId;
   readonly box: Phaser.GameObjects.Image;
   readonly name: Phaser.GameObjects.Text;
   readonly price: Phaser.GameObjects.Text;
@@ -72,7 +80,7 @@ interface Row {
  */
 export class ShopPanel {
   private readonly scene: Phaser.Scene;
-  private readonly onBuy: (item: ShopItemId) => void;
+  private readonly onBuy: (item: ShopRowId) => void;
   private readonly parts: Phaser.GameObjects.GameObject[] = [];
   private readonly rows: Row[] = [];
   private readonly rowNormal: string;
@@ -82,7 +90,7 @@ export class ShopPanel {
   // like the HUD buttons, whose input HudScene turns off for a drag (Story 3.2 review).
   private live = true;
 
-  constructor(scene: Phaser.Scene, onBuy: (item: ShopItemId) => void) {
+  constructor(scene: Phaser.Scene, onBuy: (item: ShopRowId) => void) {
     this.scene = scene;
     this.onBuy = onBuy;
     const depth = FIELD_DEPTH.shop;
@@ -105,7 +113,7 @@ export class ShopPanel {
     this.rowNormal = rowStyle(ROW.backgroundColor);
     // [ASSUMPTION] A buyable row's hover is the menu buttons' `hay` (DESIGN gives the row no hover).
     this.rowHover = rowStyle('hay');
-    for (let i = 0; i < SHOP_ITEMS.length; i++) this.rows.push(this.buildRow(SHOP_ITEMS[i], i, depth + 1));
+    for (let i = 0; i < SHOP_ROWS.length; i++) this.rows.push(this.buildRow(SHOP_ROWS[i], i, depth + 1));
     scene.input.on(Phaser.Input.Events.GAME_OUT, this.clearHover, this);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       scene.input.off(Phaser.Input.Events.GAME_OUT, this.clearHover, this);
@@ -180,7 +188,7 @@ export class ShopPanel {
     return o;
   }
 
-  private buildRow(item: ShopItemId, i: number, depth: number): Row {
+  private buildRow(item: ShopRowId, i: number, depth: number): Row {
     const s = this.scene;
     const y = PANEL_Y + OUTLINE_PX + PANEL.padding + HEADER_H + ROW_GAP + i * (ROW.height + ROW_GAP);
     const box = this.add(s.add.image(ROW_X, y, this.rowNormal).setOrigin(0, 0).setDepth(depth));

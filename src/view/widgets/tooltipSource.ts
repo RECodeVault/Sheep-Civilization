@@ -13,6 +13,11 @@ export interface TooltipSource {
   readonly hoverSince: number;
   /** True while Phaser reports the pointer over it. */
   readonly isHovered: boolean;
+  /**
+   * False while the source is hidden (the Medicine slot with no dose, Story 4.5): it is then no HUD
+   * control and shows no tooltip. Omitted = always active.
+   */
+  readonly active?: boolean;
   /** Forgets the hover (a modal opened over it). */
   clearHover(): void;
 }

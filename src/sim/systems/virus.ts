@@ -1,8 +1,8 @@
 // The virus (FR15): eating a carcass infects a sheep 100% of the time (carcass.ts), and an infected
 // sheep dies virusDeathMs later through the single death pipeline (N1), leaving a carcass that keeps
 // the chain going. Infected is derived from `infectedAt`, and so is the death deadline. The Must-tier
-// counters are feeding, clearing carcasses and the Better Place (2.7); Story 4.5's medicine cures by
-// deleting `infectedAt`.
+// counters are feeding, clearing carcasses and the Better Place (2.7); medicine (Story 4.5,
+// medicine.ts) cures by deleting `infectedAt`.
 import { TUNING } from '../../config/tuning';
 import { emit } from '../events';
 import type { GameState, Sheep } from '../state';

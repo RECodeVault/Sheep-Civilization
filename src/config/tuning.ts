@@ -60,6 +60,8 @@ export const TUNING = Object.freeze({
   landPrices: Object.freeze([80, 150, 400] as const),
   flowerPatchPrice: 40,
   scarecrowPrice: 80,
+  // FR26 / GDD Upgrade Trees: "Medicine (per dose) | Consumable | $15". Repeatable (Story 4.5).
+  medicinePrice: 15,
   // FR10 / GDD Breeding: "each adult can breed once every 60 s (tune)", starting at breeding.
   // Kept in 3.6 (2026-10-08): Town is click-bound, not cooldown-bound.
   breedCooldownMs: 60_000,

@@ -16,6 +16,7 @@ const hud = (): HudView => ({
   money: 0,
   flock: 0,
   capacity: 0,
+  medicine: 0,
   threats: { starving: 0, infected: 0, carcasses: 0 },
 });
 

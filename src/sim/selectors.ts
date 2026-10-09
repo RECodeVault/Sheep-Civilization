@@ -1,13 +1,13 @@
 // Read-only views of GameState. The view layer reads state only through these.
 import { TUNING, type Rect } from '../config/tuning';
 import { assertNever } from '../core/types';
-import type { BreedingPiece, Carcass, Era, FoodPiece, GameState, Pregnancy, Sheep, SheepActivity, ShopItemId } from './state';
+import type { BreedingPiece, Carcass, Era, FoodPiece, GameState, Pregnancy, Sheep, SheepActivity, ShopItemId, ShopRowId } from './state';
 
 /** A land tier: 0 before any land, then 1–3 for Land I–III (FR22). Indexes TUNING's land table. */
 export type LandTier = 0 | 1 | 2 | 3;
 
 /** True for the shop's Land tiers (FR22), as opposed to the decorations. */
-export function isLand(item: ShopItemId): boolean {
+export function isLand(item: ShopRowId): boolean {
   return item === 'land1' || item === 'land2' || item === 'land3';
 }
 
@@ -18,7 +18,7 @@ export type Decoration = 'flowerPatch' | 'scarecrow';
 export const DECORATIONS: readonly Decoration[] = Object.freeze(['flowerPatch', 'scarecrow']);
 
 /** True for the shop's decorations (FR23), as opposed to the Land tiers. */
-export function isDecoration(item: ShopItemId): item is Decoration {
+export function isDecoration(item: ShopRowId): item is Decoration {
   return item === 'flowerPatch' || item === 'scarecrow';
 }
 
@@ -104,11 +104,20 @@ export function salePrice(stage: Stage): number {
   return 0;
 }
 
-/** The shop's rows, in display order (GDD Upgrade Trees; Epic 4 appends its items). */
+/**
+ * The one-time shop items, in display order (GDD Upgrade Trees; Epic 4 appends its items). Save
+ * validation trusts this list for `owned`, so it never holds a consumable.
+ */
 export const SHOP_ITEMS: readonly ShopItemId[] = Object.freeze(['land1', 'land2', 'land3', 'flowerPatch', 'scarecrow']);
 
-/** What `item` costs, from TUNING (FR22, FR23). */
-export function shopPrice(item: ShopItemId): number {
+/**
+ * The shop panel's rows, in display order (GDD Upgrade Trees): the one-time items, then the consumables
+ * (Story 4.5). 4.7/4.8 add Better Hoe and the Auto-feeder to SHOP_ITEMS, before Medicine.
+ */
+export const SHOP_ROWS: readonly ShopRowId[] = Object.freeze([...SHOP_ITEMS, 'medicine']);
+
+/** What `item` costs, from TUNING (FR22, FR23, FR26). */
+export function shopPrice(item: ShopRowId): number {
   switch (item) {
     case 'land1':
       return TUNING.landPrices[0];
@@ -120,6 +129,8 @@ export function shopPrice(item: ShopItemId): number {
       return TUNING.flowerPatchPrice;
     case 'scarecrow':
       return TUNING.scarecrowPrice;
+    case 'medicine':
+      return TUNING.medicinePrice;
     default:
       return assertNever(item);
   }
@@ -129,7 +140,7 @@ export function shopPrice(item: ShopItemId): number {
  * The item `item` needs first, or null (GDD Upgrade Trees: "each Land tier needs the previous one.
  * Everything else is available from the start").
  */
-export function shopRequires(item: ShopItemId): ShopItemId | null {
+export function shopRequires(item: ShopRowId): ShopItemId | null {
   if (item === 'land2') return 'land1';
   if (item === 'land3') return 'land2';
   return null;
@@ -144,10 +155,11 @@ export type BuyBlock = 'owned' | 'locked' | 'poor' | null;
 
 /**
  * UX-DR24: the one purchase rule, for the sim's Buy (economy.ts) and the shop rows alike. Owned wins
- * over locked, and locked over poor, so a row always shows its most telling reason.
+ * over locked, and locked over poor, so a row always shows its most telling reason. Medicine is
+ * repeatable (FR26): never owned, never locked, only ever poor.
  */
-export function buyBlock(state: GameState, item: ShopItemId): BuyBlock {
-  if (isOwned(state, item)) return 'owned';
+export function buyBlock(state: GameState, item: ShopRowId): BuyBlock {
+  if (item !== 'medicine' && isOwned(state, item)) return 'owned';
   const req = shopRequires(item);
   if (req !== null && !isOwned(state, req)) return 'locked';
   if (state.money < shopPrice(item)) return 'poor';
@@ -156,25 +168,25 @@ export function buyBlock(state: GameState, item: ShopItemId): BuyBlock {
 
 /** One shop row as the panel shows it. */
 export interface ShopRowView {
-  item: ShopItemId;
+  item: ShopRowId;
   price: number;
   block: BuyBlock;
 }
 
 /**
- * Fills `out` in place with one row per SHOP_ITEMS entry, reusing its entries (no allocation once it
+ * Fills `out` in place with one row per SHOP_ROWS entry, reusing its entries (no allocation once it
  * holds them all), and returns it.
  */
 export function selectShopView(state: GameState, out: ShopRowView[]): ShopRowView[] {
-  for (let i = 0; i < SHOP_ITEMS.length; i++) {
-    const item = SHOP_ITEMS[i];
+  for (let i = 0; i < SHOP_ROWS.length; i++) {
+    const item = SHOP_ROWS[i];
     let row = out[i];
     if (row === undefined) out[i] = row = { item, price: 0, block: null };
     row.item = item;
     row.price = shopPrice(item);
     row.block = buyBlock(state, item);
   }
-  out.length = SHOP_ITEMS.length;
+  out.length = SHOP_ROWS.length;
   return out;
 }
 
@@ -482,6 +494,8 @@ export interface HudView {
   flock: number;
   /** Land capacity (FR11): the flock counter's "/{capacity}". */
   capacity: number;
+  /** Doses of medicine owned (FR26): the Medicine slot's "×{n}" (UX-DR33). */
+  medicine: number;
   /** The threat summary (UX-DR39), filled in place. */
   threats: ThreatCounts;
 }
@@ -497,6 +511,7 @@ export function selectHudView(state: GameState, out: HudView): HudView {
   out.money = state.money;
   out.flock = state.sheep.length;
   out.capacity = capacity(state);
+  out.medicine = state.medicine;
   const t = out.threats;
   let starving = 0;
   let infected = 0;

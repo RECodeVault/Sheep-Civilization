@@ -4,7 +4,7 @@ import { assertNever } from '../core/types';
 import { emit } from './events';
 import { rngRange } from './rng';
 import { farmPipsPerClick, innerFence } from './selectors';
-import type { GameState, ShopItemId } from './state';
+import type { GameState, ShopRowId } from './state';
 import { sacrifice } from './systems/betterPlace';
 import { breed } from './systems/breeding';
 import { clearCarcass } from './systems/carcass';
@@ -12,8 +12,8 @@ import { drop, pickUp } from './systems/drag';
 import { buy } from './systems/economy';
 import { createBreedingPiece, createFoodPiece } from './systems/feeding';
 import { sell } from './systems/market';
+import { applyMedicine } from './systems/medicine';
 
-// Later stories append ApplyMedicine (4.5), …
 export type Command =
   | { type: 'Farm' }
   | { type: 'FarmBreeding' }
@@ -31,9 +31,12 @@ export type Command =
   // FR17: sheep `id` was dropped on the Market stall (market.ts). A lamb or an id that is gone sells
   // nothing.
   | { type: 'Sell'; id: number }
-  // UX-DR24: a shop row was clicked (economy.ts). Owned, locked or unaffordable when it applies →
-  // nothing.
-  | { type: 'Buy'; item: ShopItemId };
+  // UX-DR24: a shop row was clicked (economy.ts): a one-time item or a dose of medicine (FR26). Owned,
+  // locked or unaffordable when it applies → nothing.
+  | { type: 'Buy'; item: ShopRowId }
+  // FR26: a dose of medicine was dropped on sheep `id` (medicine.ts). No dose, an id that is gone or a
+  // sheep that is not infected → nothing.
+  | { type: 'ApplyMedicine'; id: number };
 
 export function applyCommand(state: GameState, cmd: Command): void {
   // FR38: a lost game takes no more commands. The sim is the authority; view guards are for feel.
@@ -65,6 +68,9 @@ export function applyCommand(state: GameState, cmd: Command): void {
       return;
     case 'Buy':
       buy(state, cmd.item);
+      return;
+    case 'ApplyMedicine':
+      applyMedicine(state, cmd.id);
       return;
     default:
       assertNever(cmd);

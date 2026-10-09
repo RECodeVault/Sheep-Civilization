@@ -13,7 +13,7 @@ import { fillFlock, innerFence, newGame, runFor } from '../sim/helpers';
  * breeding bar, a ready sheep, a pregnancy with its parents on cooldown, a carcass, an infected
  * sheep, an active sacrifice boost, money from sales, three shop purchases (Land I and both decorations),
  * a living Abomination with births counted (Story 4.1) on a visit beside a doomed victim (Story 4.3), and
- * an advanced rng. Callers assert it is busy.
+ * an advanced rng and two doses of medicine (Story 4.5). Callers assert it is busy.
  */
 // Seed 31339 since Story 4.1: the new-game Abomination roll shifted the rng, and with 31337 every food
 // piece was eaten inside the 1 s run (no seekFood left). Any seed for which isBusy holds will do.
@@ -23,6 +23,7 @@ export function busyGame(seed = 31339): GameState {
   // Land I pen and the round-trip covers positions outside the start fence. Set directly: a Buy needs
   // money, which is set below.
   state.owned = ['land1', 'flowerPatch', 'scarecrow'];
+  state.medicine = 2;
   fillFlock(state, 12);
   for (let i = 0; i < TUNING.farmPipsPerFood * 3 + 3; i++) applyCommand(state, { type: 'Farm' });
   for (let i = 0; i < TUNING.breedingPipsPerFood * 2 + 3; i++) applyCommand(state, { type: 'FarmBreeding' });
@@ -76,7 +77,7 @@ function insideFence(f: Rect, x: number, y: number): boolean {
 
 /**
  * True when the state exercises both kinds of seeker, targets, pieces, both part-filled bars, a ready
- * sheep, a sheep on cooldown, a pregnancy, a carcass, an infected sheep, an active boost, money, shop purchases and a sheep
+ * sheep, a sheep on cooldown, a pregnancy, a carcass, an infected sheep, an active boost, money, shop purchases, doses of medicine and a sheep
  * outside the start fence (the grown Land I pen, Story 3.3), and the Abomination on a visit beside a
  * doomed sheep (Story 4.3).
  */
@@ -96,6 +97,7 @@ export function isBusy(state: GameState): boolean {
     state.time < state.boostUntil &&
     state.money > 0 &&
     state.owned.length > 0 &&
+    state.medicine > 0 &&
     state.sheep.some((s) => !insideFence(TUNING.landFences[0], s.x, s.y)) &&
     state.sheep.some((s) => s.isAbomination) &&
     state.abomination.birthsSeen > 0 &&

@@ -19,6 +19,16 @@ export interface SpriteLookup {
 }
 
 /**
+ * True when world point (x, y) is in `spr`'s hit box: its bounds plus HIT_PAD_PX, and at least
+ * `minHalf` from the centre on each axis.
+ */
+export function spriteContains(spr: HitSprite, x: number, y: number, minHalf = 0): boolean {
+  const halfW = Math.max(spr.displayWidth / 2 + HIT_PAD_PX, minHalf);
+  const halfH = Math.max(spr.displayHeight / 2 + HIT_PAD_PX, minHalf);
+  return Math.abs(x - spr.x) <= halfW && Math.abs(y - spr.y) <= halfH;
+}
+
+/**
  * Index in `items` of the front-most entity whose sprite contains (x, y), or -1. The box is the
  * sprite bounds plus HIT_PAD_PX, and at least `minHalf` from the centre on each axis. Lower sprites
  * draw in front (depth = y), so the largest y wins. Entities for which `skip` returns true are ignored.
@@ -37,9 +47,7 @@ export function spriteIndexAt(
     if (skip !== undefined && skip(items[i].id)) continue;
     const spr = layer.spriteFor(items[i].id);
     if (spr === undefined) continue;
-    const halfW = Math.max(spr.displayWidth / 2 + HIT_PAD_PX, minHalf);
-    const halfH = Math.max(spr.displayHeight / 2 + HIT_PAD_PX, minHalf);
-    if (Math.abs(x - spr.x) <= halfW && Math.abs(y - spr.y) <= halfH && spr.y > bestY) {
+    if (spr.y > bestY && spriteContains(spr, x, y, minHalf)) {
       best = i;
       bestY = spr.y;
     }

@@ -214,6 +214,7 @@ The template's sample scenes are replaced by the structure defined in Project St
 ### Input Handling
 
 - One `InputController` (in `src/input/`) owns pointer and keyboard handling. Modes: `idle`, `breeding` (awaiting adult A / adult B), `dragging` (sheep or medicine).
+  - **As built (Story 4.5):** `dragging` carries a `dragKind` (`'sheep'` | `'dose'`). The Medicine slot is a HudScene widget whose zone captures the press, so it emits the UI event `'medicine:pressed'` and InputController arms the dose drag from it (6 px threshold, like a sheep). `view/field/MedicineDrag.ts` (GameScene) owns the hit test, against infected sheep only, and sends `ApplyMedicine` on a release over one; any other release or cancel sends nothing, because the dose is never taken from the sim until the cure applies. HudScene draws the dose in hand, above the bar.
 - Pointer down + > 6 px movement → drag; otherwise click on release.
 - **Esc priority:** close confirm → close sub-panel (Volume/Stats/Credits) → cancel drag → exit breed mode → close shop → open/close pause.
 - Breed mode also cancels on right-click or clicking Breed again; it exits after one pair (UX).
@@ -481,11 +482,11 @@ sheep-civilization/
 | Virus | `src/sim/systems/virus.ts` | Infection, 20 s death |
 | Market | `src/sim/systems/market.ts` | Selling rules and prices |
 | Better Place | `src/sim/systems/betterPlace.ts` | Sacrifice, boost, reveal event |
-| Economy & shop | `src/sim/systems/economy.ts` | Money, purchases, land tiers, upgrades |
+| Economy & shop | `src/sim/systems/economy.ts` | Money, purchases, land tiers, upgrades. Story 4.5: `Buy` takes a `ShopRowId` (a one-time `ShopItemId` or `'medicine'`); medicine adds to `GameState.medicine` (schema 11), never to `owned`. The panel lists `SHOP_ROWS`; save validation keeps checking `owned` against the one-time `SHOP_ITEMS` |
 | Eras | `src/sim/systems/eras.ts` + `selectors.ts` | Derived era; emits `EraChanged` on change |
 | Overcrowding | `src/sim/systems/overcrowding.ts` | 90% capacity infection rolls |
 | Abomination | `src/sim/systems/abomination.ts` | Spawn rule, kill cycle, delayed victim death |
-| Medicine | `src/sim/systems/medicine.ts` | Cure command |
+| Medicine | `src/sim/systems/medicine.ts` | Cure command (`ApplyMedicine` → deletes `infectedAt`, uses a dose, emits `Cured`); command-only, not in `step.ts`; never touches the Abomination's `doomedAt` (Story 4.5) |
 | Auto-feeder | `src/sim/systems/autoFeeder.ts` | 10 s drop next to hungriest sheep |
 | Names | `src/sim/systems/names.ts` | Name list, assignment via RNG |
 | Save / settings | `src/save/` | localStorage, versioning, validation, autosave, visibility pause |

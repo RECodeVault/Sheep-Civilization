@@ -77,6 +77,8 @@ export const FRAME = Object.freeze({
   iconLand: 'icon-land',
   iconFlowerPatch: 'icon-flower-patch',
   iconScarecrow: 'icon-scarecrow',
+  // The Medicine slot, its dragged dose and its shop row (UX-DR33, Story 4.5).
+  iconMedicine: 'icon-medicine',
 } as const);
 
 /** Relative URLs (no leading slash) so the build works under any subpath. */

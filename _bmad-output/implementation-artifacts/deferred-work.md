@@ -176,6 +176,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **A crowded bottom bar (Stories 2.8, 3.2, 3.3, 4.5):** the threat summary takes x 858–1080 (`THREAT_X`, 222 px). The mockup's order puts the Medicine slot, money and flock counters (with separators) in the 588–846 gap, and the boost timer and Shop toggle in the last ~184 px. Both gaps are tight at the mockup's sizes; whichever story overflows first should re-space the bar (for example, shrink `GROUP_GAP` or drop the separators) rather than overlap. `BottomBar` asserts the summary's slot with `invariant`.
   - **Story 2.8:** the boost timer now sits at x 1 092–1 196 (`BOOST_X`, `BOOST_TIMER_W` 104), leaving 68 px to the 1 264 safe edge. `BottomBar` asserts that at least 64 px (`SHOP_RESERVE`) remain for 3.2's Shop toggle (mockup about 80 px). 3.2 must re-space the bar (or narrow the timer) rather than overlap.
   - **Story 3.2:** the right group is packed from the safe edge (Shop 1 184–1 264, boost timer 1 068–1 172, threat summary 834–1 056); money sits at 588–684 after Breed, with a 100 px reserve for 3.3's flock counter. The Medicine slot (4.5) has no room reserved (see the 3.2 section).
+  - **Resolved in Story 4.5:** the Farm button is 160 px (was 232), which makes room for the 64 px Medicine slot after Breed: Farm 16–176, Farm Breeding Food 188–388, Breed 400–504, Medicine 516–580 (reserved while hidden), money 592–672, flock 684–804, threat summary 816–1 056. `BottomBar`'s invariant covers the slot; checked at 1280×720 and 960×540. The bar now has no spare pixel before the threat summary: the next widget there needs another re-space.
 - **Reduced motion (Story 5.7):** the ping's pop-in and bob (`PING` in `AlertPing.ts`) are juice; under reduced motion the ping should appear at once without bobbing. The ping and its settled dot are information and stay.
 
 ## Deferred from: code review of 2-6-alert-pings-and-threat-summary (2026-10-07)
@@ -239,7 +240,9 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Decorations (Story 3.4):** the Flower Patch and Scarecrow can be bought (they show "Owned"); 3.4 draws them from `owned`.
   - **Resolved in Story 3.4:** `Decorations` (`view/field/`) draws each owned decoration at a fixed spot above the fence, from `owned` on load and with a pop-in on `Bought`.
 - **The Medicine slot (Story 4.5):** no room is reserved in the bar (Breed ends at 576, money starts at 588). 4.5 re-spaces the read-outs (8 px gaps, narrower boxes, or moving money and the flock reserve right into the ~30 px spare before the threat summary). Medicine is a repeatable row with its own dose count; never put it in `owned`.
+  - **Resolved in Story 4.5:** see "A crowded bottom bar" (Farm narrowed to 160 px). Doses live in `GameState.medicine` (schema 11); the panel lists `SHOP_ROWS` (`SHOP_ITEMS` + `'medicine'`), and `SHOP_ITEMS` stays one-time items, so save validation still rejects `'medicine'` in `owned`.
 - **More rows (Stories 4.5, 4.7, 4.8):** each row adds 60 px to the panel (`ShopPanel.ts`); with all 9 rows its top reaches y ≈ 14 and meets the Pause button (16–56). Shrink the row gap and padding, or move Pause. Append the new items to `SHOP_ITEMS`, `ShopItemId`, `shopPrice`, the strings and `SHOP_ICON`, and extend the save validation.
+  - **Story 4.5:** 6 rows now (Medicine last, via `SHOP_ROWS`); the panel top is at y 194. 4.7/4.8 add their one-time items to `SHOP_ITEMS` (so they land before Medicine), 3 more rows → top ≈ y 14, which meets Pause: still open for them.
 - **Audio (Story 5.6):** a purchase sound on `Bought`.
 - **Reduced motion (Story 5.7):** the money counter's roll (`MONEY_MOTION` in `MoneyCounter.ts`) is juice; show the new balance at once.
 - **The panel appears at once (Story 5.8):** DESIGN's "rises from the bottom bar" is its position; a slide-up on open is optional juice.
@@ -367,3 +370,16 @@ Real issues found in reviews that are not actionable in the story where they wer
 ## Deferred from: code review of 4-4-sacrifice-reveal (2026-10-08)
 
 - **Ghost reuse cuts the reveal short (any time; Story 5.8 polish):** the 3 round-robin ghosts are shared with sales (`GameScene.sold`), so 3 more sacrifices or sales within the Abomination's ~1.06 s reveal reuse its ghost: `killTweensOf` drops the flash and spiral, and "Good riddance." is sent at once. Picking an idle ghost first, or a larger pool, would avoid it. Complements the "early reveal toast on ghost reuse" entry above.
+
+## Deferred from: story 4-5-medicine (2026-10-08)
+
+- **Audio (Story 5.6):** a cure sound on `Cured`, and pick-up / put-back sounds for the dose; a caption only if 5.6's caption list grows (UX-DR88 has no cure cue).
+- **Reduced motion (Story 5.7):** the bottle's ×1.2 over an infected sheep is the only drop cue (information, keep it); the cure sparkle (`CURE_SPARKLES` in `GameScene.ts`) is juice.
+- **Art (Story 5.8):** the bottle is a placeholder from the mockup's `g-bottle` glyph (`assets/art/ui/icon-medicine.png`); a pack sprite can replace it at the same 12×16. The slot's count is 18 px (the mockup's 20 px does not fit "×99" with the bottle in the 64 px tile).
+- **No cure stat (Story 5.4):** FR36 lists alive, sold, died, sacrificed and money earned; none was added for cures.
+- **Overcrowding (Story 4.6):** its infections use `infectSheep`, so medicine cures them with no extra work.
+
+## Deferred from: code review of 4-5-medicine (2026-10-09)
+
+- **Slot press uses `activePointer` (any time; touch support):** `'medicine:pressed'` carries no payload, so `InputController.onMedicinePress` arms from `input.activePointer`, as `'breedTool:pressed'` does. With multi-touch another finger could be the active pointer. Passing the pointer id/x/y/downTime in the bus payload would fix both.
+- **No hover on a slot that reappears under a still pointer (Story 5.8 polish):** turning the slot's zone back on (a dose bought, or `owned` back above 0) sends no pointer-over until the pointer moves, so no tooltip or hand cursor until then. A re-hit-test when the zone is enabled would fix it; the same applies to any re-enabled zone.

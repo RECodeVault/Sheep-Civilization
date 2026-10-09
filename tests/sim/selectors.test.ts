@@ -27,6 +27,7 @@ import {
   salePrice,
   selectShopView,
   SHOP_ITEMS,
+  SHOP_ROWS,
   shopPrice,
   shopRequires,
   type ShopRowView,
@@ -265,7 +266,7 @@ describe('Abomination secrecy (AR18, UX-DR64; the mandatory secrecy test, Story 
 describe('selectHudView', () => {
   it('fills the Farm bar from state and TUNING into the given object', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: -1, farmPipsPerFood: -1, breedingProgress: -1, breedingPipsPerFood: -1, breedBlock: 'capacity', boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: -1, farmPipsPerFood: -1, breedingProgress: -1, breedingPipsPerFood: -1, breedBlock: 'capacity', boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
     expect(selectHudView(state, out)).toBe(out);
     expect(out).toEqual({
       farmProgress: 0,
@@ -277,13 +278,21 @@ describe('selectHudView', () => {
       money: 0,
       flock: state.sheep.length,
       capacity: TUNING.landCapacities[0],
+      medicine: 0,
       threats: { starving: 0, infected: 0, carcasses: 0 },
     });
   });
 
+  it('fills the doses owned (the Medicine slot, UX-DR33, Story 4.5)', () => {
+    const state = newGame();
+    state.medicine = 3;
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    expect(selectHudView(state, out).medicine).toBe(3);
+  });
+
   it('reflects a Farm on the next read', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
     selectHudView(state, out);
     applyCommand(state, { type: 'Farm' });
     selectHudView(state, out);
@@ -293,13 +302,13 @@ describe('selectHudView', () => {
   it('fills the balance (UX-DR34)', () => {
     const state = newGame();
     state.money = 145;
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
     expect(selectHudView(state, out).money).toBe(145);
   });
 
   it('reflects a FarmBreeding on the next read', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
     selectHudView(state, out);
     applyCommand(state, { type: 'FarmBreeding' });
     selectHudView(state, out);
@@ -318,6 +327,7 @@ describe('selectHudView threats (UX-DR39)', () => {
     money: -1,
     flock: -1,
     capacity: -1,
+    medicine: -1,
     threats: { starving: -1, infected: -1, carcasses: -1 },
   });
 
@@ -454,7 +464,7 @@ describe('breeding selectors (FR10, FR11, AR21)', () => {
 
   it('selectHudView fills breedBlock', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
     expect(selectHudView(state, out).breedBlock).toBe('notReady');
     state.sheep[0].breedReady = state.sheep[1].breedReady = true;
     expect(selectHudView(state, out).breedBlock).toBe(null);
@@ -575,7 +585,7 @@ describe('the boost selectors (FR19)', () => {
   it('selectHudView reports the time left', () => {
     const state = newGame();
     state.boostUntil = state.time + TUNING.boostMs;
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
     expect(selectHudView(state, out).boostRemainingMs).toBe(TUNING.boostMs);
   });
 });
@@ -624,13 +634,39 @@ describe('shop selectors (FR22, FR23, UX-DR24)', () => {
     expect(buyBlock(state, 'land3')).toBe('locked');
   });
 
-  it('selectShopView fills the given rows in place, one per item', () => {
+  it('lists the panel rows: the one-time items, then Medicine last (GDD Upgrade Trees, Story 4.5)', () => {
+    expect(SHOP_ROWS).toEqual([...SHOP_ITEMS, 'medicine']);
+  });
+
+  it('prices Medicine from TUNING; it needs nothing first (FR26)', () => {
+    expect(shopPrice('medicine')).toBe(TUNING.medicinePrice);
+    expect(shopRequires('medicine')).toBeNull();
+  });
+
+  it('buyBlock: Medicine is only ever poor or buyable, never owned or locked (repeatable, UX-DR24)', () => {
+    const state = newGame();
+    expect(buyBlock(state, 'medicine')).toBe('poor');
+    state.money = shopPrice('medicine') * 2;
+    expect(buyBlock(state, 'medicine')).toBeNull();
+    // A real purchase (not a hand-set count): the row stays buyable while money lasts, then is poor.
+    applyCommand(state, { type: 'Buy', item: 'medicine' });
+    expect(state.medicine).toBe(1);
+    expect(buyBlock(state, 'medicine')).toBeNull();
+    const out: ShopRowView[] = SHOP_ROWS.map((item) => ({ item, price: -1, block: 'owned' as const }));
+    expect(selectShopView(state, out).find((r) => r.item === 'medicine')?.block).toBeNull();
+    applyCommand(state, { type: 'Buy', item: 'medicine' });
+    expect(state.medicine).toBe(2);
+    expect(state.owned).not.toContain('medicine');
+    expect(buyBlock(state, 'medicine')).toBe('poor');
+  });
+
+  it('selectShopView fills the given rows in place, one per row', () => {
     const state = newGame();
     state.money = shopPrice('flowerPatch');
-    const out: ShopRowView[] = SHOP_ITEMS.map((item) => ({ item, price: -1, block: 'owned' as const }));
+    const out: ShopRowView[] = SHOP_ROWS.map((item) => ({ item, price: -1, block: 'owned' as const }));
     const rows = out.slice();
     expect(selectShopView(state, out)).toBe(out);
-    expect(out).toHaveLength(SHOP_ITEMS.length);
+    expect(out).toHaveLength(SHOP_ROWS.length);
     for (let i = 0; i < out.length; i++) expect(out[i]).toBe(rows[i]);
     expect(out.map((r) => [r.item, r.price, r.block])).toEqual([
       ['land1', shopPrice('land1'), 'poor'],
@@ -638,6 +674,7 @@ describe('shop selectors (FR22, FR23, UX-DR24)', () => {
       ['land3', shopPrice('land3'), 'locked'],
       ['flowerPatch', shopPrice('flowerPatch'), null],
       ['scarecrow', shopPrice('scarecrow'), 'poor'],
+      ['medicine', shopPrice('medicine'), null],
     ]);
   });
 });
@@ -693,6 +730,7 @@ describe('land selectors (FR11, FR22, Story 3.3)', () => {
       money: 0,
       flock: -1,
       capacity: -1,
+      medicine: -1,
       threats: { starving: 0, infected: 0, carcasses: 0 },
     });
     expect(out.flock).toBe(state.sheep.length);

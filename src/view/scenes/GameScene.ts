@@ -56,6 +56,7 @@ import { ObjectPool } from '../field/ObjectPool';
 import { PenCamera } from '../field/PenCamera';
 import { PregnancyHeart } from '../field/PregnancyHeart';
 import { spriteIndexAt } from '../field/hitTest';
+import { MedicineDrag } from '../field/MedicineDrag';
 import { SheepDrag } from '../field/SheepDrag';
 import { SheepHover } from '../field/SheepHover';
 import { SheepSprite } from '../field/SheepSprite';
@@ -129,6 +130,9 @@ const REVEAL = { flashes: 3, flashMs: 110, swellScale: 1.35, shakePx: 3 } as con
 // in the browser] values; `toY` is the counter's middle (world).
 const SALE = { durationMs: 250, toY: 330, scale: 0.5 } as const;
 const SPARKLE_BURST = 10;
+// FR26 (Story 4.5): a smaller burst of the same sparkles where a sheep is cured. Juice for 5.7/5.8.
+// [ASSUMPTION, tune in the browser]
+const CURE_SPARKLES = 6;
 const SPARKLE = {
   lifespan: 500,
   speed: { min: 40, max: 110 },
@@ -203,6 +207,8 @@ export class GameScene extends Phaser.Scene {
   /** The sale's "$10"/"$5" coin popups, in world space over the stall (UX-DR82). */
   private worldPopups!: FloatPopups;
   private sheepDrag!: SheepDrag;
+  // The dose drag (Story 4.5): GameScene owns its hit test (camera, sheep layer); HudScene draws the dose.
+  private medicineDrag!: MedicineDrag;
   /**
    * The pen plus both drop targets: what the camera keeps in view (Stories 2.7, 3.1). Rebuilt with the
    * fence when land is bought (Story 3.3; buildPlayArea).
@@ -244,6 +250,8 @@ export class GameScene extends Phaser.Scene {
       else if (e.type === 'CarcassCleared') this.dust.explode(DUST_CLEAR_PUFFS, e.x, e.y);
       else if (e.type === 'Sacrificed') this.suck(e.id, e.wasAbomination);
       else if (e.type === 'Sold') this.sold(e.id, e.price);
+      // FR26: the infection look goes with PublicSheep.infected; a few sparkles mark the cure (juice).
+      else if (e.type === 'Cured') this.sparkle.explode(CURE_SPARKLES, e.x, e.y);
       // Grown once per frame in update, however many tiers were bought in the frame's ticks.
       else if (e.type === 'Bought' && isLand(e.item)) this.landBought = true;
       else if (e.type === 'Bought' && isDecoration(e.item)) this.decorationBought(e.item);
@@ -261,8 +269,11 @@ export class GameScene extends Phaser.Scene {
     const manager = this.input.manager;
     manager.setDefaultCursor(e.active ? HEART_CURSOR : '');
     const hud = this.scene.get('HudScene') as HudScene;
-    const b = hud.sys.isActive() ? hud.hoveredButton : null;
+    const live = hud.sys.isActive();
+    const b = live ? hud.hoveredButton : null;
     if (b !== null) manager.canvas.style.cursor = b.isEnabled ? 'pointer' : 'default';
+    // And the Medicine slot: a press on it leaves breed mode while the pointer is on it (Story 4.5 review).
+    else if (live && hud.medicineHovered) manager.canvas.style.cursor = 'pointer';
     // The same for a buyable shop row under the pointer (Story 3.2 review).
     else if (this.shopPanel.hoveringBuyable) manager.canvas.style.cursor = 'pointer';
   };
@@ -355,6 +366,8 @@ export class GameScene extends Phaser.Scene {
     const camera = this.cameras.main;
     const drag = new SheepDrag(camera, this.sheepLayer, (cmd) => this.dispatch(cmd));
     this.sheepDrag = drag;
+    const dose = new MedicineDrag(camera, this.sheepLayer, (cmd) => this.dispatch(cmd));
+    this.medicineDrag = dose;
     const input: InputController = new InputController(this.input, {
       modalOpen: () => this.modalOpen,
       esc: [
@@ -397,6 +410,10 @@ export class GameScene extends Phaser.Scene {
       endDrag: (sx, sy) => drag.end(sx, sy, this.hudControlAt(sx, sy), this.state.time),
       cancelDrag: () => drag.cancel(this.state.time),
       dragAlive: () => drag.live,
+      beginDose: (sx, sy) => dose.begin(sx, sy, this.state.medicine, this.state.time),
+      moveDose: (sx, sy) => dose.move(sx, sy, this.doseOnHud(sx, sy)),
+      endDose: (sx, sy) => dose.end(sx, sy, this.doseOnHud(sx, sy), this.state.time),
+      cancelDose: () => dose.cancel(),
     });
     this.inputController = input;
     bus.on('sim', this.onSim, this);
@@ -450,6 +467,18 @@ export class GameScene extends Phaser.Scene {
   /** True while a sheep is dragged (HudScene turns its hover off meanwhile). */
   get dragging(): boolean {
     return this.inputController.dragging;
+  }
+
+  /**
+   * The dose drag for HudScene (Story 4.5): doses out of the slot (held, or dropped and not yet applied),
+   * and the held one's canvas point and whether it is over an infected sheep.
+   */
+  get dosesInHand(): number {
+    return this.medicineDrag.inHand(this.state.time);
+  }
+
+  get heldDose(): MedicineDrag {
+    return this.medicineDrag;
   }
 
   /** True while the shop panel is open (Story 3.2). */
@@ -755,6 +784,15 @@ export class GameScene extends Phaser.Scene {
     return hud.sys.isActive() && hud.controlAt(sx, sy);
   }
 
+  /**
+   * True when a dose at canvas point (sx, sy) is off the field: on a HUD control, or anywhere on the
+   * bottom bar (its background, money and flock too). A sheep drawn under the bar cannot be cured
+   * through it (AC 5, Story 4.5 code review).
+   */
+  private doseOnHud(sx: number, sy: number): boolean {
+    return sy >= LAYOUT.canvasHeight - LAYOUT.hudBarHeight || this.hudControlAt(sx, sy);
+  }
+
   private pointerOnHudControl(): boolean {
     // The open shop panel is no field: no field press, pan or sheep hover through it (Story 3.2).
     const p = this.input.activePointer;
@@ -812,6 +850,8 @@ export class GameScene extends Phaser.Scene {
     // Before the layer syncs: a dragged (or just released) sheep is drawn at its held point.
     this.sheepDrag.sync(this.publicSheep, this.state.time);
     this.sheepLayer.sync(this.publicSheep, this.clock.alpha, this.state.time);
+    // After the layer syncs: the infected sheep under a held dose is tested at this frame's positions.
+    this.medicineDrag.sync(this.publicSheep);
     this.betterPlace.setHighlight(this.sheepDrag.highlight);
     this.betterPlace.update(this.game.loop.time);
     this.market.setHighlight(this.sheepDrag.marketHighlight, this.sheepDrag.marketPrice);

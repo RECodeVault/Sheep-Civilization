@@ -4,7 +4,7 @@ import { TUNING } from '../config/tuning';
 import { formatMinutesInWords, formatMoney } from '../core/format';
 import type { DeathCause } from '../sim/events';
 import type { Hunger, Stage } from '../sim/selectors';
-import type { Era, ShopItemId } from '../sim/state';
+import type { Era, ShopRowId } from '../sim/state';
 
 const STAGE: Readonly<Record<Stage, string>> = Object.freeze({ lamb: 'Lamb', adult: 'Adult', elder: 'Elder' });
 const HUNGER: Readonly<Record<Hunger, string>> = Object.freeze({ fed: 'Fed', hungry: 'Hungry', starving: 'Starving' });
@@ -41,19 +41,22 @@ const ERA_NAME: Readonly<Record<Era, string>> = Object.freeze({
   'wool-empire': 'Wool Empire',
 });
 
-const SHOP_NAME: Readonly<Record<ShopItemId, string>> = Object.freeze({
+const SHOP_NAME: Readonly<Record<ShopRowId, string>> = Object.freeze({
   land1: 'Land I',
   land2: 'Land II',
   land3: 'Land III',
   flowerPatch: 'Flower Patch',
   scarecrow: 'Scarecrow',
+  medicine: 'Medicine',
 });
-const SHOP_EFFECT: Readonly<Record<ShopItemId, string>> = Object.freeze({
+const SHOP_EFFECT: Readonly<Record<ShopRowId, string>> = Object.freeze({
   land1: landEffect(1),
   land2: landEffect(2),
   land3: landEffect(3),
   flowerPatch: 'Cosmetic',
   scarecrow: 'Cosmetic',
+  // GDD Upgrade Trees: "Cures 1 infected sheep" (FR26, Story 4.5).
+  medicine: 'Cures 1 infected sheep',
 });
 
 export const STRINGS = Object.freeze({
@@ -93,6 +96,10 @@ export const STRINGS = Object.freeze({
   boostBadge: '×2',
   boostPopup: '×2',
   boostTimer: (time: string): string => `×2 ${time}`,
+  // The Medicine slot (UX-DR33, Story 4.5): the doses owned, e.g. "×2" (U+00D7, as the boost badge), and
+  // its hover. [ASSUMPTION] UX-DR75 lists no Medicine tooltip; "green" is the GDD's word for infected.
+  medicineCount: (n: number): string => `×${n}`,
+  medicineTooltip: 'Drag onto a green sheep to cure it.',
   // Sacrifice toast (UX-DR93). Story 5.3 puts the name in place of "A sheep", in `halo`.
   sacrificeToast: 'A sheep went to a Better Place.',
   // Sacrifice reveal toasts (FR33, UX-DR93; EXPERIENCE Voice "Sacrifice reveal"), shown as the sheep

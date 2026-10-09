@@ -17,9 +17,16 @@ function stripKillCycle(sheep: Record<string, unknown>[]): void {
   }
 }
 
+/** A JSON copy of a current-version state in the version-10 shape (before Story 4.5's medicine). */
+function toVersion10(state: object): Record<string, unknown> {
+  const v10 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+  delete v10.medicine;
+  return v10;
+}
+
 /** A JSON copy of a current-version state in the version-9 shape (before Story 4.3's kill cycle). */
 function toVersion9(state: object): Record<string, unknown> {
-  const v9 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+  const v9 = toVersion10(state);
   delete (v9.abomination as Record<string, unknown>).nextKillAt;
   stripKillCycle(v9.sheep as Record<string, unknown>[]);
   return v9;
@@ -221,6 +228,17 @@ describe('migrate', () => {
     const r = migrate(2, { time: 0, sheep: 'nope' });
     expect(r.ok).toBe(true);
     if (r.ok) expect(validateState(r.state).ok).toBe(false);
+  });
+
+  it('migrates a version-10 state (before medicine) owning no dose (Story 4.5)', () => {
+    const state = busyGame();
+    state.medicine = 0;
+    const v10 = toVersion10(state);
+    const r = migrate(10, v10);
+    expect(r).toStrictEqual({ ok: true, state });
+    expect(validateState(state).ok).toBe(true);
+    // The input is not mutated.
+    expect(v10).toStrictEqual(toVersion10(state));
   });
 
   it('rejects a save from a newer version', () => {
