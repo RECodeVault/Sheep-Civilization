@@ -260,6 +260,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 ## Deferred from: story 3-3-buy-land-and-grow-the-fence (2026-10-07)
 
 - **Crowded flock counter (Story 4.6):** UX-DR35's crowded style (numbers in `alert` and a crowd icon at ≥ 90 % of capacity) is not built; `FlockCounter.set` gets `alive` and `capacity`, so 4.6 adds the style there with the overcrowding rule.
+  - **Resolved in Story 4.6:** `FlockCounter.set(alive, capacity, crowded)` from `HudView.crowded` (the same `crowdedAt` rule as the roll): the numbers turn `alert` and the crowd icon (`icon-crowd`) takes the sheep icon's place, so the counter keeps its width (12 px spare before the threat summary).
 - **"No room. Buy land." at Land III (Voice decision, any time):** when the flock fills Land III's 100 slots there is no land left to buy, but the Breed tooltip still says "Buy land." The Voice table has no other string; a later copy pass may add one (for example "No room.") for that case (`breedBlock` would need to tell the two apart, e.g. via `landTier(state) === 3`).
 - **The Land III pen is dense (Story 3.6):** to fit one screen, Land II/III grow only left and down, so Land III gives about 3.7 k px² per sheep against Land I's 7.4 k. 100 sheep fit the sim (24 px spacing) but overlap visually. If 3.6 finds it too crowded, the alternatives are a bigger world with panning (the Market would move with the fence, and dragging would need edge-pan) or a per-tier camera zoom (Story 3.3 Open Question 1).
   - **Story 3.6:** no change requested in the playtest (Rylan: "everything looks good"). Left as is; revisit if the external playtest (5.10) finds it crowded.
@@ -378,8 +379,17 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Art (Story 5.8):** the bottle is a placeholder from the mockup's `g-bottle` glyph (`assets/art/ui/icon-medicine.png`); a pack sprite can replace it at the same 12×16. The slot's count is 18 px (the mockup's 20 px does not fit "×99" with the bottle in the 64 px tile).
 - **No cure stat (Story 5.4):** FR36 lists alive, sold, died, sacrificed and money earned; none was added for cures.
 - **Overcrowding (Story 4.6):** its infections use `infectSheep`, so medicine cures them with no extra work.
+  - **Resolved in Story 4.6:** confirmed by `tests/sim/scenarios/overcrowding.test.ts` (an overcrowding infection is cured by `ApplyMedicine`).
 
 ## Deferred from: code review of 4-5-medicine (2026-10-09)
 
 - **Slot press uses `activePointer` (any time; touch support):** `'medicine:pressed'` carries no payload, so `InputController.onMedicinePress` arms from `input.activePointer`, as `'breedTool:pressed'` does. With multi-touch another finger could be the active pointer. Passing the pointer id/x/y/downTime in the bus payload would fix both.
 - **No hover on a slot that reappears under a still pointer (Story 5.8 polish):** turning the slot's zone back on (a dose bought, or `owned` back above 0) sends no pointer-over until the pointer moves, so no tooltip or hand cursor until then. A re-hit-test when the zone is enabled would fix it; the same applies to any re-enabled zone.
+
+## Deferred from: story 4-6-overcrowding (2026-10-09)
+
+- **Audio (Story 5.6):** no cue when the flock becomes crowded (UX-DR88 lists none); an overcrowding infection sounds like any infection.
+- **Playtest (Story 5.10):** watch whether players notice the red flock counter before the first roll, and whether 20 % every 30 s bites at era entry as intended (decision log "Overcrowding at era thresholds"). The clock runs from new game, so a flock that turns crowded just before a deadline can roll within a second; the alternative (a clock that starts when crowding starts) was Story 4.6 Open Question 1.
+- **No stat (Story 5.4):** FR36 has no count of overcrowding infections; none was added.
+- **Art (Story 5.8):** the crowd icon is a placeholder (`assets/art/ui/icon-crowd.png`, 14×12: two overlapping sheep in the DESIGN.md palette); a pack sprite can replace it at the same size.
+- **Tests that opt out:** `tests/sim/scenarios/abominationTells.test.ts` sets `nextOvercrowdRollAt` far ahead (21 sheep in the 10-sheep pen are crowded, and a roll would perturb its paired spacing runs), as it already does for the kill cycle.

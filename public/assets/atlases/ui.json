@@ -1,8 +1,152 @@
 {
   "frames": {
-    "icon-flower-patch": {
+    "icon-heart": {
       "frame": {
         "x": 3,
+        "y": 3,
+        "w": 9,
+        "h": 8
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 9,
+        "h": 8
+      },
+      "sourceSize": {
+        "w": 9,
+        "h": 8
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "icon-carcass": {
+      "frame": {
+        "x": 18,
+        "y": 3,
+        "w": 10,
+        "h": 10
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 10,
+        "h": 10
+      },
+      "sourceSize": {
+        "w": 10,
+        "h": 10
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "icon-infected": {
+      "frame": {
+        "x": 34,
+        "y": 3,
+        "w": 11,
+        "h": 11
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 11,
+        "h": 11
+      },
+      "sourceSize": {
+        "w": 11,
+        "h": 11
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "icon-crowd": {
+      "frame": {
+        "x": 51,
+        "y": 3,
+        "w": 14,
+        "h": 12
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 14,
+        "h": 12
+      },
+      "sourceSize": {
+        "w": 14,
+        "h": 12
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "icon-sheep": {
+      "frame": {
+        "x": 71,
+        "y": 3,
+        "w": 14,
+        "h": 12
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 14,
+        "h": 12
+      },
+      "sourceSize": {
+        "w": 14,
+        "h": 12
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "icon-starving": {
+      "frame": {
+        "x": 91,
+        "y": 3,
+        "w": 14,
+        "h": 12
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 14,
+        "h": 12
+      },
+      "sourceSize": {
+        "w": 14,
+        "h": 12
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "icon-flower-patch": {
+      "frame": {
+        "x": 111,
         "y": 3,
         "w": 14,
         "h": 14
@@ -26,7 +170,7 @@
     },
     "icon-land": {
       "frame": {
-        "x": 23,
+        "x": 131,
         "y": 3,
         "w": 14,
         "h": 14
@@ -50,58 +194,10 @@
     },
     "icon-scarecrow": {
       "frame": {
-        "x": 3,
-        "y": 23,
-        "w": 14,
-        "h": 14
-      },
-      "rotated": false,
-      "trimmed": false,
-      "spriteSourceSize": {
-        "x": 0,
-        "y": 0,
-        "w": 14,
-        "h": 14
-      },
-      "sourceSize": {
-        "w": 14,
-        "h": 14
-      },
-      "pivot": {
-        "x": 0.5,
-        "y": 0.5
-      }
-    },
-    "icon-medicine": {
-      "frame": {
-        "x": 43,
+        "x": 151,
         "y": 3,
-        "w": 12,
-        "h": 16
-      },
-      "rotated": false,
-      "trimmed": false,
-      "spriteSourceSize": {
-        "x": 0,
-        "y": 0,
-        "w": 12,
-        "h": 16
-      },
-      "sourceSize": {
-        "w": 12,
-        "h": 16
-      },
-      "pivot": {
-        "x": 0.5,
-        "y": 0.5
-      }
-    },
-    "icon-sheep": {
-      "frame": {
-        "x": 23,
-        "y": 23,
         "w": 14,
-        "h": 12
+        "h": 14
       },
       "rotated": false,
       "trimmed": false,
@@ -109,59 +205,11 @@
         "x": 0,
         "y": 0,
         "w": 14,
-        "h": 12
+        "h": 14
       },
       "sourceSize": {
         "w": 14,
-        "h": 12
-      },
-      "pivot": {
-        "x": 0.5,
-        "y": 0.5
-      }
-    },
-    "icon-starving": {
-      "frame": {
-        "x": 23,
-        "y": 41,
-        "w": 14,
-        "h": 12
-      },
-      "rotated": false,
-      "trimmed": false,
-      "spriteSourceSize": {
-        "x": 0,
-        "y": 0,
-        "w": 14,
-        "h": 12
-      },
-      "sourceSize": {
-        "w": 14,
-        "h": 12
-      },
-      "pivot": {
-        "x": 0.5,
-        "y": 0.5
-      }
-    },
-    "icon-infected": {
-      "frame": {
-        "x": 3,
-        "y": 43,
-        "w": 11,
-        "h": 11
-      },
-      "rotated": false,
-      "trimmed": false,
-      "spriteSourceSize": {
-        "x": 0,
-        "y": 0,
-        "w": 11,
-        "h": 11
-      },
-      "sourceSize": {
-        "w": 11,
-        "h": 11
+        "h": 14
       },
       "pivot": {
         "x": 0.5,
@@ -170,8 +218,8 @@
     },
     "pip-breeding": {
       "frame": {
-        "x": 43,
-        "y": 25,
+        "x": 171,
+        "y": 3,
         "w": 7,
         "h": 14
       },
@@ -194,8 +242,8 @@
     },
     "pip-empty": {
       "frame": {
-        "x": 56,
-        "y": 25,
+        "x": 184,
+        "y": 3,
         "w": 7,
         "h": 14
       },
@@ -218,7 +266,7 @@
     },
     "pip-food": {
       "frame": {
-        "x": 61,
+        "x": 197,
         "y": 3,
         "w": 7,
         "h": 14
@@ -240,48 +288,24 @@
         "y": 0.5
       }
     },
-    "icon-carcass": {
+    "icon-medicine": {
       "frame": {
-        "x": 43,
-        "y": 45,
-        "w": 10,
-        "h": 10
+        "x": 210,
+        "y": 3,
+        "w": 12,
+        "h": 16
       },
       "rotated": false,
       "trimmed": false,
       "spriteSourceSize": {
         "x": 0,
         "y": 0,
-        "w": 10,
-        "h": 10
+        "w": 12,
+        "h": 16
       },
       "sourceSize": {
-        "w": 10,
-        "h": 10
-      },
-      "pivot": {
-        "x": 0.5,
-        "y": 0.5
-      }
-    },
-    "icon-heart": {
-      "frame": {
-        "x": 59,
-        "y": 45,
-        "w": 9,
-        "h": 8
-      },
-      "rotated": false,
-      "trimmed": false,
-      "spriteSourceSize": {
-        "x": 0,
-        "y": 0,
-        "w": 9,
-        "h": 8
-      },
-      "sourceSize": {
-        "w": 9,
-        "h": 8
+        "w": 12,
+        "h": 16
       },
       "pivot": {
         "x": 0.5,
@@ -295,8 +319,8 @@
     "image": "ui.png",
     "format": "RGBA8888",
     "size": {
-      "w": 71,
-      "h": 58
+      "w": 225,
+      "h": 22
     },
     "scale": 1
   }

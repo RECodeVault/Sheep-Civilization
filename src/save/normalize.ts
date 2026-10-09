@@ -44,6 +44,8 @@ export function normalizeTuned(state: unknown): void {
   if (!Number.isInteger(time)) return;
   const t = time as number;
   clampDown(state, 'boostUntil', t + TUNING.boostMs, true);
+  // Story 4.6: a shorter overcrowding interval pulls a saved roll in.
+  clampDown(state, 'nextOvercrowdRollAt', t + TUNING.overcrowdIntervalMs, true);
   // Story 4.3: a shorter kill interval, doom delay or visit phase brings a saved deadline inside the new
   // bound (each stays after `time`, since every bound is at least one tick).
   if (isObj(a)) clampDown(a, 'nextKillAt', t + TUNING.abominationKillMaxMs, true);

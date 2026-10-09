@@ -13,7 +13,8 @@ import { fillFlock, innerFence, newGame, runFor } from '../sim/helpers';
  * breeding bar, a ready sheep, a pregnancy with its parents on cooldown, a carcass, an infected
  * sheep, an active sacrifice boost, money from sales, three shop purchases (Land I and both decorations),
  * a living Abomination with births counted (Story 4.1) on a visit beside a doomed victim (Story 4.3), and
- * an advanced rng and two doses of medicine (Story 4.5). Callers assert it is busy.
+ * an advanced rng and two doses of medicine (Story 4.5), and an overcrowding roll pending (Story 4.6).
+ * Callers assert it is busy.
  */
 // Seed 31339 since Story 4.1: the new-game Abomination roll shifted the rng, and with 31337 every food
 // piece was eaten inside the 1 s run (no seekFood left). Any seed for which isBusy holds will do.
@@ -98,6 +99,7 @@ export function isBusy(state: GameState): boolean {
     state.money > 0 &&
     state.owned.length > 0 &&
     state.medicine > 0 &&
+    state.nextOvercrowdRollAt > state.time &&
     state.sheep.some((s) => !insideFence(TUNING.landFences[0], s.x, s.y)) &&
     state.sheep.some((s) => s.isAbomination) &&
     state.abomination.birthsSeen > 0 &&

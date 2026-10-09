@@ -73,6 +73,8 @@ export const FRAME = Object.freeze({
   iconCarcass: 'icon-carcass',
   // The flock counter's sheep (UX-DR35, Story 3.3).
   iconSheep: 'icon-sheep',
+  // In its place while the flock is crowded (UX-DR35, Story 4.6).
+  iconCrowd: 'icon-crowd',
   // The shop rows' icons (UX-DR24; Land I–III share one).
   iconLand: 'icon-land',
   iconFlowerPatch: 'icon-flower-patch',

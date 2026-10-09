@@ -37,6 +37,9 @@ function meanNearest(seed: number, abomination: boolean): number {
   lamb.isAbomination = abomination;
   // Spacing only: no visit (Story 4.3's kill cycle) during the run, so nobody dies or is approached.
   state.abomination.nextKillAt = Number.MAX_SAFE_INTEGER;
+  // Nor an overcrowding roll (Story 4.6): 21 sheep in the 10-sheep pen are crowded, and a roll would
+  // draw from the rng between the two runs and might infect (and later kill) a sheep.
+  state.nextOvercrowdRollAt = Number.MAX_SAFE_INTEGER;
   feedAll(state);
   runFor(state, SETTLE_MS);
   let sum = 0;

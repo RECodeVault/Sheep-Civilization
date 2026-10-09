@@ -17,9 +17,16 @@ function stripKillCycle(sheep: Record<string, unknown>[]): void {
   }
 }
 
+/** A JSON copy of a current-version state in the version-11 shape (before Story 4.6's overcrowding roll). */
+function toVersion11(state: object): Record<string, unknown> {
+  const v11 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+  delete v11.nextOvercrowdRollAt;
+  return v11;
+}
+
 /** A JSON copy of a current-version state in the version-10 shape (before Story 4.5's medicine). */
 function toVersion10(state: object): Record<string, unknown> {
-  const v10 = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+  const v10 = toVersion11(state);
   delete v10.medicine;
   return v10;
 }
@@ -230,9 +237,29 @@ describe('migrate', () => {
     if (r.ok) expect(validateState(r.state).ok).toBe(false);
   });
 
+  it('migrates a version-11 state with the first overcrowding roll one interval after its time (Story 4.6)', () => {
+    const state = busyGame();
+    state.nextOvercrowdRollAt = state.time + TUNING.overcrowdIntervalMs;
+    const v11 = toVersion11(state);
+    const r = migrate(11, v11);
+    expect(r).toStrictEqual({ ok: true, state });
+    expect(validateState(state).ok).toBe(true);
+    // No rng drawn, and the input is not mutated.
+    expect(v11).toStrictEqual(toVersion11(state));
+  });
+
+  it('leaves a malformed version-11 time for validation to reject (Story 4.6)', () => {
+    const r = migrate(11, { ...toVersion11(newGame(3)), time: 'x' });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect((r.state as Record<string, unknown>).nextOvercrowdRollAt).toBeUndefined();
+    expect(validateState(r.state).ok).toBe(false);
+  });
+
   it('migrates a version-10 state (before medicine) owning no dose (Story 4.5)', () => {
     const state = busyGame();
     state.medicine = 0;
+    state.nextOvercrowdRollAt = state.time + TUNING.overcrowdIntervalMs;
     const v10 = toVersion10(state);
     const r = migrate(10, v10);
     expect(r).toStrictEqual({ ok: true, state });

@@ -484,7 +484,7 @@ sheep-civilization/
 | Better Place | `src/sim/systems/betterPlace.ts` | Sacrifice, boost, reveal event |
 | Economy & shop | `src/sim/systems/economy.ts` | Money, purchases, land tiers, upgrades. Story 4.5: `Buy` takes a `ShopRowId` (a one-time `ShopItemId` or `'medicine'`); medicine adds to `GameState.medicine` (schema 11), never to `owned`. The panel lists `SHOP_ROWS`; save validation keeps checking `owned` against the one-time `SHOP_ITEMS` |
 | Eras | `src/sim/systems/eras.ts` + `selectors.ts` | Derived era; emits `EraChanged` on change |
-| Overcrowding | `src/sim/systems/overcrowding.ts` | 90% capacity infection rolls |
+| Overcrowding | `src/sim/systems/overcrowding.ts` | 90% capacity infection rolls. As built (Story 4.6): `updateOvercrowding`, registered after `updateAbomination` and before `updateEras`. A fixed clock from new game (`GameState.nextOvercrowdRollAt`, top-level, not secret; schema 12) rolls every `overcrowdIntervalMs` and reschedules at each deadline; only while crowded does it draw `overcrowdInfectChance`, then a random living sheep, infected through `infectSheep`. "Crowded" is `selectors.ts` `crowdedAt(alive, capacity)` / `isCrowded` (living sheep ≥ `overcrowdFraction` × land capacity, pending lambs not counted), shared with `HudView.crowded` for the flock counter's crowded style (UX-DR35) |
 | Abomination | `src/sim/systems/abomination.ts` | Spawn rule, kill cycle, delayed victim death |
 | Medicine | `src/sim/systems/medicine.ts` | Cure command (`ApplyMedicine` → deletes `infectedAt`, uses a dose, emits `Cured`); command-only, not in `step.ts`; never touches the Abomination's `doomedAt` (Story 4.5) |
 | Auto-feeder | `src/sim/systems/autoFeeder.ts` | 10 s drop next to hungriest sheep |

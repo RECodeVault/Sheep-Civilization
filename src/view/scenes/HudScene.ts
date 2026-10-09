@@ -59,6 +59,7 @@ export class HudScene extends Phaser.Scene {
     flock: 0,
     capacity: 0,
     medicine: 0,
+    crowded: false,
     threats: { starving: 0, infected: 0, carcasses: 0 },
   };
   // Deaths since the last frame, by cause: one toast per cause per frame (UX-DR41/UX-DR92), so a wipe
@@ -157,7 +158,8 @@ export class HudScene extends Phaser.Scene {
       this.bar.boostTimer.set(v.boostRemainingMs);
       // UX-DR34: rolls to a new balance; no work while it shows the current one.
       this.bar.money.set(v.money, this.game.loop.time);
-      this.bar.flock.set(v.flock, v.capacity);
+      // UX-DR35: the crowded style marks the overcrowding risk (FR34, Story 4.6).
+      this.bar.flock.set(v.flock, v.capacity, v.crowded);
       // UX-DR33: the doses owned, less any out of the slot; the held one follows the pointer.
       this.bar.medicine.set(v.medicine, this.gameScene.dosesInHand);
       const dose = this.gameScene.heldDose;

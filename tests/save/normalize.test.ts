@@ -50,6 +50,16 @@ describe('normalizeTuned: a retune never loses a save (AC 7)', () => {
     expect(load(raw).boostUntil).toBe(time + TUNING.boostMs);
   });
 
+  it('clamps an overcrowding roll further ahead than overcrowdIntervalMs (Story 4.6)', () => {
+    const raw = busyRaw();
+    const time = raw.time as number;
+    raw.nextOvercrowdRollAt = time + TUNING.overcrowdIntervalMs * 2;
+    expect(load(raw).nextOvercrowdRollAt).toBe(time + TUNING.overcrowdIntervalMs);
+    const kept = busyRaw();
+    kept.nextOvercrowdRollAt = time + TUNING.overcrowdIntervalMs;
+    expect(load(kept).nextOvercrowdRollAt).toBe(time + TUNING.overcrowdIntervalMs);
+  });
+
   it('clamps a breeding cooldown further ahead than breedCooldownMs', () => {
     const raw = busyRaw();
     const time = raw.time as number;

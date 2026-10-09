@@ -8,6 +8,9 @@ import {
   canBreed,
   capacity,
   carcassIndex,
+  crowdedAt,
+  crowdThreshold,
+  isCrowded,
   currentEra,
   ERAS,
   eraIndex,
@@ -266,7 +269,7 @@ describe('Abomination secrecy (AR18, UX-DR64; the mandatory secrecy test, Story 
 describe('selectHudView', () => {
   it('fills the Farm bar from state and TUNING into the given object', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: -1, farmPipsPerFood: -1, breedingProgress: -1, breedingPipsPerFood: -1, breedBlock: 'capacity', boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: -1, farmPipsPerFood: -1, breedingProgress: -1, breedingPipsPerFood: -1, breedBlock: 'capacity', boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, crowded: false, threats: { starving: -1, infected: -1, carcasses: -1 } };
     expect(selectHudView(state, out)).toBe(out);
     expect(out).toEqual({
       farmProgress: 0,
@@ -279,6 +282,7 @@ describe('selectHudView', () => {
       flock: state.sheep.length,
       capacity: TUNING.landCapacities[0],
       medicine: 0,
+      crowded: false,
       threats: { starving: 0, infected: 0, carcasses: 0 },
     });
   });
@@ -286,13 +290,13 @@ describe('selectHudView', () => {
   it('fills the doses owned (the Medicine slot, UX-DR33, Story 4.5)', () => {
     const state = newGame();
     state.medicine = 3;
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, crowded: false, threats: { starving: -1, infected: -1, carcasses: -1 } };
     expect(selectHudView(state, out).medicine).toBe(3);
   });
 
   it('reflects a Farm on the next read', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, crowded: false, threats: { starving: -1, infected: -1, carcasses: -1 } };
     selectHudView(state, out);
     applyCommand(state, { type: 'Farm' });
     selectHudView(state, out);
@@ -302,13 +306,13 @@ describe('selectHudView', () => {
   it('fills the balance (UX-DR34)', () => {
     const state = newGame();
     state.money = 145;
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, crowded: false, threats: { starving: -1, infected: -1, carcasses: -1 } };
     expect(selectHudView(state, out).money).toBe(145);
   });
 
   it('reflects a FarmBreeding on the next read', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, crowded: false, threats: { starving: -1, infected: -1, carcasses: -1 } };
     selectHudView(state, out);
     applyCommand(state, { type: 'FarmBreeding' });
     selectHudView(state, out);
@@ -328,6 +332,7 @@ describe('selectHudView threats (UX-DR39)', () => {
     flock: -1,
     capacity: -1,
     medicine: -1,
+    crowded: false,
     threats: { starving: -1, infected: -1, carcasses: -1 },
   });
 
@@ -464,10 +469,59 @@ describe('breeding selectors (FR10, FR11, AR21)', () => {
 
   it('selectHudView fills breedBlock', () => {
     const state = newGame();
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, crowded: false, threats: { starving: -1, infected: -1, carcasses: -1 } };
     expect(selectHudView(state, out).breedBlock).toBe('notReady');
     state.sheep[0].breedReady = state.sheep[1].breedReady = true;
     expect(selectHudView(state, out).breedBlock).toBe(null);
+  });
+});
+
+describe('crowding (FR34, UX-DR35, Story 4.6)', () => {
+  it('crowdThreshold rounds up, and is exact where the float product overshoots a whole number', () => {
+    expect(crowdThreshold(10, 0.9)).toBe(9);
+    expect(crowdThreshold(25, 0.9)).toBe(23);
+    expect(crowdThreshold(50, 0.9)).toBe(45);
+    expect(crowdThreshold(100, 0.9)).toBe(90);
+    // 0.56 × 25 = 14.000000000000002 and 0.55 × 100 = 55.00000000000001 in floats (a retune must not
+    // make an exact 56 % / 55 % flock uncrowded).
+    expect(crowdThreshold(25, 0.56)).toBe(14);
+    expect(crowdThreshold(100, 0.55)).toBe(55);
+    expect(crowdThreshold(10, 1)).toBe(10);
+  });
+
+  it('crowdedAt is crowded from the first whole flock at overcrowdFraction of each land capacity', () => {
+    for (const cap of TUNING.landCapacities) {
+      const first = crowdThreshold(cap, TUNING.overcrowdFraction);
+      expect(crowdedAt(first, cap), `${first}/${cap}`).toBe(true);
+      expect(crowdedAt(first - 1, cap), `${first - 1}/${cap}`).toBe(false);
+      expect(crowdedAt(cap, cap)).toBe(true);
+      expect(crowdedAt(cap + 5, cap)).toBe(true);
+    }
+  });
+
+  it('isCrowded counts living sheep against land capacity, not pending lambs', () => {
+    const cap = TUNING.landCapacities[0];
+    const first = crowdThreshold(cap, TUNING.overcrowdFraction);
+    const state = newGame();
+    fillFlock(state, first - 1);
+    // A pending lamb holds a capacity slot (AR21) but is not alive.
+    state.pregnancies.push({ id: state.nextId++, parentA: state.sheep[0].id, parentB: state.sheep[1].id, dueAt: state.time + TUNING.gestationMs, x: state.sheep[0].x, y: state.sheep[0].y });
+    expect(slotsUsed(state)).toBe(first);
+    expect(isCrowded(state)).toBe(false);
+    fillFlock(state, first);
+    expect(isCrowded(state)).toBe(true);
+    // Land raises capacity, so the same flock is no longer crowded.
+    state.owned.push('land1');
+    expect(isCrowded(state)).toBe(false);
+  });
+
+  it('selectHudView fills crowded from the same rule', () => {
+    const state = newGame();
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, crowded: true, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    expect(selectHudView(state, out).crowded).toBe(false);
+    fillFlock(state, crowdThreshold(TUNING.landCapacities[0], TUNING.overcrowdFraction));
+    expect(selectHudView(state, out).crowded).toBe(true);
+    expect(out.crowded).toBe(isCrowded(state));
   });
 });
 
@@ -585,7 +639,7 @@ describe('the boost selectors (FR19)', () => {
   it('selectHudView reports the time left', () => {
     const state = newGame();
     state.boostUntil = state.time + TUNING.boostMs;
-    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, threats: { starving: -1, infected: -1, carcasses: -1 } };
+    const out: HudView = { farmProgress: 0, farmPipsPerFood: 0, breedingProgress: 0, breedingPipsPerFood: 0, breedBlock: null, boostRemainingMs: -1, money: -1, flock: -1, capacity: -1, medicine: -1, crowded: false, threats: { starving: -1, infected: -1, carcasses: -1 } };
     expect(selectHudView(state, out).boostRemainingMs).toBe(TUNING.boostMs);
   });
 });
@@ -731,6 +785,7 @@ describe('land selectors (FR11, FR22, Story 3.3)', () => {
       flock: -1,
       capacity: -1,
       medicine: -1,
+      crowded: false,
       threats: { starving: 0, infected: 0, carcasses: 0 },
     });
     expect(out.flock).toBe(state.sheep.length);

@@ -114,3 +114,14 @@ describe('Abomination kill cycle (FR31, Story 4.3)', () => {
     }
   });
 });
+
+describe('overcrowding (FR34, Story 4.6)', () => {
+  it('has a fraction in (0, 1], a chance in [0, 1] and a whole-tick interval', () => {
+    expect(TUNING.overcrowdFraction).toBeGreaterThan(0);
+    expect(TUNING.overcrowdFraction).toBeLessThanOrEqual(1);
+    expect(TUNING.overcrowdInfectChance).toBeGreaterThanOrEqual(0);
+    expect(TUNING.overcrowdInfectChance).toBeLessThanOrEqual(1);
+    expect(TUNING.overcrowdIntervalMs).toBeGreaterThan(0);
+    expect(TUNING.overcrowdIntervalMs % TICK_MS).toBe(0);
+  });
+});

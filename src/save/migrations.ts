@@ -66,6 +66,9 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = Object.freeze({
   },
   // Story 4.5: no dose had been bought (FR26).
   10: (s) => ({ ...s, medicine: 0 }),
+  // Story 4.6: the first overcrowding roll comes a full interval after the load (FR34); no rng. A
+  // malformed time is left for validation to reject.
+  11: (s) => (Number.isInteger(s.time) ? { ...s, nextOvercrowdRollAt: (s.time as number) + TUNING.overcrowdIntervalMs } : s),
 });
 
 export type MigrationResult = { ok: true; state: unknown } | { ok: false; reason: string };

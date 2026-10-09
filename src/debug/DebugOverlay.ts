@@ -16,7 +16,7 @@ import { formatGameTime, formatMoney } from '../core/format';
 import { log } from '../core/log';
 import { decodeSave, encodeSave } from '../save/saveFile';
 import { rngRange } from '../sim/rng';
-import { boostRemainingMs, currentEra, fenceBounds, innerFence, stageOf } from '../sim/selectors';
+import { boostRemainingMs, currentEra, fenceBounds, innerFence, isCrowded, stageOf } from '../sim/selectors';
 import { createSheep, type GameState, type Sheep } from '../sim/state';
 import { abominationAlive, makeAbomination } from '../sim/systems/abomination';
 import { createCarcass } from '../sim/systems/carcass';
@@ -234,6 +234,22 @@ export function installDebugOverlay(game: Phaser.Game): void {
     });
     refreshSim();
   });
+  // Story 4.6: makes the overcrowding roll due now, so it rolls on the next tick instead of up to 30 s
+  // later. Still the real roll: only while crowded, and only overcrowdInfectChance to infect.
+  const crowdRollButton = button(row2, 'Crowd roll now', () => {
+    const scene = activeScene();
+    if (scene === null) return;
+    // A lost game does not step, so the roll would never come.
+    if (scene.simState.lostAt !== undefined) {
+      setStatus('the game is lost: no roll');
+      return;
+    }
+    scene.debugMutate((s) => {
+      s.nextOvercrowdRollAt = s.time;
+    });
+    setStatus(isCrowded(scene.simState) ? 'overcrowding roll is due now' : 'roll due now, but the flock is not crowded');
+    refreshSim();
+  });
   // Story 2.8: starts (or resets) the food boost without a sacrifice, for checking the Farm glow, the
   // badge and the timer. No BoostStarted event, so the timer does not pop and no "×2" popup rises.
   const boostButton = button(row2, 'Boost', () => {
@@ -359,6 +375,7 @@ export function installDebugOverlay(game: Phaser.Game): void {
     carcassButton,
     starveButton,
     infectButton,
+    crowdRollButton,
     boostButton,
     moneyButton,
     revealButton,

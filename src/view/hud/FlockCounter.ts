@@ -1,5 +1,5 @@
 import type Phaser from 'phaser';
-import { COMPONENTS, SPACING } from '../../config/constants';
+import { COLORS, COMPONENTS, SPACING } from '../../config/constants';
 import { TUNING } from '../../config/tuning';
 import { invariant } from '../../core/invariant';
 import { ATLAS, FRAME } from '../assetKeys';
@@ -25,16 +25,20 @@ export const FLOCK_COUNTER_W = ICON_W + ICON_GAP + BOX_W;
  * The `flock-counter` component (UX-DR35): a sheep icon and "{alive}/{capacity}" in `numeric` `bark`,
  * read-only (no press, no hover, no tooltip). `alive` is the living sheep; pending lambs hold a capacity
  * slot (AR21) but are not counted, so Breed can be greyed at "9/10". `set` builds the string and calls
- * setText only when either number changes. The crowded style (≥ 90 %, `alert`) is Story 4.6's.
+ * setText only when either number changes. While crowded (≥ 90 %, HudView.crowded, the overcrowding
+ * rule's own test; Story 4.6) the numbers turn `crowdedColor` (`alert`) and the crowd icon takes the
+ * sheep icon's place: colour and shape together, and no wider (the bar has 12 px to spare).
  */
 export class FlockCounter {
+  private readonly icon: Phaser.GameObjects.Image;
   private readonly text: Phaser.GameObjects.Text;
   private alive = Number.NaN;
   private capacity = Number.NaN;
+  private crowded = false;
 
   /** (x, centreY): the counter's left edge and vertical centre in canvas px. */
   constructor(scene: Phaser.Scene, x: number, centreY: number) {
-    scene.add.image(x + ICON_W / 2, centreY, ATLAS.ui, FRAME.iconSheep).setScale(ICON_SCALE);
+    this.icon = scene.add.image(x + ICON_W / 2, centreY, ATLAS.ui, FRAME.iconSheep).setScale(ICON_SCALE);
     this.text = scene.add
       .text(
         x + ICON_W + ICON_GAP,
@@ -46,8 +50,13 @@ export class FlockCounter {
     invariant(this.text.width <= BOX_W, 'FlockCounter: a full flock at the largest capacity does not fit its box');
   }
 
-  /** Shows `alive` over `capacity`; no work unless one of them changed. */
-  set(alive: number, capacity: number): void {
+  /** Shows `alive` over `capacity`, in the crowded style while `crowded`; no work unless something changed. */
+  set(alive: number, capacity: number, crowded: boolean): void {
+    if (crowded !== this.crowded) {
+      this.crowded = crowded;
+      this.text.setColor(COLORS[crowded ? SPEC.crowdedColor : SPEC.textColor]);
+      this.icon.setFrame(crowded ? FRAME.iconCrowd : FRAME.iconSheep);
+    }
     if (alive === this.alive && capacity === this.capacity) return;
     this.alive = alive;
     this.capacity = capacity;

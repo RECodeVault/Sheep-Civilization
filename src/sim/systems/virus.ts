@@ -9,8 +9,8 @@ import type { GameState, Sheep } from '../state';
 import { killSheep } from './carcass';
 
 /**
- * Infects `s` now and emits Infected; the shared helper for carcass eating, overcrowding (4.6) and
- * debug. A sheep is infected once: an infected sheep keeps its first deadline and emits nothing.
+ * Infects `s` now and emits Infected; the shared helper for carcass eating (carcass.ts), overcrowding
+ * (overcrowding.ts, Story 4.6) and debug. A sheep is infected once: an infected sheep keeps its first deadline and emits nothing.
  */
 export function infectSheep(state: GameState, s: Sheep): void {
   if (s.infectedAt !== undefined) return;

@@ -208,6 +208,30 @@ export function capacity(state: GameState): number {
   return TUNING.landCapacities[landTier(state)];
 }
 
+/**
+ * FR34 / UX-DR35: `alive` living sheep are crowded at land capacity `cap` when they fill at least
+ * overcrowdFraction of it. Living sheep only: pending lambs hold a capacity slot (AR21) but are not alive,
+ * and the flock counter shows the same number, so the HUD turns red exactly when overcrowding rolls are
+ * live (overcrowding.ts). Derived, never stored.
+ */
+export function crowdedAt(alive: number, cap: number): boolean {
+  return alive >= crowdThreshold(cap, TUNING.overcrowdFraction);
+}
+
+/**
+ * The fewest living sheep that are crowded at capacity `cap`: `fraction` of it, rounded up. The product
+ * is nudged down by a hair first, because float multiplication can overshoot a whole number (0.56 × 25
+ * is 14.000000000000002, which would make 14/25 not crowded at exactly 56 %).
+ */
+export function crowdThreshold(cap: number, fraction: number): number {
+  return Math.ceil(cap * fraction - 1e-9);
+}
+
+/** FR34: the living flock is at overcrowdFraction of its land capacity or more (crowdedAt). */
+export function isCrowded(state: GameState): boolean {
+  return crowdedAt(state.sheep.length, capacity(state));
+}
+
 /** AR21: capacity counts living sheep plus pending lambs. */
 export function slotsUsed(state: GameState): number {
   return state.sheep.length + state.pregnancies.length;
@@ -496,6 +520,8 @@ export interface HudView {
   capacity: number;
   /** Doses of medicine owned (FR26): the Medicine slot's "×{n}" (UX-DR33). */
   medicine: number;
+  /** ≥ 90% of capacity (crowdedAt): the flock counter's crowded style (UX-DR35) and the overcrowding roll (FR34). */
+  crowded: boolean;
   /** The threat summary (UX-DR39), filled in place. */
   threats: ThreatCounts;
 }
@@ -512,6 +538,7 @@ export function selectHudView(state: GameState, out: HudView): HudView {
   out.flock = state.sheep.length;
   out.capacity = capacity(state);
   out.medicine = state.medicine;
+  out.crowded = crowdedAt(out.flock, out.capacity);
   const t = out.threats;
   let starving = 0;
   let infected = 0;

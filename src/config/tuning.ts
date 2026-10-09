@@ -90,6 +90,12 @@ export const TUNING = Object.freeze({
   eatMs: 1_500,
   // FR15 / GDD Virus: "Death 20 s after infection".
   virusDeathMs: 20_000,
+  // FR34 / GDD Overcrowding (Should tier): "While the flock is at 90% or more of capacity, every 30 s one
+  // random sheep has a 20% chance to become infected." (tune) Story 4.6, overcrowding.ts. Living sheep
+  // only, against land capacity (selectors.ts crowdedAt); the roll's clock runs from new game.
+  overcrowdFraction: 0.9,
+  overcrowdIntervalMs: 30_000,
+  overcrowdInfectChance: 0.2,
   // [ASSUMPTION, Story 2.5 Open Question 1; kept in 3.6, 2026-10-08] A carcass feeds like a food piece, so the virus
   // (not hunger) is what kills the sheep that ate it.
   carcassFullness: 35,

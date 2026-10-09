@@ -58,7 +58,8 @@ export interface Sheep {
   cooldownUntil: number;
   /**
    * Game-ms of infection (FR15), omitted while healthy. Infected is derived from it, and so is the
-   * virus death at `infectedAt + TUNING.virusDeathMs` (virus.ts). Medicine deletes it (medicine.ts).
+   * virus death at `infectedAt + TUNING.virusDeathMs` (virus.ts). Set by infectSheep (carcass eating,
+   * overcrowding, debug); medicine deletes it (medicine.ts).
    */
   infectedAt?: number;
   /**
@@ -180,6 +181,12 @@ export interface GameState {
    */
   boostUntil: number;
   /**
+   * Game-ms deadline of the next overcrowding roll (FR34, Story 4.6, overcrowding.ts): every
+   * overcrowdIntervalMs from new game, rescheduled whether or not the flock is crowded; a roll happens
+   * only while crowded (selectors.ts isCrowded).
+   */
+  nextOvercrowdRollAt: number;
+  /**
    * Whole dollars to spend (FR21): earned only by selling (3.1, market.ts), spent in the shop (3.2).
    * No cap. `stats.moneyEarned` counts every dollar ever earned.
    */
@@ -242,6 +249,8 @@ export function createNewGame(seed: number): GameState {
     breedingProgress: 0,
     breedingPieces: [],
     boostUntil: 0,
+    // Time is 0, so the first roll is one interval in. No rng is drawn for it.
+    nextOvercrowdRollAt: TUNING.overcrowdIntervalMs,
     money: 0,
     owned: [],
     medicine: 0,

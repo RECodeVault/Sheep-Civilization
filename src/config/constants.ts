@@ -34,7 +34,7 @@ export const AUTOSAVE_MS = 10_000;
 // 10 since Story 4.3: `abomination.nextKillAt`, the kill cycle's deadline, and the Abomination's visit
 // (`stalking`, `stalk`, victim `doomedAt`).
 // 11 since Story 4.5: `medicine`, the doses owned (a version-10 save gets 0).
-export const SAVE_SCHEMA_VERSION = 11;
+export const SAVE_SCHEMA_VERSION = 12;
 
 /*
  * Colour-usage rules (DESIGN.md Colors, Do's and Don'ts — UX-DR2):
