@@ -366,14 +366,24 @@ export function installDebugOverlay(game: Phaser.Game): void {
     setStatus('test rejection raised');
   });
 
-  // Story 5.6: captions before 5.7's Volume panel exists, and an ear check of every SFX (through the
-  // director, never `sound` directly). Settings, not sim state, so these work on the title too.
+  // Story 5.6/5.7: quick captions and reduced-motion switches (the Volume panel has both too), and an ear
+  // check of every SFX (through the director, never `sound` directly). Settings, not sim state, so these
+  // work on the title too.
   const audioRow = buttonRow(panel);
   const captionsLabel = (): string => `Captions: ${getSettings().captions ? 'on' : 'off'}`;
+  const motionLabel = (): string => `Reduced motion: ${getSettings().reducedMotion ? 'on' : 'off'}`;
   const captionsButton = button(audioRow, captionsLabel(), () => {
     updateSettings({ captions: !getSettings().captions });
-    captionsButton.textContent = captionsLabel();
     setStatus(captionsLabel().toLowerCase());
+  });
+  const motionButton = button(audioRow, motionLabel(), () => {
+    updateSettings({ reducedMotion: !getSettings().reducedMotion });
+    setStatus(motionLabel().toLowerCase());
+  });
+  // The labels follow every change, the Volume panel's included. Page-lifetime, like the overlay itself.
+  bus.on('settings:changed', () => {
+    captionsButton.textContent = captionsLabel();
+    motionButton.textContent = motionLabel();
   });
   button(audioRow, 'Play all SFX', () => {
     const director = audioDirector();

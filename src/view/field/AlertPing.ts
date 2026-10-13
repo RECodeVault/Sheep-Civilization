@@ -1,13 +1,15 @@
 import type Phaser from 'phaser';
 import { ATLAS, FRAME } from '../assetKeys';
+import { reducedMotion } from '../settings';
 import { FIELD_DEPTH } from './depths';
 
 // The ping art is 10×10 (the dot about 5×5), shown at 2× like the field art: a 20 px `alert` circle
 // with a 2 px `bark` outline (COMPONENTS.alertPing, UX-DR54, UX-DR85).
 const SCALE = 2;
 // UX-DR54: the ping pops in, bobs about 3 s, then settles to a small static dot. [ASSUMPTION, tune in
-// the browser] values. The pop and bob are juice, which Story 5.7's reduced motion may turn off (appear
-// at once, no bob); the ping and the dot themselves are information and must never be turned off.
+// the browser] values. The pop and bob are juice: under reduced motion the ping appears at once and
+// holds still (Story 5.7), settling on the same timing. The ping and the dot themselves are information
+// and are never turned off.
 export const PING = { bobMs: 3_000, bobPx: 3, bobPeriodMs: 400, popMs: 150, popFrom: 0.4 } as const;
 
 type PingState = 'off' | 'bobbing' | 'settled';
@@ -64,8 +66,12 @@ export class AlertPing {
     this.state = 'bobbing';
     this.poppedAt = simTime;
     this.dot.setVisible(false);
-    this.ping.setVisible(true).setScale(SCALE * PING.popFrom);
-    tweens.add({ targets: this.ping, scale: SCALE, duration: PING.popMs, ease: 'Back.easeOut' });
+    this.ping.setVisible(true);
+    if (!reducedMotion()) {
+      this.ping.setScale(SCALE * PING.popFrom);
+      tweens.add({ targets: this.ping, scale: SCALE, duration: PING.popMs, ease: 'Back.easeOut' });
+    }
+    // The bob always runs and `place` reads it per frame, so reduced motion switches it either way at once.
     tweens.add({
       targets: this.bob,
       y: -PING.bobPx,
@@ -84,7 +90,8 @@ export class AlertPing {
     if (this.state === 'off') return;
     if (this.state === 'bobbing') {
       if (simTime < this.poppedAt + PING.bobMs) {
-        this.ping.setPosition(x, y + this.bob.y);
+        // The bob is read per frame, so reduced motion turned on mid-bob stills it at once.
+        this.ping.setPosition(x, reducedMotion() ? y : y + this.bob.y);
         return;
       }
       this.stopTweens();

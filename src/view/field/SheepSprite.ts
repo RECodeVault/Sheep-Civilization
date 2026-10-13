@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { COLOR_INT, TICK_MS } from '../../config/constants';
 import type { Hunger, PublicSheep, Stage } from '../../sim/selectors';
 import { ATLAS, FRAME } from '../assetKeys';
+import { reducedMotion } from '../settings';
 import { AlertPing } from './AlertPing';
 import { FIELD_DEPTH } from './depths';
 import type { PooledEntitySprite } from './EntityLayer';
@@ -27,12 +28,15 @@ const LAMB_HEAD_INSET_PX = 10 * SHEEP_SCALE;
 
 /** UX-DR56/UX-DR69 breed-mode markers: none, a pulsing ready heart (may be picked), or A's pinned heart. */
 export type BreedMarker = 'none' | 'candidate' | 'pinned';
-// Breed-mode juice. Visual only; Story 5.7's reduced motion revisits these, so they are named here.
+// Breed-mode juice. Visual only. Under reduced motion the candidate heart does not pulse and the pinned
+// heart does not bob (the hearts are information and stay); breed mode always exits when a modal opens,
+// so the setting is read when a marker is set. The ineligible shake (SHAKE) stays: it is breed mode's
+// only "no" (UX-DR70).
 const CANDIDATE_PULSE = { scale: 1.3, durationMs: 300 } as const;
 const PIN_BOB = { px: 4, durationMs: 400 } as const;
 const SHAKE = { angle: 10, durationMs: 40, repeats: 2 } as const;
 // UX-DR55/UX-DR58 infection: the marker bobs above the head, and the sheep wobbles. The wobble is
-// gameplay information, not juice: Story 5.7's reduced motion must never turn it off (UX-DR84).
+// gameplay information, not juice: reduced motion never turns it off (UX-DR84).
 // [ASSUMPTION, tuned in the browser] values.
 const MARKER_BOB = { px: 3, durationMs: 500 } as const;
 const WOBBLE = { angle: 8, durationMs: 220 } as const;
@@ -108,6 +112,8 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
   /** Breed mode's pinned heart over adult A (UX-DR56), owned and pooled like the ready heart. */
   private readonly pinnedHeart: Phaser.GameObjects.Image;
   private marker: BreedMarker = 'none';
+  // Reduced motion when the marker was set: its hearts stay still, so the stack needs no room to move.
+  private markerStill = false;
   /** pub.ready at the last sync, so a marker change can show or hide the ready heart at once. */
   private lastReady = false;
   /** The pinned heart's bob offset, tweened (visual only). */
@@ -325,9 +331,11 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
    */
   private stackTopY(y: number): number {
     let top = this.heartY(y);
-    if (this.marker === 'pinned') top -= this.pinnedHeart.height * SHEEP_SCALE + PIN_BOB.px + READY_GAP_PX;
+    // Room for the pulse and bob only when the marker moves (not under reduced motion): no gap otherwise.
+    const bob = this.markerStill ? 0 : PIN_BOB.px;
+    if (this.marker === 'pinned') top -= this.pinnedHeart.height * SHEEP_SCALE + bob + READY_GAP_PX;
     else if (this.shownReady) {
-      const pulse = this.marker === 'candidate' ? CANDIDATE_PULSE.scale : 1;
+      const pulse = this.marker === 'candidate' && !this.markerStill ? CANDIDATE_PULSE.scale : 1;
       top -= this.readyHeart.height * SHEEP_SCALE * pulse + READY_GAP_PX;
     }
     return top;
@@ -398,7 +406,9 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
       if (ready) this.readyHeart.setPosition(this.x, this.heartY(this.y));
     }
     const tweens = this.scene.tweens;
-    if (marker === 'candidate') {
+    const still = reducedMotion();
+    this.markerStill = still;
+    if (marker === 'candidate' && !still) {
       tweens.add({
         targets: this.readyHeart,
         scale: SHEEP_SCALE * CANDIDATE_PULSE.scale,
@@ -409,7 +419,7 @@ export class SheepSprite extends Phaser.GameObjects.Sprite implements PooledEnti
       });
     } else if (marker === 'pinned') {
       this.pinnedHeart.setVisible(true).setPosition(this.x, this.heartY(this.y));
-      tweens.add({ targets: this.pinBob, y: -PIN_BOB.px, duration: PIN_BOB.durationMs, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      if (!still) tweens.add({ targets: this.pinBob, y: -PIN_BOB.px, duration: PIN_BOB.durationMs, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
     // The stack changed under the ping: move it now, not at the next sync.
     if (this.ping.shown) this.ping.place(this.x, this.stackTopY(this.y), this.lastTick);

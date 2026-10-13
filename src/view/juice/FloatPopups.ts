@@ -1,12 +1,13 @@
 import type Phaser from 'phaser';
 import { COLORS, COMPONENTS } from '../../config/constants';
+import { reducedMotion } from '../settings';
 import { textStyle } from '../widgets/box';
 
 const SPEC = COMPONENTS.floatPopup;
 const POOL_SIZE = 8;
 const STROKE_PX = 4;
-// UX-DR44 [ASSUMPTION]: rises about 24 px and fades over 600 ms. Story 5.7's reduced motion sets the
-// rise to 0 (fade in place); keep both values here.
+// UX-DR44 [ASSUMPTION]: rises about 24 px and fades over 600 ms. Under reduced motion it fades in place
+// (no rise; UX-DR84).
 const RISE_PX = 24;
 const DURATION_MS = 600;
 
@@ -37,7 +38,7 @@ export class FloatPopups {
     t.setText(text).setPosition(x, y).setAlpha(1).setVisible(true);
     tweens.add({
       targets: t,
-      y: y - RISE_PX,
+      y: reducedMotion() ? y : y - RISE_PX,
       alpha: 0,
       duration: DURATION_MS,
       ease: 'Quad.easeOut',

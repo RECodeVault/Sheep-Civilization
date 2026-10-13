@@ -1,5 +1,6 @@
 import type Phaser from 'phaser';
 import { CANVAS_WIDTH, COLORS, COMPONENTS, SPACING, TYPOGRAPHY } from '../../config/constants';
+import { reducedMotion } from '../settings';
 import { boxTexture, textStyle } from '../widgets/box';
 
 const SPEC = COMPONENTS.eraBanner;
@@ -8,14 +9,14 @@ const SPEC = COMPONENTS.eraBanner;
 // era badge and a full stack of three toasts (canvas y 16–152), so none of them covers it.
 export const ERA_BANNER_H = Math.ceil(TYPOGRAPHY.display.fontSize * TYPOGRAPHY.display.lineHeight) + SPACING[3] * 2;
 export const ERA_BANNER_CENTRE_Y = 204;
-// [ASSUMPTION, tune in the browser] Slide in from the left, hold, fade out (UX-DR37). Story 5.7's reduced
-// motion fades it in instead of sliding.
+// [ASSUMPTION, tune in the browser] Slide in from the left, hold, fade out (UX-DR37). Under reduced motion
+// it fades in over `slideMs` in place instead of sliding (UX-DR84).
 export const ERA_BANNER_MOTION = Object.freeze({ slideMs: 300, holdMs: 2_000, fadeMs: 400 });
 
 /**
  * The `era-banner` component (UX-DR37): a full-width `dusk` band with the new era's name in `halo`, or
- * "Back to {era}." in `wool-shade` on a regress. Built once and hidden; `play` slides it in, holds, then
- * fades it out. Not interactive, so it never blocks a click, drag or drop under it.
+ * "Back to {era}." in `wool-shade` on a regress. Built once and hidden; `play` slides it in (fades it in under
+ * reduced motion), holds, then fades it out. Not interactive, so it never blocks a click, drag or drop under it.
  */
 export class EraBanner {
   private readonly scene: Phaser.Scene;
@@ -45,13 +46,18 @@ export class EraBanner {
     const tweens = this.scene.tweens;
     tweens.killTweensOf(this.root);
     this.text.setText(label).setColor(COLORS[regress ? SPEC.regressTextColor : SPEC.textColor]);
-    this.root.setPosition(-CANVAS_WIDTH, ERA_BANNER_CENTRE_Y).setAlpha(1).setVisible(true);
-    tweens.add({
-      targets: this.root,
-      x: 0,
-      duration: ERA_BANNER_MOTION.slideMs,
-      ease: 'Cubic.easeOut',
-    });
+    if (reducedMotion()) {
+      this.root.setPosition(0, ERA_BANNER_CENTRE_Y).setAlpha(0).setVisible(true);
+      tweens.add({ targets: this.root, alpha: 1, duration: ERA_BANNER_MOTION.slideMs });
+    } else {
+      this.root.setPosition(-CANVAS_WIDTH, ERA_BANNER_CENTRE_Y).setAlpha(1).setVisible(true);
+      tweens.add({
+        targets: this.root,
+        x: 0,
+        duration: ERA_BANNER_MOTION.slideMs,
+        ease: 'Cubic.easeOut',
+      });
+    }
     tweens.add({
       targets: this.root,
       alpha: 0,

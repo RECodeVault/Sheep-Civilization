@@ -63,6 +63,7 @@ import { SheepSprite } from '../field/SheepSprite';
 import { ShopPanel } from '../hud/ShopPanel';
 import { FloatPopups } from '../juice/FloatPopups';
 import { clearAnnouncements, markGameStarted, reportError, setForceSave, showToast } from '../safetyNet';
+import { reducedMotion } from '../settings';
 import { STRINGS } from '../strings';
 import type { TitleSceneData } from './TitleScene';
 import { Tooltip } from '../widgets/Tooltip';
@@ -116,21 +117,22 @@ const DUST = {
 } as const;
 // UX-DR80 suction: the sacrificed sheep's body spirals into the hole, then halo sparkles burst. A
 // pooled ghost image plays it, so the real sprite leaves through the layer's sweep as usual (playExit
-// stays synchronous). Visual only; Story 5.7's reduced motion revisits it. [ASSUMPTION, tune in the
-// browser] values.
+// stays synchronous). Visual only. Under reduced motion (Story 5.7) the ghost fades out where it is,
+// with no spin or travel; the sparkles stay. [ASSUMPTION, tune in the browser] values.
 const SUCTION = { durationMs: 400, spinDeg: 360, ghosts: 3 } as const;
 // UX-DR81 reveal (Story 4.4): before its spiral, the Abomination's ghost flashes its true form, a `void`
 // FILL silhouette (there is no true-form art), swelling and shaking at the hole's rim: "as any
 // sacrificed sheep falls in, the game shows the truth" (GDD Reveal). About flashes × 2 × flashMs
-// (0.66 s) before the spiral. Visual only; Story 5.7's reduced motion drops the swell and shake, never
+// (0.66 s) before the spiral. Visual only. Reduced motion (Story 5.7) drops the swell and shake, never
 // the flash (the truth is information). [ASSUMPTION, tune in the browser] values.
 const REVEAL = { flashes: 3, flashMs: 110, swellScale: 1.35, shakePx: 3 } as const;
 // UX-DR82 sale: the sold sheep's body hops into the stall's counter, shrinking and fading, on the same
-// pooled ghosts as the suction. Visual only; Story 5.7's reduced motion revisits it. [ASSUMPTION, tune
-// in the browser] values; `toY` is the counter's middle (world).
+// pooled ghosts as the suction. Visual only. Under reduced motion (Story 5.7) it fades out in place.
+// [ASSUMPTION, tune in the browser] values; `toY` is the counter's middle (world).
 const SALE = { durationMs: 250, toY: 330, scale: 0.5 } as const;
 const SPARKLE_BURST = 10;
-// FR26 (Story 4.5): a smaller burst of the same sparkles where a sheep is cured. Juice for 5.7/5.8.
+// FR26 (Story 4.5): a smaller burst of the same sparkles where a sheep is cured. Juice; a small particle
+// cue, so reduced motion keeps it (Story 5.7).
 // [ASSUMPTION, tune in the browser]
 const CURE_SPARKLES = 6;
 const SPARKLE = {
@@ -957,10 +959,11 @@ export class GameScene extends Phaser.Scene {
     const mode = ghost.tintMode;
     const x = ghost.x;
     const beats = REVEAL.flashes * 2;
+    const still = reducedMotion();
     let beat = -1;
     this.tweens.add({
       targets: ghost,
-      scale: ghost.scale * REVEAL.swellScale,
+      scale: still ? ghost.scale : ghost.scale * REVEAL.swellScale,
       duration: beats * REVEAL.flashMs,
       ease: 'Quad.easeOut',
       onUpdate: (tween: Phaser.Tweens.Tween) => {
@@ -974,7 +977,7 @@ export class GameScene extends Phaser.Scene {
         if (b % 2 === 0) ghost.setTint(COLOR_INT.void).setTintMode(Phaser.TintModes.FILL);
         else if (tinted) ghost.setTint(tint).setTintMode(mode);
         else ghost.clearTint();
-        ghost.x = x + (b % 2 === 0 ? REVEAL.shakePx : -REVEAL.shakePx);
+        if (!still) ghost.x = x + (b % 2 === 0 ? REVEAL.shakePx : -REVEAL.shakePx);
       },
       onComplete: () => {
         ghost.setTint(COLOR_INT.void).setTintMode(Phaser.TintModes.FILL);
@@ -986,14 +989,18 @@ export class GameScene extends Phaser.Scene {
 
   /** UX-DR80: the ghost spirals into the hole, then `landed`, the halo sparkle and the hole's gulp. */
   private spiral(ghost: Phaser.GameObjects.Image, landed: () => void): void {
+    // Reduced motion: the same timing, but a fade where the ghost is (no spin, no travel).
+    const still = reducedMotion();
     this.tweens.add({
       targets: ghost,
-      x: BETTER_PLACE.x,
-      y: BETTER_PLACE.y,
-      scale: 0,
-      angle: ghost.angle + SUCTION.spinDeg,
+      x: still ? ghost.x : BETTER_PLACE.x,
+      y: still ? ghost.y : BETTER_PLACE.y,
+      scale: still ? ghost.scale : 0,
+      angle: still ? ghost.angle : ghost.angle + SUCTION.spinDeg,
+      alpha: still ? 0 : ghost.alpha,
       duration: SUCTION.durationMs,
-      ease: 'Cubic.easeIn',
+      // The travel accelerates into the hole; the fade is even, so it never sits then vanishes.
+      ease: still ? 'Linear' : 'Cubic.easeIn',
       onComplete: () => {
         ghost.setVisible(false);
         // First, so a throw in the juice below cannot lose the reveal toast.
@@ -1012,12 +1019,13 @@ export class GameScene extends Phaser.Scene {
     this.worldPopups.spawn(MARKET.x, MARKET.hit.y, STRINGS.salePopup(price));
     const ghost = this.ghostOf(id);
     if (ghost === null) return;
-    // A closure per sale: a rare event.
+    // A closure per sale: a rare event. Reduced motion: the same fade, in place.
+    const still = reducedMotion();
     this.tweens.add({
       targets: ghost,
-      x: MARKET.x,
-      y: SALE.toY,
-      scale: ghost.scale * SALE.scale,
+      x: still ? ghost.x : MARKET.x,
+      y: still ? ghost.y : SALE.toY,
+      scale: still ? ghost.scale : ghost.scale * SALE.scale,
       alpha: 0,
       duration: SALE.durationMs,
       ease: 'Quad.easeIn',

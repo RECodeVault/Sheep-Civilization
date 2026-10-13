@@ -1,6 +1,7 @@
 // Player settings (architecture Data Persistence, UX-DR89): music and SFX volume, reduced motion and
 // captions, in `sheepciv.settings`, separate from the save, so Restart and Start over keep them.
-// Story 5.6 reads volumes and captions (AudioDirector); Story 5.7 adds the Volume panel that edits them.
+// AudioDirector reads volumes and captions (Story 5.6); the juice reads reduced motion and the Volume
+// panel edits them all (Story 5.7), through view/settings.ts.
 // Every storage access is wrapped, as in saveStore.ts: the game runs with storage unavailable.
 import { SETTINGS_KEY } from '../config/constants';
 import { log } from '../core/log';

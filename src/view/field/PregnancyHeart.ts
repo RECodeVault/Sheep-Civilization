@@ -3,13 +3,14 @@ import type { PublicPregnancy } from '../../sim/selectors';
 import { ATLAS, FRAME } from '../assetKeys';
 import type { PooledEntitySprite } from './EntityLayer';
 import { FIELD_DEPTH } from './depths';
+import { reducedMotion } from '../settings';
 
 // Shown at 2× like the field art, floating this far above the point between the parents' centres
 // (about a sheep's half-height plus the heart).
 const SCALE = 2;
 const LIFT_PX = 30;
-// UX-DR82 juice: the heart pops in on breeding, then bobs until the lamb arrives. Visual only; Story
-// 5.7's reduced motion revisits these.
+// UX-DR82 juice: the heart pops in on breeding, then bobs until the lamb arrives. Visual only. Under
+// reduced motion it appears at full size and holds still (the heart itself is information and stays).
 const POP_MS = 200;
 const BOB = { px: 4, durationMs: 500 } as const;
 
@@ -38,13 +39,17 @@ export class PregnancyHeart extends Phaser.GameObjects.Image implements PooledEn
     if (this.fresh) {
       this.fresh = false;
       const tweens = this.scene.tweens;
-      this.setScale(0);
-      tweens.add({ targets: this, scale: SCALE, duration: POP_MS, ease: 'Back.easeOut' });
+      if (reducedMotion()) this.setScale(SCALE);
+      else {
+        this.setScale(0);
+        tweens.add({ targets: this, scale: SCALE, duration: POP_MS, ease: 'Back.easeOut' });
+      }
       tweens.add({ targets: this.bob, y: -BOB.px, duration: BOB.durationMs, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
-    // The parents walk and the heart bobs, so this changes most frames; only a few pairs ever exist.
+    // The parents walk and the heart bobs, so this changes most frames; only a few pairs ever exist. The
+    // bob tween keeps running, read per frame, so turning reduced motion on or off applies at once.
     const x = item.x;
-    const y = item.y - LIFT_PX + this.bob.y;
+    const y = item.y - LIFT_PX + (reducedMotion() ? 0 : this.bob.y);
     if (this.x !== x || this.y !== y) this.setPosition(x, y);
   }
 

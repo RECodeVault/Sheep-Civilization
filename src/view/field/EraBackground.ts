@@ -29,8 +29,8 @@ const STRIPS: readonly { readonly frame: string; readonly x: number; readonly y:
     Object.freeze({ frame: 'era-side', x: 640, y: 0, w: FRAME_W - 640, h: FRAME_H }),
   ]);
 
-// [ASSUMPTION, tune in the browser] The era crossfade (UX-DR37: about 1 s). Story 5.7 decides whether
-// reduced motion keeps it.
+// [ASSUMPTION, tune in the browser] The era crossfade (UX-DR37: about 1 s). Reduced motion keeps it: a
+// slow fade, not movement (Story 5.7).
 const ERA_FADE_MS = 1_000;
 
 /**

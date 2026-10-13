@@ -2,6 +2,7 @@ import type Phaser from 'phaser';
 import { COMPONENTS } from '../../config/constants';
 import { formatMoney } from '../../core/format';
 import { invariant } from '../../core/invariant';
+import { reducedMotion } from '../settings';
 import { textStyle } from '../widgets/box';
 
 const SPEC = COMPONENTS.moneyCounter;
@@ -16,7 +17,8 @@ const FIRST_STEP_MS = 16;
 /** The counter's width in canvas px, for the bar's layout. */
 export const MONEY_COUNTER_W = BOX_W;
 // "The money counter ticks down" (EXPERIENCE Component Patterns): the shown number rolls to a new
-// balance, up for a sale and down for a purchase. Juice for Story 5.7's reduced motion. [ASSUMPTION]
+// balance, up for a sale and down for a purchase. Juice: under reduced motion (Story 5.7) the new balance
+// shows at once. [ASSUMPTION]
 export const MONEY_MOTION = Object.freeze({ rollMs: 300 });
 
 /**
@@ -45,6 +47,12 @@ export class MoneyCounter {
   set(money: number, now: number): void {
     if (Number.isNaN(this.target)) {
       this.target = money;
+      this.show(money);
+      return;
+    }
+    if (money !== this.target && reducedMotion()) {
+      this.target = money;
+      this.rolling = false;
       this.show(money);
       return;
     }

@@ -3,11 +3,12 @@ import type { Carcass } from '../../sim/state';
 import { ATLAS, FRAME } from '../assetKeys';
 import { AlertPing } from './AlertPing';
 import type { PooledEntitySprite } from './EntityLayer';
+import { reducedMotion } from '../settings';
 
 // Placeholder art is about 32×22, shown at 2× like the sheep.
 const CARCASS_SCALE = 2;
 // UX-DR79 slapstick: the carcass starts a little higher, tipped onto its side, and falls flat with a
-// bounce. Visual only; Story 5.7's reduced motion revisits it, so the values are named here.
+// bounce. Visual only; under reduced motion it lies flat at once (Story 5.7).
 const FLOP = { dropPx: 12, angle: -90, durationMs: 300 } as const;
 // The ping's bottom sits this far above the carcass's top edge.
 const PING_GAP_PX = 2;
@@ -53,6 +54,12 @@ export class CarcassSprite extends Phaser.GameObjects.Sprite implements PooledEn
     this.pingY = c.y - this.displayHeight / 2 - PING_GAP_PX;
     // Same y-depth rule as sheep and pieces, at its resting spot.
     this.setDepth(c.y);
+    if (reducedMotion()) {
+      this.setPosition(c.x, c.y).setAngle(0);
+      this.ping.pop(simTime);
+      this.ping.place(this.pingX, this.pingY, simTime);
+      return;
+    }
     this.setPosition(c.x, c.y - FLOP.dropPx).setAngle(FLOP.angle);
     // The ping pops when the flop lands, so it never overlaps the falling, tipped carcass. A closure per
     // carcass (a rare event); reset() kills the tween, so a cleared carcass never pops.

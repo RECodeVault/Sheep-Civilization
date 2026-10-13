@@ -1,5 +1,6 @@
 import type Phaser from 'phaser';
 import { COLOR_INT, COMPONENTS } from '../../config/constants';
+import { reducedMotion } from '../settings';
 import { boxTexture, textStyle } from '../widgets/box';
 import { STRINGS } from '../strings';
 
@@ -22,7 +23,8 @@ const BADGE_OUT_TOP = 12;
 const BADGE_OUT_RIGHT = 10;
 // Above the bar's widgets (depth 0), below the popups and the tooltip.
 const BADGE_DEPTH = 1;
-// The glow pulses while boosted (UX-DR27). Juice, so Story 5.7's reduced motion may hold it at full.
+// The glow pulses while boosted (UX-DR27). Juice: under reduced motion (Story 5.7) it holds at full alpha.
+// The setting changes only under a modal, so it is applied when the boost starts and when the HUD unfreezes.
 export const BOOST_MOTION = Object.freeze({ glowMinAlpha: 0.55, glowPulseMs: 600 });
 
 /**
@@ -68,13 +70,35 @@ export class FarmBoost {
   setBoosted(on: boolean): void {
     if (on === this.boosted) return;
     this.boosted = on;
+    this.glow.setVisible(on);
+    this.badge.setVisible(on);
+    this.badgeText.setVisible(on);
+    this.syncPulse();
+  }
+
+  /**
+   * Holds the pulse still while the boost is frozen (a modal is open: pause, confirm, lose), so nothing
+   * on the HUD moves while the game time does not. On unfreezing it also picks up a reduced-motion change
+   * made in the Volume panel. A no-op unless it changes.
+   */
+  setFrozen(frozen: boolean): void {
+    if (frozen === this.frozen) return;
+    this.frozen = frozen;
+    if (!frozen) this.syncPulse();
+    if (this.pulse === null) return;
+    if (frozen) this.pulse.pause();
+    else this.pulse.resume();
+  }
+
+  /** Starts the pulse (boosted, motion allowed) or stops it with the glow at full alpha. */
+  private syncPulse(): void {
+    const want = this.boosted && !reducedMotion();
+    if (want === (this.pulse !== null)) return;
     const tweens = this.scene.tweens;
     tweens.killTweensOf(this.glow);
     this.pulse = null;
-    this.glow.setAlpha(1).setVisible(on);
-    this.badge.setVisible(on);
-    this.badgeText.setVisible(on);
-    if (!on) return;
+    this.glow.setAlpha(1);
+    if (!want) return;
     this.pulse = tweens.add({
       targets: this.glow,
       alpha: BOOST_MOTION.glowMinAlpha,
@@ -84,18 +108,6 @@ export class FarmBoost {
       ease: 'Sine.easeInOut',
       paused: this.frozen,
     });
-  }
-
-  /**
-   * Holds the pulse still while the boost is frozen (a modal is open: pause, confirm, lose), so nothing
-   * on the HUD moves while the game time does not. A no-op unless it changes.
-   */
-  setFrozen(frozen: boolean): void {
-    if (frozen === this.frozen) return;
-    this.frozen = frozen;
-    if (this.pulse === null) return;
-    if (frozen) this.pulse.pause();
-    else this.pulse.resume();
   }
 }
 

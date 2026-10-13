@@ -9,6 +9,7 @@ import { LosePanel } from '../overlay/LosePanel';
 import { MenuPanel } from '../overlay/MenuPanel';
 import { ModalController } from '../overlay/ModalController';
 import { PlaceholderPanel } from '../overlay/PlaceholderPanel';
+import { VolumePanel } from '../overlay/VolumePanel';
 import { reportError } from '../safetyNet';
 import { STRINGS } from '../strings';
 import type { GameScene } from './GameScene';
@@ -23,14 +24,14 @@ const PANEL_DEPTH = 10;
 // shows at once (approved by Rylan 2026-10-06).
 const SCRIM_FADE_MS = 250;
 
-type OverlayModal = 'pause' | 'subPanel' | 'confirm' | 'lose';
+type OverlayModal = 'pause' | 'volume' | 'subPanel' | 'confirm' | 'lose';
 
 /**
  * In-game modals (UX-DR10 layer 4), launched by GameScene in parallel and drawn above the HUD, plus the
  * era badge, which must stay above their scrim (Story 3.5): the
- * pause menu (its last button, Main Menu, saves and returns to the title), its Volume / Stats /
- * Credits sub-panels (placeholders until Epic 5), the start-over confirm and the lose screen, one
- * at a time over one scrim (ModalController). Any of the first three pauses the game (GameScene.setPaused); the Esc chain calls `closeConfirm`, `closeSubPanel`
+ * pause menu (its last button, Main Menu, saves and returns to the title), its Volume sub-panel
+ * (Story 5.7) and Stats / Credits sub-panels (placeholders until 5.4 / 5.9), the start-over confirm and the lose screen, one
+ * at a time over one scrim (ModalController). Pause opens the stack and pauses the game (GameScene.setPaused) until it closes; the Esc chain calls `closeConfirm`, `closeSubPanel`
  * and `togglePause` through InputController. Never steps the sim; GameScene relaunches it on every
  * restart, so every listener is removed on SHUTDOWN.
  */
@@ -57,13 +58,14 @@ export class OverlayScene extends Phaser.Scene {
     this.modals
       .add('lose', this.losePanel)
       .add('subPanel', this.subPanel)
+      .add('volume', new VolumePanel(this, PANEL_DEPTH, () => this.modals.back()))
       .add(
         'pause',
         new MenuPanel(this, PANEL_DEPTH, {
           header: STRINGS.paused,
           items: [
             { label: STRINGS.resume, onActivate: () => this.closePause() },
-            { label: STRINGS.volume, onActivate: () => this.openSubPanel(STRINGS.volume) },
+            { label: STRINGS.volume, onActivate: () => this.modals.open('volume') },
             { label: STRINGS.stats, onActivate: () => this.openSubPanel(STRINGS.stats) },
             { label: STRINGS.restart, onActivate: () => this.modals.open('confirm') },
             { label: STRINGS.credits, onActivate: () => this.openSubPanel(STRINGS.credits) },
@@ -105,9 +107,10 @@ export class OverlayScene extends Phaser.Scene {
     return this.modals.current === 'confirm' && this.modals.back();
   }
 
-  /** Step 2: a Volume / Stats / Credits sub-panel goes back to the pause panel. */
+  /** Step 2: the Volume panel or a Stats / Credits sub-panel goes back to the pause panel. */
   closeSubPanel(): boolean {
-    return this.modals.current === 'subPanel' && this.modals.back();
+    const current = this.modals.current;
+    return (current === 'volume' || current === 'subPanel') && this.modals.back();
   }
 
   /** Last step: opens or closes pause. Over a lost game it swallows the press and does nothing. */

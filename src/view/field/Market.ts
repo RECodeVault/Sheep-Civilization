@@ -1,6 +1,7 @@
 import type Phaser from 'phaser';
 import { COLORS, COMPONENTS, RADIUS, type ColorToken } from '../../config/constants';
 import { ATLAS, FRAME } from '../assetKeys';
+import { reducedMotion } from '../settings';
 import { STRINGS } from '../strings';
 import { boxTexture, DROP_PX, textStyle } from '../widgets/box';
 import { FIELD_DEPTH } from './depths';
@@ -32,9 +33,10 @@ export function inMarket(x: number, y: number): boolean {
  */
 export type MarketHighlight = 'off' | 'armed' | 'hovered' | 'invalid';
 
-// [ASSUMPTION, tune in the browser] Highlight motion. Story 5.7's reduced motion revisits it: the
-// outline may stop pulsing, the awning stop flapping and the tag stop growing, but the outline and the
-// tag are information and stay.
+// [ASSUMPTION, tune in the browser] Highlight motion. Under reduced motion (Story 5.7) the outline holds
+// at full alpha, the awning does not flap, the tag does not grow and the stall does not nudge; the
+// outline, tag and "Too young" are information and stay. The highlight only exists during a drag, and a
+// modal cancels the drag, so the setting is read as each effect starts.
 const MARKET_MOTION = {
   /** The armed outline pulses between full and this alpha. */
   pulseAlpha: 0.45,
@@ -103,7 +105,7 @@ export class Market {
 
   /** Flaps the awning while hovered: picks the frame from real time, setting it only on a change. No allocation. */
   update(now: number): void {
-    if (this.level !== 'hovered') return;
+    if (this.level !== 'hovered' || reducedMotion()) return;
     const frame = Math.floor(now / MARKET_MOTION.flapStepMs) % FLAP_FRAMES.length;
     if (frame === this.flapFrame) return;
     this.flapFrame = frame;
@@ -112,6 +114,7 @@ export class Market {
 
   /** UX-DR82: the stall nudges as a sold sheep goes in. Visual only. */
   nudge(): void {
+    if (reducedMotion()) return;
     const tweens = this.scene.tweens;
     tweens.killTweensOf(this.stall);
     this.stall.setScale(SCALE);
@@ -138,6 +141,10 @@ export class Market {
     tweens.killTweensOf(this.tag);
     this.outline.setAlpha(1);
     this.tag.setScale(1);
+    if (reducedMotion()) {
+      this.applyTag();
+      return;
+    }
     if (level === 'armed' || level === 'hovered') {
       tweens.add({
         targets: this.outline,

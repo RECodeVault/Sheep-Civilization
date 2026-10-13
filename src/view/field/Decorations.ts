@@ -4,6 +4,7 @@ import { DECORATIONS, isOwned, type Decoration } from '../../sim/selectors';
 import type { GameState } from '../../sim/state';
 import { ATLAS, FRAME } from '../assetKeys';
 import { DECORATION_FRAME_SIZE, DECORATION_SPOTS, WORLD_ART_SCALE } from './layout';
+import { reducedMotion } from '../settings';
 
 // Placeholder art is drawn at half size and shown at 2× (layout.ts, which sizes DECORATION_BOUNDS too).
 const SCALE = WORLD_ART_SCALE;
@@ -17,8 +18,8 @@ const DECORATION_FRAME: Readonly<Record<Decoration, string>> = Object.freeze({
 // checks use.
 const FRAME_SIZE = DECORATION_FRAME_SIZE;
 
-// [ASSUMPTION, tune in the browser] The pop-in when one is bought. Story 5.7's reduced motion shows it at
-// once instead.
+// [ASSUMPTION, tune in the browser] The pop-in when one is bought. Under reduced motion it shows at once
+// (Story 5.7).
 const POP = { fromScale: 0.6, durationMs: 220 } as const;
 
 /**
@@ -52,6 +53,10 @@ export class Decorations {
     const img = this.images[d];
     const tweens = this.scene.tweens;
     tweens.killTweensOf(img);
+    if (reducedMotion()) {
+      img.setScale(SCALE).setVisible(true);
+      return;
+    }
     img.setScale(SCALE * POP.fromScale).setVisible(true);
     tweens.add({ targets: img, scale: SCALE, duration: POP.durationMs, ease: 'Back.easeOut' });
   }

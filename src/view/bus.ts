@@ -33,8 +33,9 @@ export type BusEvents = {
   'era:announced': { regress: boolean };
   // AudioDirector raised a caption (captions on only, UX-DR88); HudScene's Captions shows it.
   'caption:requested': { text: string };
-  // The live settings changed (view/settings.ts updateSettings): AudioDirector applies volumes and
-  // captions at once; Story 5.7's Volume panel sends them.
+  // The live settings changed (view/settings.ts updateSettings; the Volume panel, or the debug overlay):
+  // AudioDirector applies volumes and captions at once; the Volume panel and the debug overlay's labels
+  // follow it. Emitted on every slider move (unsaved until release), so listeners stay cheap.
   'settings:changed': Readonly<Settings>;
 };
 

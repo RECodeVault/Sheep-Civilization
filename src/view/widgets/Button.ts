@@ -12,6 +12,7 @@ import {
 } from '../../config/constants';
 import { ATLAS } from '../assetKeys';
 import { bus } from '../bus';
+import { reducedMotion } from '../settings';
 import { boxTexture, DROP_PX, textStyle, type BoxStyle } from './box';
 import type { TooltipSource } from './tooltipSource';
 
@@ -58,7 +59,8 @@ type Visual = 'normal' | 'hover' | 'pressed' | 'disabled' | 'toggled';
 // face at 18 px: a key is a letter, so it kept the pixel font when numbers moved to Nunito).
 const KEY_SIZE = 26;
 const KEY_FONT_PX = 18;
-// Squash juice (UX-DR77): a quick flatten from the bottom edge. Visual only.
+// Squash juice (UX-DR77): a quick flatten from the bottom edge. Visual only; off under reduced motion
+// (Story 5.7), where the pressed fill is the feedback.
 const SQUASH = { scaleX: 1.05, scaleY: 0.85, durationMs: 80 } as const;
 // Icon art is drawn at 1×; shown at 2× like the field art.
 const ICON_SCALE = 2;
@@ -292,11 +294,12 @@ export class Button implements TooltipSource {
     this.hoverSinceMs = -1;
   }
 
-  /** Bottom-centre flatten (juice). Restarts cleanly on rapid presses. */
+  /** Bottom-centre flatten (juice). Restarts cleanly on rapid presses. None under reduced motion. */
   squash(): void {
     const tweens = this.scene.tweens;
     tweens.killTweensOf(this.root);
     this.root.setScale(1, 1);
+    if (reducedMotion()) return;
     tweens.add({
       targets: this.root,
       scaleX: SQUASH.scaleX,

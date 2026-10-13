@@ -4,6 +4,7 @@ import { TUNING } from '../../config/tuning';
 import { formatGameTime } from '../../core/format';
 import { invariant } from '../../core/invariant';
 import { STRINGS } from '../strings';
+import { reducedMotion } from '../settings';
 import { boxTexture, textStyle } from '../widgets/box';
 
 const SPEC = COMPONENTS.boostTimer;
@@ -14,7 +15,7 @@ export const BOOST_TIMER_W = 104;
 export const BOOST_TIMER_H = 40;
 const PAD_X = SPACING[3];
 const MS_PER_SECOND = 1000;
-// A reset (or a start) pops the pill (EXPERIENCE: Boost timer). Juice for Story 5.7's reduced motion.
+// A reset (or a start) pops the pill (EXPERIENCE: Boost timer). Juice: none under reduced motion (Story 5.7).
 export const BOOST_TIMER_MOTION = Object.freeze({ popScale: 1.2, popMs: 80 });
 
 /**
@@ -58,6 +59,7 @@ export class BoostTimer {
     const tweens = this.scene.tweens;
     tweens.killTweensOf(this.root);
     this.root.setScale(1);
+    if (reducedMotion()) return;
     tweens.add({
       targets: this.root,
       scale: BOOST_TIMER_MOTION.popScale,

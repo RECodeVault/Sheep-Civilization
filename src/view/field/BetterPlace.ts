@@ -2,6 +2,7 @@ import type Phaser from 'phaser';
 import { COMPONENTS, RADIUS } from '../../config/constants';
 import { invariant } from '../../core/invariant';
 import { ATLAS, FRAME } from '../assetKeys';
+import { reducedMotion } from '../settings';
 import { STRINGS } from '../strings';
 import { boxTexture, textStyle } from '../widgets/box';
 import { FIELD_DEPTH } from './depths';
@@ -31,8 +32,10 @@ export function inBetterPlace(x: number, y: number): boolean {
 /** off: just the hole. armed: a sheep is dragged (UX-DR52). hovered: the pointer is over the hole. */
 export type BetterPlaceHighlight = 'off' | 'armed' | 'hovered';
 
-// [ASSUMPTION, tune in the browser] Highlight motion. Story 5.7's reduced motion revisits it: the ring
-// may stop spinning and the hole stop sucking, but the lit rim, glow and label are information.
+// [ASSUMPTION, tune in the browser] Highlight motion. Under reduced motion (Story 5.7) the ring holds
+// still, the hole neither sucks nor gulps; the lit rim, glow, ring and label are information and stay.
+// The highlight only exists during a drag, and a modal cancels the drag, so the setting is read as each
+// effect starts.
 const BP_MOTION = {
   /** One ring frame per step: slow while armed, fast while hovered ("the ring spins"). */
   ringStepMs: 220,
@@ -103,7 +106,7 @@ export class BetterPlace {
 
   /** Spins the ring while armed: picks the frame from real time, setting it only on a change. No allocation. */
   update(now: number): void {
-    if (this.level === 'off') return;
+    if (this.level === 'off' || reducedMotion()) return;
     const step = this.level === 'hovered' ? BP_MOTION.ringStepHoveredMs : BP_MOTION.ringStepMs;
     const frame = Math.floor(now / step) % RING_FRAMES.length;
     if (frame === this.ringFrame) return;
@@ -113,6 +116,7 @@ export class BetterPlace {
 
   /** UX-DR80: the hole gulps as a sheep goes in. Visual only. */
   gulp(): void {
+    if (reducedMotion()) return;
     const tweens = this.scene.tweens;
     tweens.killTweensOf(this.hole);
     this.hole.setScale(SCALE);
@@ -136,7 +140,7 @@ export class BetterPlace {
     const tweens = this.scene.tweens;
     tweens.killTweensOf(this.hole);
     this.hole.setScale(SCALE);
-    if (this.level === 'hovered') {
+    if (this.level === 'hovered' && !reducedMotion()) {
       tweens.add({
         targets: this.hole,
         scale: SCALE * BP_MOTION.suckScale,

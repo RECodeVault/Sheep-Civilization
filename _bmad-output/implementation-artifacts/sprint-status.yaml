@@ -1,5 +1,5 @@
 # generated: 2026-10-05T14:42:07-07:00
-# last_updated: 2026-10-09T21:00:00-07:00
+# last_updated: 2026-10-13T08:30:00-07:00
 # project: sheep-civilization
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: '2026-10-05T14:42:07-07:00'
-last_updated: '2026-10-09T21:00:00-07:00'
+last_updated: '2026-10-13T08:30:00-07:00'
 project: sheep-civilization
 project_key: NOKEY
 tracking_system: file-system
@@ -94,7 +94,7 @@ development_status:
   5-4-stats-panel: backlog
   5-5-last-sheep-warning: backlog
   5-6-audio-pass-and-captions: done
-  5-7-volume-and-accessibility-settings: backlog
+  5-7-volume-and-accessibility-settings: done
   5-8-juice-polish-pass: backlog
   5-9-credits-screen: backlog
   5-10-external-playtest: backlog

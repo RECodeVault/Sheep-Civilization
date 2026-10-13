@@ -1,6 +1,7 @@
 // The live player settings (Story 5.6): loaded once from sheepciv.settings on first use, changed only
 // through updateSettings, which saves them and announces 'settings:changed' on the bus. Story 5.7's
-// Volume panel edits them; the DEV debug overlay toggles captions.
+// Volume panel edits them (live while a slider drags, saved on release); the DEV debug overlay
+// toggles captions and reduced motion.
 import { loadSettings, saveSettings, validSettings, type Settings } from '../save/settingsStore';
 import { bus } from './bus';
 
@@ -13,13 +14,29 @@ export function getSettings(): Readonly<Settings> {
 }
 
 /**
+ * Reduced motion (UX-DR84): juice moves less (fades or instant changes), gameplay animation never.
+ * A property read with no allocation, so frame code may call it; read it when an effect starts.
+ */
+export function reducedMotion(): boolean {
+  return getSettings().reducedMotion;
+}
+
+export interface UpdateOptions {
+  /**
+   * Write `sheepciv.settings` (default true). False applies and announces the change only: a slider
+   * drag updates live on every move and saves once on release (no storage writes per pointer move).
+   */
+  persist?: boolean;
+}
+
+/**
  * Merges `patch`, saves (a failed write keeps the change for this page), and announces the change. An
  * invalid field (NaN, out of range, undefined) keeps its current value, so live and saved settings agree.
  */
-export function updateSettings(patch: Partial<Settings>): Readonly<Settings> {
+export function updateSettings(patch: Partial<Settings>, { persist = true }: UpdateOptions = {}): Readonly<Settings> {
   const next = Object.freeze(validSettings(patch, getSettings()));
   current = next;
-  saveSettings(next);
+  if (persist) saveSettings(next);
   bus.emit('settings:changed', next);
   return next;
 }

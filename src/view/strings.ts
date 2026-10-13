@@ -163,9 +163,15 @@ export const STRINGS = Object.freeze({
   startOverQuestion: 'Start over? Your flock will be lost.',
   cancel: 'Cancel',
   startOver: 'Start over',
-  // [ASSUMPTION] Not in the Voice table (approved by Rylan 2026-10-06): the Volume, Stats and Credits
-  // placeholders until Stories 5.7, 5.4 and 5.9.
+  // [ASSUMPTION] Not in the Voice table (approved by Rylan 2026-10-06): the Stats and Credits
+  // placeholders until Stories 5.4 and 5.9 (Volume became a real panel in 5.7).
   comingSoon: 'Coming soon.',
+  // [ASSUMPTION] Not in the Voice table: the Volume panel's row labels (Story 5.7), named as in
+  // EXPERIENCE IA ("Music slider, SFX slider, Reduced motion toggle, Captions toggle"). The header is `volume`.
+  volumeMusic: 'Music',
+  volumeSfx: 'SFX',
+  reducedMotion: 'Reduced motion',
+  captionsLabel: 'Captions',
   // [ASSUMPTION] Not in the Voice table: the top-left Pause button (added 2026-10-06, Rylan).
   pauseLabel: 'Pause',
   pauseTooltip: 'Pause (Esc)',

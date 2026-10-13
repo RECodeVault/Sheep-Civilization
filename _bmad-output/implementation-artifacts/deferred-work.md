@@ -146,7 +146,9 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Era badge above the modals (Story 3.5):** UX-DR20 and DESIGN Layout keep the era badge visible top-right under the pause and confirm modals. OverlayScene draws above HudScene, so the badge must render in OverlayScene (or above it), not in HudScene, or the 72% scrim covers it.
   - **Resolved in Story 3.5:** `EraBadge` (`view/overlay/`) is drawn in OverlayScene between the scrim (depth 0) and the panels (10); browser-checked visible under pause, a sub-panel, the start-over confirm and the lose screen.
 - **Reduced motion (Story 5.7):** the lose screen's 250 ms scrim fade and the title sheep's walks are motion; check them against the reduced-motion toggle when it exists.
+  - **Resolved in Story 5.7:** both kept under reduced motion: the scrim fade is a fade, and the title sheep walk like the pasture's (gameplay-style animation).
 - **Placeholder panels (Stories 5.4, 5.7, 5.9):** `PlaceholderPanel` stands in for Stats, Volume and Credits (in the pause menu, and Credits on the title). Replace it with `StatsPanel`, `VolumePanel` and `CreditsPanel` (built from `assets/CREDITS.md`).
+  - **Partly resolved in Story 5.7:** Volume is `VolumePanel` (`view/overlay/VolumePanel.ts`, its own modal id `'volume'`). Stats (5.4) and Credits (5.9) still use the placeholder.
 - **Stale pointer state across the scrim:** while a scrim is up, the scenes under it get no pointer events (global top-only input), so a HUD button keeps its last hover state until the pointer next moves after the modal closes. A real mouse moves, so it is harmless; a test that teleports the pointer must pass through another point first.
   - **Partly resolved in the 1.10 review:** HUD buttons now clear their hover when a modal opens (`Button.clearHover`), so no stale tooltip, fill or hand cursor comes back. Hover returns once the pointer leaves and re-enters the button.
 - **Field camera (Rylan, 2026-10-06; built in 1.10):** right-drag pans the field, pinned to the pen (`view/field/PenCamera.ts`). Later stories must account for it:
@@ -180,6 +182,7 @@ Real issues found in reviews that are not actionable in the story where they wer
   - **Story 3.2:** the right group is packed from the safe edge (Shop 1 184–1 264, boost timer 1 068–1 172, threat summary 834–1 056); money sits at 588–684 after Breed, with a 100 px reserve for 3.3's flock counter. The Medicine slot (4.5) has no room reserved (see the 3.2 section).
   - **Resolved in Story 4.5:** the Farm button is 160 px (was 232), which makes room for the 64 px Medicine slot after Breed: Farm 16–176, Farm Breeding Food 188–388, Breed 400–504, Medicine 516–580 (reserved while hidden), money 592–672, flock 684–804, threat summary 816–1 056. `BottomBar`'s invariant covers the slot; checked at 1280×720 and 960×540. The bar now has no spare pixel before the threat summary: the next widget there needs another re-space.
 - **Reduced motion (Story 5.7):** the ping's pop-in and bob (`PING` in `AlertPing.ts`) are juice; under reduced motion the ping should appear at once without bobbing. The ping and its settled dot are information and stay.
+  - **Resolved in Story 5.7:** under reduced motion the ping appears at full size with no bob (read per frame, so it stills at once); it still settles to the dot on the same timing.
 
 ## Deferred from: code review of 2-6-alert-pings-and-threat-summary (2026-10-07)
 
@@ -199,6 +202,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Audio (Story 5.6):** the `[suction]` caption and SFX on `Sacrificed`.
   - **Done in Story 5.6:** `sfx-suction` and `[suction]` on every `Sacrificed`.
 - **Reduced motion (Story 5.7):** the suction spiral (`SUCTION`), the ring spin and hole suck (`BP_MOTION` in `BetterPlace.ts`) and the 4 px lift are juice; the lit rim, glow and label are information and stay.
+  - **Resolved in Story 5.7:** under reduced motion the ghost fades out in place (no spin or travel), the ring holds still and the hole neither sucks nor gulps; sparkles, lit rim, glow and label stay. The 4 px lift is the held sheep's "in the hand" pose (`SheepSprite` `LIFT_PX`), a static state, not motion, so it stays.
 
 ## Deferred from: code review of 2-7-drag-a-sheep-into-the-better-place (2026-10-07)
 
@@ -210,6 +214,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Audio (Story 5.6):** a cue when a boost starts (`BoostStarted`). An end cue would need a `BoostEnded` event, which is not emitted (the end is derived from `boostUntil`); 5.6 would add a small system that emits it once when `time` reaches `boostUntil`.
   - **Resolved in Story 5.6 (no cue):** the suction already marks the sacrifice that starts the boost; no `BoostEnded` system was added.
 - **Reduced motion (Story 5.7):** the Farm glow pulse (`BOOST_MOTION` in `FarmBoost.ts`), the timer pop (`BOOST_TIMER_MOTION` in `BoostTimer.ts`) and the "×2" float popup are juice. The glow itself, the badge and the timer are information and stay.
+  - **Resolved in Story 5.7:** the glow holds at full alpha (re-checked when the HUD unfreezes, so a change in the Volume panel applies on Resume), the timer does not pop, and the "×2" popup fades in place (FloatPopups).
 - **Better Hoe (Story 4.7):** raise the base in `farmPipsPerClick(state)` (`selectors.ts`); the boost doubles whatever the base is (2 → 4, 3 → 6).
   - **Resolved in Story 4.7:** `hoeTier(state)` picks `TUNING.hoePipsPerClick[tier − 1]` in place of `farmPipsPerClick`; boosted 4 / 6.
 - **Stats panel (Story 5.4):** FR36 lists sheep alive, sold, died, sacrificed and money earned, with no boost count. Leave boosts out unless 5.4 decides otherwise; `stats.sacrificed` already counts every boost started.
@@ -233,6 +238,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Audio (Story 5.6):** the cash-register ding on `Sold` (UX-DR82), and a caption if captions cover it.
   - **Done in Story 5.6:** `sfx-ding` on `Sold`; no caption (UX-DR88 has none).
 - **Reduced motion (Story 5.7):** the outline pulse, awning flap, tag growth and stall nudge (`MARKET_MOTION` in `Market.ts`) and the sale hop (`SALE` in `GameScene.ts`) are juice; the outline, tag and "Too young" are information and stay.
+  - **Resolved in Story 5.7:** outline steady at full alpha, no flap, no tag growth, no nudge; the sale ghost fades out in place.
 - **An intermittent first drag in the browser probe (investigate any time):** in the scratchpad Playwright probe, about 1 in 10 runs the first drag after the session's first debug Load never starts (the sheep stays put; no command is sent). It happens on the pre-3.1 commit too (2 of 10 runs), so 3.1 did not cause it, and it never happened on a later drag in the same session (10 of 10 fast sales passed). Unknown whether it is the probe's synthetic pointer timing or a real drag-start edge case in `InputController.updateClick`; worth a look with real mouse input.
 
 ## Deferred from: code review of 3-1-sell-sheep-at-the-market (2026-10-07)
@@ -254,6 +260,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Audio (Story 5.6):** a purchase sound on `Bought`.
   - **Done in Story 5.6:** `sfx-ding` on every `Bought`.
 - **Reduced motion (Story 5.7):** the money counter's roll (`MONEY_MOTION` in `MoneyCounter.ts`) is juice; show the new balance at once.
+  - **Resolved in Story 5.7:** the new balance shows at once.
 - **The panel appears at once (Story 5.8):** DESIGN's "rises from the bottom bar" is its position; a slide-up on open is optional juice.
 - **Hunger test timeout under load (any time):** `tests/sim/systems/hunger.test.ts` "every half-point start value …" steps about 120 000 ticks. It takes 1.1–1.6 s alone, but under heavy machine load (load average 7–8 from repeated full runs and browser probes) the whole suite pushes it past Vitest's 5 s default timeout; it passes on a quiet machine. Give it an explicit timeout or fewer start values if it fails in CI.
   - **Resolved in Story 3.3:** it failed 1 run in 3 under load during 3.3, so it now has its own 30 s timeout (`tests/sim/systems/hunger.test.ts`).
@@ -278,6 +285,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Audio (Story 5.6):** a cue when land is bought (the fence grows; `Bought` with a land item).
   - **Done in Story 5.6:** land is a `Bought`, so it dings like any purchase.
 - **Reduced motion (Story 5.7):** the dust burst along the new fence (`GameScene.growLand`) is juice; the grown fence is information and stays.
+  - **Resolved in Story 5.7:** kept: small particle bursts stay under reduced motion (the Keep/Off rule in the 5.7 story).
 
 ## Deferred from: code review of 3-3-buy-land-and-grow-the-fence (2026-10-07)
 
@@ -293,6 +301,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Audio (Story 5.6):** the purchase sound on `Bought` covers decorations too; no separate cue is needed.
   - **Done in Story 5.6:** as planned, the `Bought` ding.
 - **Reduced motion (Story 5.7):** the decoration pop-in (`POP` in `Decorations.ts`) and its dust puff (`GameScene.decorationBought`) are juice; under reduced motion show the decoration at once.
+  - **Resolved in Story 5.7:** the decoration shows at once; its dust puff (a particle burst) stays.
 - **Real art (Story 3.6 / 5.x):** the flower patch (28×14) and scarecrow (20×32) are placeholders. Free-pack art must keep these sizes, or update `FRAME_SIZE`/`DECORATION_SPOTS` in `Decorations.ts`; the DEV checks (frame size, and the layout invariant in `GameScene`) catch a mismatch. Like the land fit (3.3), the decoration layout invariant is DEV-only and not covered by `npm test`.
   - **Story 3.6:** out of scope for the tuning pass; moved to **5.x** (5.8 juice/polish or an art pass).
 
@@ -306,6 +315,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Audio and captions (Story 5.6):** the era fanfare on an advance and the soft descending note on a regress, with their `[fanfare]` / `[descending note]` captions (UX-DR83, UX-DR88). Hook them to `EraChanged` the way the banner is: once per frame (HudScene's first `from` / last `to`), so ×16 changes play one cue.
   - **Done in Story 5.6:** HudScene emits `era:announced { regress }` from its once-per-frame fold; AudioDirector plays `sfx-fanfare` / `sfx-descend` and the captions.
 - **Reduced motion (Story 5.7):** the era banner's slide-in (`ERA_BANNER_MOTION` in `EraBanner.ts`) becomes a fade. Decide whether the 1 s background crossfade (`ERA_FADE_MS` in `EraBackground.ts`) stays; it is slow and gentle, so it may.
+  - **Resolved in Story 5.7:** the banner fades in in place over `slideMs`; the 1 s background crossfade stays (a slow fade, not movement).
 - **Real era art (Story 3.6 / 5.x):** the four backgrounds (`assets/art/backgrounds/`) are placeholders. Free-pack art must stay 864 × 344 (shown at 2× from world (0, −16)) or `ERA_BACKGROUND_BOUNDS` changes; the build-time size check and the DEV frame-size check catch a mismatch. Only four strips of each texture are drawn (`STRIPS` in `EraBackground.ts`: the far line along the top, the top band left of the Better Place and between it and the Market, and everything right of the Market); the rest must stay flat `pasture`, which the camera's clear colour stands in for. `npm run assets` rejects a background that is not 864 × 344, and a DEV check (`flatOutsideStrips`) rejects art outside the strips that is not exactly `pasture`. That cut the probe's FPS cost from about 10 to within noise. Keep the decoration spots plain inside the mid strip. A real GPU would draw a full-field image cheaply; if real art wants texture everywhere, re-measure on real hardware first.
   - **Story 3.6:** out of scope for the tuning pass; moved to **5.x**.
 - **Era thresholds (Story 3.6):** `TUNING.eraThresholds` (10 / 25 / 50) equals the first three land capacities on purpose (GDD: enter each era at full capacity). A pacing retune changes both tables together, or logs why they part (a config test pins them equal today).
@@ -380,6 +390,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Audio and captions (Story 5.6):** the screech, then the sting, on `Sacrificed { wasAbomination: true }` (UX-DR81), started with the true-form flash (`GameScene.revealTrueForm`), and the `[screech]` caption (UX-DR88). The `[suction]` cue stays on every sacrifice (deferred from 2.7).
   - **Done in Story 5.6:** screech at once with `[screech]`, then the sting delayed by the screech's length, in the frame the flash starts.
 - **Reduced motion (Story 5.7):** the reveal's swell and shake (`REVEAL.swellScale`, `REVEAL.shakePx` in `GameScene.ts`) are juice and go; the flash itself is information (the truth) and stays.
+  - **Resolved in Story 5.7:** no swell or shake under reduced motion; the true-form flashes stay.
 - **Names in the reveal (Story 5.3):** "…that was just {name}." (and "{name} went to a Better Place."), the name in `halo`.
 - **True-form art (Story 5.8, optional):** the true form is a `void` FILL silhouette of the lamb frame; the GDD art list has no true-form sprite. Art could replace it.
 - **The reveal's feel awaits a playtest (Story 5.10):** `REVEAL` (3 flashes × 110 ms, swell ×1.35, 3 px shake) and the two toasts per sacrifice were checked by a browser probe, not by a person watching.
@@ -394,6 +405,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Audio (Story 5.6):** a cure sound on `Cured`, and pick-up / put-back sounds for the dose; a caption only if 5.6's caption list grows (UX-DR88 has no cure cue).
   - **Done in Story 5.6 (cure only):** `Cured` plays a brighter pop; dose pick-up / put-back sounds are not added (re-deferred to 5.8).
 - **Reduced motion (Story 5.7):** the bottle's ×1.2 over an infected sheep is the only drop cue (information, keep it); the cure sparkle (`CURE_SPARKLES` in `GameScene.ts`) is juice.
+  - **Resolved in Story 5.7:** the ×1.2 stays (information); the cure sparkle (a small particle burst) stays too.
 - **Art (Story 5.8):** the bottle is a placeholder from the mockup's `g-bottle` glyph (`assets/art/ui/icon-medicine.png`); a pack sprite can replace it at the same 12×16. The slot's count is 18 px (the mockup's 20 px does not fit "×99" with the bottle in the 64 px tile).
 - **No cure stat (Story 5.4):** FR36 lists alive, sold, died, sacrificed and money earned; none was added for cures.
 - **Overcrowding (Story 4.6):** its infections use `infectSheep`, so medicine cures them with no extra work.
@@ -437,6 +449,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 
 - **Last sheep sting (Story 5.5):** `sfx-sting` and `STRINGS.captions.lastSheep` ("[sting] Last sheep!") exist. When 5.5 adds `LastSheep` to `SimEvent`, AudioDirector's exhaustive switch fails to compile until its case plays the sting and raises the caption.
 - **Volume panel (Story 5.7):** `src/view/settings.ts` `updateSettings` is the entry point; AudioDirector already applies `musicVolume`, `sfxVolume` and `captions` on `settings:changed`. Release of the SFX slider can preview with a bleat through a new public director method (none exists yet). `reducedMotion` is stored but read by nothing.
+  - **Resolved in Story 5.7:** `VolumePanel` with `Slider` / `Toggle` widgets; sliders update live with `updateSettings(patch, { persist: false })` and save on release; `AudioDirector.previewSfx()` bleats on SFX release; `reducedMotion()` (`view/settings.ts`) is read by every juice effect.
 - **Real audio (any time):** the 9 SFX and the music loop are synthesised placeholders (`assets/audio/`). Free-pack audio (Kenney CC0 etc.) can replace them under the same file names with no code change; credit each in `assets/CREDITS.md`.
 - **Dose sounds (Story 5.8):** no pick-up / put-back sound for the Medicine dose.
 - **Planning docs still ask for hunger bleats (cut in 5.6):** the munch and the hunger-scaled and frantic bleats, with the `[frantic bleating]` caption, were cut at the product owner's request. The GDD Hunger table and Audio section, EXPERIENCE State Patterns and UX-DR88's caption list still require them. Update those docs (correct-course) so 5.7 and the 5.10 playtest don't reintroduce them.
@@ -450,4 +463,16 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **MP3 encoder delay (Safari):** the markers are not compensated for LAME's delay and padding, and the music loop may have a gap at the seam. Check in Safari once real audio is in.
 - **AudioDirector teardown:** the page-lifetime singleton is never destroyed, so Vite HMR leaves a stale director. DEV-only.
 - **Debug Captions label:** the label is not refreshed on `settings:changed`, which matters once 5.7's panel toggles captions.
+  - **Resolved in Story 5.7:** the debug overlay's Captions (and new Reduced motion) labels follow `settings:changed`.
 - **UNLOCKED never firing:** if `context.resume()` rejects, the page stays silent with no retry.
+
+## Deferred from: story 5-7-volume-and-accessibility-settings (2026-10-09)
+
+- **New juice respects reduced motion (Stories 5.5, 5.8):** every new juice effect reads `reducedMotion()` (`src/view/settings.ts`) when it starts: movement juice (slides, rises, bounces, pops, bobs, spins, shakes, rolls) becomes instant or a fade; fades, tints, held glows and small particle bursts stay; gameplay animation is never reduced. The "Last sheep!" banner (5.5) fades in like the era banner; an empty-meter shake (5.8) becomes a flash; any camera shake is off.
+- **Volume before the first game (any time):** the Volume panel is reachable from Pause only (EXPERIENCE IA), so a player cannot set volume on the title screen.
+- **Slider keyboard control (any time):** sliders and toggles are mouse-only (UX-DR76 mouse completeness is met); no arrow-key or Tab focus.
+
+## Deferred from: code review of 5-7-volume-and-accessibility-settings (2026-10-13)
+
+- **Debug reduced-motion toggle outside a modal:** the DEV debug overlay can flip reduced motion with no modal open; running effects (Farm glow pulse, Market/Better Place highlights, breed markers) keep the old mode until they next start or unfreeze. Players only change it from the Volume panel (game paused), where every effect re-syncs. Subscribe FarmBoost etc. to `settings:changed` if this matters.
+- **Tab closed mid-drag:** a slider value applied with `persist: false` is lost if the page closes before release. A `pagehide` flush would fix it.

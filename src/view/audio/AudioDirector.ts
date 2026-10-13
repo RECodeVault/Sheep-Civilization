@@ -77,6 +77,8 @@ export class AudioDirector {
   private readonly lastStart: Record<string, number> = {};
   // game.loop.time when each caption text was last raised (SAME_CAPTION_GAP_MS).
   private readonly lastCaption: Record<string, number> = {};
+  // game.loop.time when the last Volume-panel preview ends: one preview at a time.
+  private previewEnd = -Infinity;
   // When each voice slot frees up (game.loop.time ms); a fixed ring, so playing allocates nothing.
   private readonly voiceEnds = new Float64Array(MAX_VOICES);
 
@@ -134,6 +136,23 @@ export class AudioDirector {
     for (const k in SFX) {
       this.play(SFX[k as keyof typeof SFX], 1, delay / 1000, true);
       delay += gapMs;
+    }
+  }
+
+  /**
+   * One bleat at the current SFX volume (Story 5.7: the Volume panel's SFX slider, on release). No pitch
+   * jitter, so the level is what the player judges; forced past the repeat gap and the voice cap so a
+   * release sounds even in a busy field, but still silent while locked or suspended, with no sprite, or
+   * at volume 0. Ignored while the previous preview still plays, so fast clicks never stack bleats.
+   */
+  previewSfx(): void {
+    try {
+      const now = this.game.loop.time;
+      if (now < this.previewEnd) return;
+      this.previewEnd = now + (this.durations[SFX.bleat] ?? 0) * 1000;
+      this.play(SFX.bleat, 1, 0, true);
+    } catch (err) {
+      reportError('ui', err);
     }
   }
 
