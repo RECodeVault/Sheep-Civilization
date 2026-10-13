@@ -3,10 +3,19 @@ import { TUNING } from '../../src/config/tuning';
 import { decodeSave, encodeSave } from '../../src/save/saveFile';
 import { applyCommand } from '../../src/sim/commands';
 import type { SimEvent } from '../../src/sim/events';
-import { currentEra, farmPipsPerClick, isBoosted, isLost, shopPrice } from '../../src/sim/selectors';
+import {
+  currentEra,
+  farmPipsPerClick,
+  isBoosted,
+  isLost,
+  selectStatsView,
+  shopPrice,
+  type StatsView,
+} from '../../src/sim/selectors';
+import { killSheep } from '../../src/sim/systems/carcass';
 import { syncEra } from '../../src/sim/systems/eras';
 import type { GameState } from '../../src/sim/state';
-import { newGame, runFor } from '../sim/helpers';
+import { fillFlock, newGame, runFor } from '../sim/helpers';
 import { busyGame, isBusy } from './busy';
 
 function reload(state: GameState): GameState {
@@ -116,5 +125,27 @@ describe('save round trip', () => {
     expect(loaded).toStrictEqual(state);
     expect(isLost(loaded)).toBe(true);
     expect(loaded.lostAt).toBe(state.lostAt);
+  });
+
+  it('the Stats panel shows the same numbers after a reload, and a new game starts them at 0 (Story 5.4)', () => {
+    // A game in progress: one of each event, sheep left alive. The last sheep is one of fillFlock's
+    // adults (the founders' lamb cannot be sold).
+    const state = newGame(54);
+    fillFlock(state, 6);
+    applyCommand(state, { type: 'Sell', id: state.sheep[state.sheep.length - 1].id });
+    applyCommand(state, { type: 'Sacrifice', id: state.sheep[0].id });
+    killSheep(state, state.sheep[0].id, 'starved');
+    const blank = (): StatsView => ({ alive: 0, sold: 0, died: 0, sacrificed: 0, moneyEarned: 0 });
+    const before = selectStatsView(state, blank());
+    expect(isLost(state)).toBe(false);
+    expect(before).toEqual({ alive: 3, sold: 1, died: 1, sacrificed: 1, moneyEarned: TUNING.sellPriceAdult });
+    expect(selectStatsView(reload(state), blank())).toEqual(before);
+    expect(selectStatsView(newGame(54), blank())).toEqual({
+      alive: TUNING.startFlockAdults + TUNING.startFlockLambs,
+      sold: 0,
+      died: 0,
+      sacrificed: 0,
+      moneyEarned: 0,
+    });
   });
 });

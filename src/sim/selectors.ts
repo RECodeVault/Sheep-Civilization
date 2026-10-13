@@ -619,3 +619,26 @@ export function selectLoseView(state: GameState, out: LoseView): LoseView {
   out.peakFlock = state.stats.peakFlock;
   return out;
 }
+
+/**
+ * What the pause menu's Stats panel shows (FR36, UX-DR16). `alive` is living sheep right now, as the
+ * flock counter counts them (pending lambs and carcasses are not alive); the rest are the lifetime
+ * counters in `state.stats`. Public: an Abomination is alive, dies and is sacrificed like any sheep.
+ */
+export interface StatsView {
+  alive: number;
+  sold: number;
+  died: number;
+  sacrificed: number;
+  moneyEarned: number;
+}
+
+/** Fills `out` in place (no allocation) and returns it. */
+export function selectStatsView(state: GameState, out: StatsView): StatsView {
+  out.alive = state.sheep.length;
+  out.sold = state.stats.sold;
+  out.died = state.stats.died;
+  out.sacrificed = state.stats.sacrificed;
+  out.moneyEarned = state.stats.moneyEarned;
+  return out;
+}

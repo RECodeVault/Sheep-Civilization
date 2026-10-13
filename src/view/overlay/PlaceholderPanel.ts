@@ -19,9 +19,9 @@ const X = Math.round((CANVAS_WIDTH - WIDTH) / 2);
 const Y = Math.round((CANVAS_HEIGHT - HEIGHT) / 2);
 
 /**
- * Stand-in for the Stats and Credits sub-panels (Stories 5.4 and 5.9 replace it; Volume became
- * VolumePanel in 5.7): a header in title type, "Coming soon." in body type (Nunito, as credits will
- * be: UX-DR17) and one Back button. One fixed size for both; `setHeader` swaps the header text only.
+ * Stand-in for the Credits sub-panel, in pause and on the title (Story 5.9 replaces it; Volume became
+ * VolumePanel in 5.7, Stats StatsPanel in 5.4): a header in title type, "Coming soon." in body type
+ * (Nunito, as credits will be: UX-DR17) and one Back button. `setHeader` swaps the header text only.
  */
 export class PlaceholderPanel implements Modal {
   private readonly panel: Panel;

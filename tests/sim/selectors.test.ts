@@ -43,12 +43,14 @@ import {
   selectLoseView,
   selectPregnancies,
   selectPublicSheep,
+  selectStatsView,
   slotsUsed,
   stageOf,
   type HudView,
   type LoseView,
   type PublicPregnancy,
   type PublicSheep,
+  type StatsView,
 } from '../../src/sim/selectors';
 import type { Sheep } from '../../src/sim/state';
 import { createCarcass, killSheep } from '../../src/sim/systems/carcass';
@@ -599,6 +601,55 @@ describe('isLost / selectLoseView', () => {
     const out: LoseView = { survivedMs: -1, peakFlock: -1 };
     expect(selectLoseView(state, out)).toBe(out);
     expect(out).toEqual({ survivedMs: 3_000, peakFlock: TUNING.startFlockAdults + TUNING.startFlockLambs });
+  });
+});
+
+describe('selectStatsView (FR36, UX-DR16)', () => {
+  const blank = (): StatsView => ({ alive: -1, sold: -1, died: -1, sacrificed: -1, moneyEarned: -1 });
+
+  it('a new game: the starting flock alive and every counter at 0, filled in place', () => {
+    const state = newGame();
+    const out = blank();
+    expect(selectStatsView(state, out)).toBe(out);
+    expect(out).toEqual({
+      alive: TUNING.startFlockAdults + TUNING.startFlockLambs,
+      sold: 0,
+      died: 0,
+      sacrificed: 0,
+      moneyEarned: 0,
+    });
+  });
+
+  it('reads the counters from state.stats', () => {
+    const state = newGame();
+    state.stats.sold = 4;
+    state.stats.died = 7;
+    state.stats.sacrificed = 2;
+    state.stats.moneyEarned = 130;
+    expect(selectStatsView(state, blank())).toEqual({
+      alive: state.sheep.length,
+      sold: 4,
+      died: 7,
+      sacrificed: 2,
+      moneyEarned: 130,
+    });
+  });
+
+  it('alive counts living sheep only: not pending lambs, not carcasses', () => {
+    const state = newGame();
+    const alive = state.sheep.length;
+    state.pregnancies.push({ id: 999, parentA: state.sheep[0].id, parentB: state.sheep[1].id, dueAt: 10_000, x: 0, y: 0 });
+    createCarcass(state, 100, 100);
+    expect(selectStatsView(state, blank()).alive).toBe(alive);
+  });
+
+  it('spending money in the shop leaves money earned unchanged', () => {
+    const state = newGame();
+    state.money = shopPrice('scarecrow');
+    state.stats.moneyEarned = 55;
+    applyCommand(state, { type: 'Buy', item: 'scarecrow' });
+    expect(state.money).toBe(0);
+    expect(selectStatsView(state, blank()).moneyEarned).toBe(55);
   });
 });
 

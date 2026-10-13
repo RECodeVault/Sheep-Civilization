@@ -149,6 +149,7 @@ Real issues found in reviews that are not actionable in the story where they wer
   - **Resolved in Story 5.7:** both kept under reduced motion: the scrim fade is a fade, and the title sheep walk like the pasture's (gameplay-style animation).
 - **Placeholder panels (Stories 5.4, 5.7, 5.9):** `PlaceholderPanel` stands in for Stats, Volume and Credits (in the pause menu, and Credits on the title). Replace it with `StatsPanel`, `VolumePanel` and `CreditsPanel` (built from `assets/CREDITS.md`).
   - **Partly resolved in Story 5.7:** Volume is `VolumePanel` (`view/overlay/VolumePanel.ts`, its own modal id `'volume'`). Stats (5.4) and Credits (5.9) still use the placeholder.
+  - **Partly resolved in Story 5.4:** Stats is `StatsPanel` (`view/overlay/StatsPanel.ts`, modal id `'stats'`). Only Credits (5.9) still uses the placeholder.
 - **Stale pointer state across the scrim:** while a scrim is up, the scenes under it get no pointer events (global top-only input), so a HUD button keeps its last hover state until the pointer next moves after the modal closes. A real mouse moves, so it is harmless; a test that teleports the pointer must pass through another point first.
   - **Partly resolved in the 1.10 review:** HUD buttons now clear their hover when a modal opens (`Button.clearHover`), so no stale tooltip, fill or hand cursor comes back. Hover returns once the pointer leaves and re-enters the button.
 - **Field camera (Rylan, 2026-10-06; built in 1.10):** right-drag pans the field, pinned to the pen (`view/field/PenCamera.ts`). Later stories must account for it:
@@ -218,6 +219,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Better Hoe (Story 4.7):** raise the base in `farmPipsPerClick(state)` (`selectors.ts`); the boost doubles whatever the base is (2 → 4, 3 → 6).
   - **Resolved in Story 4.7:** `hoeTier(state)` picks `TUNING.hoePipsPerClick[tier − 1]` in place of `farmPipsPerClick`; boosted 4 / 6.
 - **Stats panel (Story 5.4):** FR36 lists sheep alive, sold, died, sacrificed and money earned, with no boost count. Leave boosts out unless 5.4 decides otherwise; `stats.sacrificed` already counts every boost started.
+  - **Resolved in Story 5.4:** no boost line; the panel shows exactly FR36's five (Alive, Sold, Died, Sacrificed, Money earned).
 
 ## Deferred from: code review of 2-8-sacrifice-food-boost (2026-10-07)
 
@@ -375,6 +377,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 - **Death sounds must not tell the cause (Story 5.6):** `SheepDied.cause` is `'abomination'` for a victim. The death SFX and the `[thud]` caption must be the same for every cause; the cause only picks the toast (already vague).
   - **Done in Story 5.6:** `sfx-thud` and `[thud]` for every `cause`.
 - **Stats by cause (Story 5.4):** the Stats panel may count deaths, but never an "Abomination" line (UX-DR64). Count `abomination` deaths with the rest.
+  - **Resolved in Story 5.4:** one Died line, no causes; an Abomination victim counts there, a sacrificed Abomination in Sacrificed (`tests/sim/scenarios/stats.test.ts`).
 - **Names in the victim toast (Story 5.3):** "{name} just… fell over." once names exist (`DEATH_TOAST.abomination` today reads "A sheep just… fell over.").
 - **A pending doom survives the reveal (Story 4.4):** sacrificing the Abomination does not cancel a victim's doom (FR31: the victim dies 5–10 s after the visit). If 4.4 wants catching it to save the last victim, cancel `doomedAt` there.
   - **Decided in Story 4.4:** kept. The doom still lands (no payout beyond the boost, FR33); `abomination.test.ts` "still lands after the Abomination is sacrificed".
@@ -476,3 +479,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 
 - **Debug reduced-motion toggle outside a modal:** the DEV debug overlay can flip reduced motion with no modal open; running effects (Farm glow pulse, Market/Better Place highlights, breed markers) keep the old mode until they next start or unfreeze. Players only change it from the Volume panel (game paused), where every effect re-syncs. Subscribe FarmBoost etc. to `settings:changed` if this matters.
 - **Tab closed mid-drag:** a slider value applied with `persist: false` is lost if the page closes before release. A `pagehide` flush would fix it.
+
+## Deferred from: code review of 5-4-stats-panel (2026-10-13)
+
+- **Very long Stats values:** `StatsPanel` is a fixed 312 px wide, sized for a 7-digit money value. Save validation allows counters and `moneyEarned` up to 2^48 (15 digits), and such a value would overlap "Money earned". Nothing measures, scales or abbreviates it. This can't happen in normal play, and the HUD MoneyCounter uses the same fixed-box approach. Fix with a width check and `setScale` if 5.10 playtesting ever gets close.

@@ -163,8 +163,8 @@ export const STRINGS = Object.freeze({
   startOverQuestion: 'Start over? Your flock will be lost.',
   cancel: 'Cancel',
   startOver: 'Start over',
-  // [ASSUMPTION] Not in the Voice table (approved by Rylan 2026-10-06): the Stats and Credits
-  // placeholders until Stories 5.4 and 5.9 (Volume became a real panel in 5.7).
+  // [ASSUMPTION] Not in the Voice table (approved by Rylan 2026-10-06): the Credits placeholder until
+  // Story 5.9 (Volume became a real panel in 5.7, Stats in 5.4).
   comingSoon: 'Coming soon.',
   // [ASSUMPTION] Not in the Voice table: the Volume panel's row labels (Story 5.7), named as in
   // EXPERIENCE IA ("Music slider, SFX slider, Reduced motion toggle, Captions toggle"). The header is `volume`.
@@ -172,6 +172,13 @@ export const STRINGS = Object.freeze({
   volumeSfx: 'SFX',
   reducedMotion: 'Reduced motion',
   captionsLabel: 'Captions',
+  // [ASSUMPTION] Not in the Voice table: the Stats panel's row labels (Story 5.4), in the order and
+  // wording of EXPERIENCE IA ("Alive, sold, died, sacrificed, money earned"). The header is `stats`.
+  statsAlive: 'Alive',
+  statsSold: 'Sold',
+  statsDied: 'Died',
+  statsSacrificed: 'Sacrificed',
+  statsMoneyEarned: 'Money earned',
   // [ASSUMPTION] Not in the Voice table: the top-left Pause button (added 2026-10-06, Rylan).
   pauseLabel: 'Pause',
   pauseTooltip: 'Pause (Esc)',
