@@ -126,9 +126,37 @@ export class AudioDirector {
     window.removeEventListener('keydown', this.onFirstInput, { capture: true });
     if (this.heard) return;
     this.heard = true;
-    if (this.sound.locked) this.sound.once(Phaser.Sound.Events.UNLOCKED, this.startMusic, this);
-    else this.startMusic();
+    if (!this.sound.locked) {
+      this.startMusic();
+      return;
+    }
+    this.sound.once(Phaser.Sound.Events.UNLOCKED, this.onUnlocked, this);
+    // Web Audio only: Phaser's unlock gives up for good if context.resume() rejects (its handler drops
+    // every listener), so UNLOCKED would never fire and the page would stay silent. Retry on each later
+    // press until it unlocks.
+    if (this.ctx !== null) {
+      window.addEventListener('pointerdown', this.onLockedInput, { capture: true });
+      window.addEventListener('keydown', this.onLockedInput, { capture: true });
+    }
   };
+
+  // A press while still locked: ask Phaser to unlock again. This runs in the window's capture phase, so
+  // the body listeners `unlock()` adds still get this same event and resume the context inside the gesture.
+  // A retry while the first resume is still pending is harmless: both resolve, and each handler removes itself.
+  private readonly onLockedInput = (): void => {
+    if (this.sound.locked) this.sound.unlock();
+    else this.stopRetrying();
+  };
+
+  private onUnlocked(): void {
+    this.stopRetrying();
+    this.startMusic();
+  }
+
+  private stopRetrying(): void {
+    window.removeEventListener('pointerdown', this.onLockedInput, { capture: true });
+    window.removeEventListener('keydown', this.onLockedInput, { capture: true });
+  }
 
   /** DEV ear check (debug overlay): every marker, `gapMs` apart. */
   playAll(gapMs: number): void {

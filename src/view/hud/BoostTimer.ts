@@ -1,8 +1,8 @@
 import type Phaser from 'phaser';
-import { COMPONENTS, SPACING } from '../../config/constants';
+import { COMPONENTS, SPACING, TYPOGRAPHY } from '../../config/constants';
 import { TUNING } from '../../config/tuning';
 import { formatGameTime } from '../../core/format';
-import { invariant } from '../../core/invariant';
+import { invariantFits } from '../fonts';
 import { STRINGS } from '../strings';
 import { reducedMotion } from '../settings';
 import { boxTexture, textStyle } from '../widgets/box';
@@ -41,7 +41,7 @@ export class BoostTimer {
     // The texture carries DROP_PX of empty space right and below: anchor on the box, not the texture.
     const pill = scene.add.image(-BOOST_TIMER_W / 2, -BOOST_TIMER_H / 2, key).setOrigin(0, 0);
     this.text = scene.add.text(0, 0, STRINGS.boostTimer(formatGameTime(TUNING.boostMs)), textStyle(SPEC.typography, SPEC.textColor)).setOrigin(0.5, 0.5);
-    invariant(this.text.width + PAD_X * 2 <= BOOST_TIMER_W, 'BoostTimer: "×2 0:30" does not fit the pill');
+    invariantFits(TYPOGRAPHY[SPEC.typography].fontFamily, this.text.width + PAD_X * 2, BOOST_TIMER_W, 'BoostTimer: "×2 0:30" does not fit the pill');
     this.root = scene.add.container(x + BOOST_TIMER_W / 2, centreY, [pill, this.text]).setVisible(false);
   }
 

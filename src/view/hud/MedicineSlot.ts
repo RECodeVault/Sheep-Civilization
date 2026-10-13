@@ -1,9 +1,9 @@
 import Phaser from 'phaser';
-import { COMPONENTS, RADIUS } from '../../config/constants';
-import { invariant } from '../../core/invariant';
+import { COMPONENTS, RADIUS, TYPOGRAPHY } from '../../config/constants';
 import { ATLAS, FRAME } from '../assetKeys';
 import { bus } from '../bus';
 import { reportError } from '../safetyNet';
+import { invariantFits } from '../fonts';
 import { STRINGS } from '../strings';
 import { boxTexture, OUTLINE_PX, textStyle } from '../widgets/box';
 import type { TooltipSource } from '../widgets/tooltipSource';
@@ -62,7 +62,7 @@ export class MedicineSlot implements TooltipSource {
       .setOrigin(0, 0);
     this.icon = scene.add.image(0, centreY, ATLAS.ui, FRAME.iconMedicine).setScale(ICON_SCALE).setOrigin(0, 0.5);
     this.text = scene.add.text(0, centreY, STRINGS.medicineCount(MAX_SHOWN), textStyle(SPEC.typography, SPEC.textColor, COUNT_FONT_PX)).setOrigin(0, 0.5);
-    invariant(ICON_W + GAP + this.text.width <= W - OUTLINE_PX * 2, 'MedicineSlot: "×99" does not fit the tile');
+    invariantFits(TYPOGRAPHY[SPEC.typography].fontFamily, ICON_W + GAP + this.text.width, W - OUTLINE_PX * 2, 'MedicineSlot: "×99" does not fit the tile');
     this.zone = scene.add.zone(x, this.y, W, H).setOrigin(0, 0).setInteractive({ useHandCursor: true });
     this.zone.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, this.onOver, this);
     this.zone.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, this.onOut, this);

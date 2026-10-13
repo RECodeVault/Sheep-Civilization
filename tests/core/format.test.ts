@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatGameTime, formatMinutesInWords, formatMoney } from '../../src/core/format';
+import { formatCapped, formatGameTime, formatMinutesInWords, formatMoney } from '../../src/core/format';
 
 describe('formatGameTime', () => {
   it('formats under an hour as m:ss', () => {
@@ -59,5 +59,18 @@ describe('formatMinutesInWords (Story 3.6: the old-age toast follows TUNING.oldA
     expect(formatMinutesInWords(0)).toBe('one minute');
     expect(formatMinutesInWords(-60_000)).toBe('one minute');
     expect(formatMinutesInWords(Number.NaN)).toBe('one minute');
+  });
+});
+
+describe('formatCapped (threat counts in a fixed box)', () => {
+  it('shows the whole number up to the cap', () => {
+    expect(formatCapped(0, 999)).toBe('0');
+    expect(formatCapped(100, 999)).toBe('100');
+    expect(formatCapped(999, 999)).toBe('999');
+  });
+
+  it('shows "{max}+" above it', () => {
+    expect(formatCapped(1_000, 999)).toBe('999+');
+    expect(formatCapped(123_456, 999)).toBe('999+');
   });
 });

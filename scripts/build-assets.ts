@@ -3,6 +3,8 @@
 // music loop (Story 5.6), writing everything to public/assets/ (committed, so deploy is `vite build`
 // only). Run by Node 24 type stripping: erasable TypeScript only, one file.
 // Audio needs ffmpeg (with libvorbis and libmp3lame) on PATH; only this script does, never CI.
+// `--no-audio` (`npm run assets:art`) skips the audio and leaves public/assets/audio/ as it is, so an
+// art-only change needs no ffmpeg.
 import { execFile, spawnSync } from 'node:child_process';
 import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
@@ -356,11 +358,25 @@ async function syncAudio(a: BuiltAudio): Promise<void> {
   );
 }
 
+const NO_AUDIO_FLAG = '--no-audio';
+
+/** True for `--no-audio`; any other argument is an error, so a typo never silently skips the audio. */
+function parseArgs(args: readonly string[]): { audio: boolean } {
+  for (const a of args) if (a !== NO_AUDIO_FLAG) throw new AssetError(`unknown argument ${a} (only ${NO_AUDIO_FLAG})`);
+  return { audio: !args.includes(NO_AUDIO_FLAG) };
+}
+
 async function main(): Promise<void> {
+  const opts = parseArgs(process.argv.slice(2));
   // Pack everything before writing anything, so a failure never leaves public/assets/ half-updated.
   const packed: PackedAtlas[] = [];
   for (const a of ATLASES) packed.push(await packAtlas(a.name, a.folders));
   const backgrounds = await listBackgrounds();
+  if (!opts.audio) {
+    await writeAll(packed, backgrounds, null);
+    console.log(`[assets] audio: skipped (${NO_AUDIO_FLAG}); public/assets/audio/ left as it is`);
+    return;
+  }
   const audio = await buildAudio();
   try {
     await writeAll(packed, backgrounds, audio);
@@ -370,7 +386,8 @@ async function main(): Promise<void> {
   }
 }
 
-async function writeAll(packed: PackedAtlas[], backgrounds: string[], audio: BuiltAudio): Promise<void> {
+/** `audio` null: skipped (`--no-audio`). */
+async function writeAll(packed: PackedAtlas[], backgrounds: string[], audio: BuiltAudio | null): Promise<void> {
   await mkdir(OUT_ATLASES, { recursive: true });
   const keep = new Set<string>();
   for (const a of packed) {
@@ -383,7 +400,7 @@ async function writeAll(packed: PackedAtlas[], backgrounds: string[], audio: Bui
   await syncFonts();
   await syncCursors();
   await syncBackgrounds(backgrounds);
-  await syncAudio(audio);
+  if (audio !== null) await syncAudio(audio);
 }
 
 main().catch((err: unknown) => {

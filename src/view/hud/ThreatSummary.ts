@@ -1,5 +1,6 @@
 import type Phaser from 'phaser';
 import { COLORS, COMPONENTS, LAYOUT, SPACING } from '../../config/constants';
+import { formatCapped } from '../../core/format';
 import type { ThreatCounts } from '../../sim/selectors';
 import { ATLAS, FRAME } from '../assetKeys';
 import { STRINGS } from '../strings';
@@ -18,6 +19,10 @@ const ICON_GAP = SPACING[1];
 // It is left-aligned against its icon: right-aligned, a single digit sat nearer the next pair's icon
 // than its own and read as belonging to it (browser check, 2026-10-07).
 const COUNT_BOX_W = 40;
+// Starving and infected are capped by capacity (100), but carcasses stay until cleared: a count past
+// this shows "999+" (the tooltip keeps the exact number), shrunk to fit the box like any count that
+// would run past it (Story 2.6 review).
+const MAX_SHOWN = 999;
 // mockups/hud.html `.threat` puts pairs 10 px apart, but its counts have no fixed box; with one, 12
 // (SPACING[3]) keeps each pair visibly apart. [ASSUMPTION, browser-checked]
 const PAIR_GAP = SPACING[3];
@@ -78,7 +83,9 @@ export class ThreatSummary {
       const n = threats[p.kind];
       if (n === p.shown) continue;
       p.shown = n;
-      p.count.setText(String(n));
+      p.count.setText(formatCapped(n, MAX_SHOWN));
+      // `width` is unscaled, so the scale never compounds.
+      p.count.setScale(Math.min(1, COUNT_BOX_W / p.count.width));
       p.count.setColor(COLORS[n === 0 ? SPEC.zeroTextColor : SPEC.textColor]);
       p.zone.setTooltip(STRINGS.threatTooltip[p.kind](n));
     }

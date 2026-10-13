@@ -7,6 +7,7 @@ import { HudScene } from './view/scenes/HudScene';
 import { OverlayScene } from './view/scenes/OverlayScene';
 import { PreloadScene } from './view/scenes/PreloadScene';
 import { TitleScene } from './view/scenes/TitleScene';
+import { noteFontLoaded } from './view/fonts';
 import { attachGame, installSafetyNet, reportError } from './view/safetyNet';
 
 const CONTAINER_ID = 'game-container';
@@ -44,6 +45,7 @@ async function loadFonts(): Promise<void> {
       try {
         const face = new FontFace(f.family, `url(${f.url}) format('woff2')`, { weight: f.weight });
         document.fonts.add(await withTimeout(face.load(), FONT_TIMEOUT_MS));
+        noteFontLoaded(f.family);
       } catch (err) {
         log.warn('boot', `Font load failed for ${f.family}; using fallback`, err);
       }

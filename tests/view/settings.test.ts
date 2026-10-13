@@ -48,6 +48,40 @@ describe('updateSettings', () => {
     expect(saveSettings.mock.calls[0][0].musicVolume).toBe(0.1);
   });
 
+  it('a page closed mid-drag saves the live value on pagehide, once', async () => {
+    const listeners: Record<string, () => void> = {};
+    const addEventListener = vi.fn((type: string, fn: () => void) => (listeners[type] = fn));
+    vi.stubGlobal('window', { addEventListener });
+    try {
+      const { updateSettings } = await load();
+      updateSettings({ musicVolume: 0.2 }, { persist: false });
+      updateSettings({ musicVolume: 0.15 }, { persist: false });
+      expect(addEventListener).toHaveBeenCalledOnce();
+      expect(saveSettings).not.toHaveBeenCalled();
+      listeners.pagehide();
+      expect(saveSettings).toHaveBeenCalledOnce();
+      expect(saveSettings.mock.calls[0][0].musicVolume).toBe(0.15);
+      listeners.pagehide();
+      expect(saveSettings).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('pagehide after the release saves nothing more', async () => {
+    const listeners: Record<string, () => void> = {};
+    vi.stubGlobal('window', { addEventListener: (type: string, fn: () => void) => (listeners[type] = fn) });
+    try {
+      const { updateSettings } = await load();
+      updateSettings({ sfxVolume: 0.3 }, { persist: false });
+      updateSettings({ sfxVolume: 0.3 });
+      listeners.pagehide();
+      expect(saveSettings).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('keeps the current value for an invalid field', async () => {
     const { updateSettings } = await load();
     expect(updateSettings({ musicVolume: Number.NaN }).musicVolume).toBe(updateSettings({}).musicVolume);

@@ -6,7 +6,8 @@
 //
 // Carcasses live here too (System Location Mapping): createCarcass, clearCarcass (FR13, the player's
 // click), and updateCarcassEating (FR14): a Starving sheep walks to its nearest carcass and eats it,
-// but only while no food piece is on the field (breeding pieces are not food). There is no exclusive
+// but only while no food piece is free for it (breeding pieces are not food; a piece another sheep has
+// claimed is not free, so a second Starving sheep keeps its carcass). There is no exclusive
 // claim: several sheep may head for one carcass, the first to reach it eats it, and the others pick
 // again. Eating infects the sheep through virus.ts's infectSheep (FR15). feeding.ts ends the munch.
 //
@@ -79,13 +80,30 @@ export function clearCarcass(state: GameState, id: number): void {
 }
 
 /**
- * FR14/FR15: Starving sheep seek and eat carcasses while no food piece is on the field. Pass 1 releases
+ * FR14/FR15: Starving sheep seek and eat carcasses while no food piece is free. Pass 1 releases
  * seekers that can no longer eat and eats on arrival; pass 2 sends each free Starving sheep to its
  * nearest carcass, eating it at once if it is already in reach. Plain loops: no allocation and no rng, except when a carcass is eaten (an event).
  */
+/**
+ * True when some food piece has no seeker. Runs right after updateFeeding, which keeps every `seekFood`
+ * claim on a live piece and gives each piece at most one seeker, so counting the claims is enough. And
+ * feeding has just offered every free piece to the hungry sheep (a Starving carcass seeker among them),
+ * so a sheep still free here has no piece to go to: it keeps (or takes) its carcass.
+ */
+function hasUnclaimedFood(state: GameState): boolean {
+  const n = state.foodPieces.length;
+  if (n === 0) return false;
+  let claims = 0;
+  for (let i = 0; i < state.sheep.length; i++) {
+    const s = state.sheep[i];
+    if (s.activity === 'seekFood' && s.targetId !== undefined) claims++;
+  }
+  return claims < n;
+}
+
 export function updateCarcassEating(state: GameState): void {
   const sheep = state.sheep;
-  const noFood = state.foodPieces.length === 0;
+  const noFood = !hasUnclaimedFood(state);
   const reach2 = TUNING.eatReachPx * TUNING.eatReachPx;
 
   // Pass 1: release and eat.

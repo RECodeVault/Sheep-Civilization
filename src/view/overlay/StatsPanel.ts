@@ -20,6 +20,9 @@ const BODY_GAP = SPACING[5];
 const ROW_H = Math.max(lineBox('label'), lineBox('numeric'));
 const ROW_GAP = SPACING[2];
 const ROWS = 5;
+// The least room between a label and its value. A value that would come closer (save validation allows
+// counters up to 2^48, 15 digits) shrinks to fit rather than overlap the label.
+const MIN_LABEL_GAP = SPACING[3];
 // [ASSUMPTION, tune in the browser] The pause panel's width: "Money earned" and a 7-digit amount fit
 // side by side with room between.
 const WIDTH = BUTTON.width + PAD * 2;
@@ -37,6 +40,8 @@ const Y = Math.round((CANVAS_HEIGHT - HEIGHT) / 2);
 export class StatsPanel implements Modal {
   private readonly panel: Panel;
   private readonly texts: Phaser.GameObjects.Text[] = [];
+  // Each value's widest unscaled width before it must shrink: the row less its label and the gap.
+  private readonly maxValueW = new Map<Phaser.GameObjects.Text, number>();
   private readonly alive: Phaser.GameObjects.Text;
   private readonly sold: Phaser.GameObjects.Text;
   private readonly died: Phaser.GameObjects.Text;
@@ -58,17 +63,17 @@ export class StatsPanel implements Modal {
 
     const row = (label: string): Phaser.GameObjects.Text => {
       const mid = y + ROW_H / 2;
-      this.texts.push(
-        scene.add
-          .text(X + PAD, mid, label, textStyle('label', TEXT_COLOR))
-          .setOrigin(0, 0.5)
-          .setDepth(depth + 1),
-      );
+      const labelText = scene.add
+        .text(X + PAD, mid, label, textStyle('label', TEXT_COLOR))
+        .setOrigin(0, 0.5)
+        .setDepth(depth + 1);
+      this.texts.push(labelText);
       const value = scene.add
         .text(X + WIDTH - PAD, mid, '', textStyle('numeric', TEXT_COLOR))
         .setOrigin(1, 0.5)
         .setDepth(depth + 1);
       this.texts.push(value);
+      this.maxValueW.set(value, WIDTH - PAD * 2 - labelText.width - MIN_LABEL_GAP);
       y += ROW_H + ROW_GAP;
       return value;
     };
@@ -91,13 +96,20 @@ export class StatsPanel implements Modal {
     this.setVisible(false);
   }
 
-  /** Fills the values; each Text is rewritten only when its string changes. */
+  /** Fills the values; each Text is rewritten (and refitted) only when its string changes. */
   setView(view: StatsView): void {
-    setIfChanged(this.alive, String(view.alive));
-    setIfChanged(this.sold, String(view.sold));
-    setIfChanged(this.died, String(view.died));
-    setIfChanged(this.sacrificed, String(view.sacrificed));
-    setIfChanged(this.moneyEarned, formatMoney(view.moneyEarned));
+    this.setValue(this.alive, String(view.alive));
+    this.setValue(this.sold, String(view.sold));
+    this.setValue(this.died, String(view.died));
+    this.setValue(this.sacrificed, String(view.sacrificed));
+    this.setValue(this.moneyEarned, formatMoney(view.moneyEarned));
+  }
+
+  private setValue(t: Phaser.GameObjects.Text, s: string): void {
+    if (t.text === s) return;
+    t.setText(s);
+    // `width` is unscaled, so the scale never compounds. Right-aligned: it shrinks towards the edge.
+    t.setScale(Math.min(1, (this.maxValueW.get(t) ?? t.width) / t.width));
   }
 
   setVisible(visible: boolean): void {
@@ -105,8 +117,4 @@ export class StatsPanel implements Modal {
     for (const t of this.texts) t.setVisible(visible);
     this.back.setVisible(visible);
   }
-}
-
-function setIfChanged(t: Phaser.GameObjects.Text, s: string): void {
-  if (t.text !== s) t.setText(s);
 }

@@ -21,6 +21,11 @@ export function formatMoney(n: number): string {
   return `$${Math.floor(n).toLocaleString('en-US', { useGrouping: false, maximumFractionDigits: 0 })}`;
 }
 
+/** A count in a fixed box: the whole number up to `max`, then `{max}+` (e.g. 1 000 → "999+"). */
+export function formatCapped(n: number, max: number): string {
+  return n > max ? `${max}+` : String(n);
+}
+
 const MINUTE_WORDS = Object.freeze([
   '',
   'one',

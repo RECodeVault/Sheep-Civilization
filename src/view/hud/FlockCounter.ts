@@ -1,8 +1,8 @@
 import type Phaser from 'phaser';
-import { COLORS, COMPONENTS, SPACING } from '../../config/constants';
+import { COLORS, COMPONENTS, SPACING, TYPOGRAPHY } from '../../config/constants';
 import { TUNING } from '../../config/tuning';
-import { invariant } from '../../core/invariant';
 import { ATLAS, FRAME } from '../assetKeys';
+import { invariantFits } from '../fonts';
 import { STRINGS } from '../strings';
 import { textStyle } from '../widgets/box';
 
@@ -47,7 +47,7 @@ export class FlockCounter {
         textStyle(SPEC.typography, SPEC.textColor),
       )
       .setOrigin(0, 0.5);
-    invariant(this.text.width <= BOX_W, 'FlockCounter: a full flock at the largest capacity does not fit its box');
+    invariantFits(TYPOGRAPHY[SPEC.typography].fontFamily, this.text.width, BOX_W, 'FlockCounter: a full flock at the largest capacity does not fit its box');
   }
 
   /** Shows `alive` over `capacity`, in the crowded style while `crowded`; no work unless something changed. */

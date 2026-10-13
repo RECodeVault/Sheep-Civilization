@@ -10,7 +10,7 @@ import {
   removeSheep,
   updateCarcassEating,
 } from '../../../src/sim/systems/carcass';
-import { createBreedingPiece, createFoodPiece } from '../../../src/sim/systems/feeding';
+import { createBreedingPiece, createFoodPiece, updateFeeding } from '../../../src/sim/systems/feeding';
 import { innerFence, newGame } from '../helpers';
 
 function drained(): SimEvent[] {
@@ -357,6 +357,55 @@ describe('updateCarcassEating release', () => {
     updateCarcassEating(state);
     expect(state.sheep[0].activity).toBe('wander');
     expect(state.sheep[0].targetId).toBeUndefined();
+  });
+
+  it('a food piece another sheep has claimed does not take a carcass seeker off its carcass', () => {
+    const c = mid(newGame());
+    const state = gameWith([
+      { x: c.x, y: c.y },
+      { x: c.x + 200, y: c.y },
+    ]);
+    const [seeker, eater] = state.sheep;
+    const k = createCarcass(state, c.x - 40, c.y);
+    updateCarcassEating(state);
+    const piece = createFoodPiece(state, c.x + 220, c.y);
+    eater.activity = 'seekFood';
+    eater.targetId = piece.id;
+    updateCarcassEating(state);
+    expect(seeker).toMatchObject({ activity: 'seekCarcass', targetId: k.id });
+  });
+
+  it('a free Starving sheep heads for the carcass while the only food piece is claimed', () => {
+    const c = mid(newGame());
+    const state = gameWith([
+      { x: c.x, y: c.y },
+      { x: c.x + 200, y: c.y },
+    ]);
+    const [starving, eater] = state.sheep;
+    const k = createCarcass(state, c.x - 40, c.y);
+    const piece = createFoodPiece(state, c.x + 220, c.y);
+    eater.activity = 'seekFood';
+    eater.targetId = piece.id;
+    updateCarcassEating(state);
+    expect(starving).toMatchObject({ activity: 'seekCarcass', targetId: k.id });
+  });
+
+  it('with feeding first: the nearer Starving sheep takes the one piece, the other keeps the carcass', () => {
+    const c = mid(newGame());
+    const state = gameWith([
+      { x: c.x - 100, y: c.y },
+      { x: c.x + 100, y: c.y },
+    ]);
+    const [far, near] = state.sheep;
+    const k = createCarcass(state, c.x - 140, c.y);
+    updateFeeding(state);
+    updateCarcassEating(state);
+    expect(state.sheep.map((s) => s.targetId)).toEqual([k.id, k.id]);
+    const piece = createFoodPiece(state, c.x + 120, c.y);
+    updateFeeding(state);
+    updateCarcassEating(state);
+    expect(near).toMatchObject({ activity: 'seekFood', targetId: piece.id });
+    expect(far).toMatchObject({ activity: 'seekCarcass', targetId: k.id });
   });
 
   it('a carcass seeker that is no longer Starving goes back to wander', () => {

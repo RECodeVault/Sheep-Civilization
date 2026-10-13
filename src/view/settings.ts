@@ -6,6 +6,16 @@ import { loadSettings, saveSettings, validSettings, type Settings } from '../sav
 import { bus } from './bus';
 
 let current: Readonly<Settings> | null = null;
+// A live change not saved yet (a slider mid-drag). Saved on `pagehide`, so closing the tab before the
+// release keeps it; the listener is added on the first unsaved change, once per page.
+let unsaved = false;
+let flushHooked = false;
+
+function flushUnsaved(): void {
+  if (!unsaved || current === null) return;
+  unsaved = false;
+  saveSettings(current);
+}
 
 /** The current settings. The object is replaced on every change, so read it when needed. */
 export function getSettings(): Readonly<Settings> {
@@ -24,7 +34,8 @@ export function reducedMotion(): boolean {
 export interface UpdateOptions {
   /**
    * Write `sheepciv.settings` (default true). False applies and announces the change only: a slider
-   * drag updates live on every move and saves once on release (no storage writes per pointer move).
+   * drag updates live on every move and saves once on release (no storage writes per pointer move), or
+   * on `pagehide` if the page goes before the release.
    */
   persist?: boolean;
 }
@@ -36,7 +47,16 @@ export interface UpdateOptions {
 export function updateSettings(patch: Partial<Settings>, { persist = true }: UpdateOptions = {}): Readonly<Settings> {
   const next = Object.freeze(validSettings(patch, getSettings()));
   current = next;
-  if (persist) saveSettings(next);
+  if (persist) {
+    unsaved = false;
+    saveSettings(next);
+  } else {
+    unsaved = true;
+    if (!flushHooked && typeof window !== 'undefined') {
+      flushHooked = true;
+      window.addEventListener('pagehide', flushUnsaved);
+    }
+  }
   bus.emit('settings:changed', next);
   return next;
 }

@@ -1,7 +1,7 @@
 import type Phaser from 'phaser';
-import { COMPONENTS } from '../../config/constants';
+import { COMPONENTS, TYPOGRAPHY } from '../../config/constants';
 import { formatMoney } from '../../core/format';
-import { invariant } from '../../core/invariant';
+import { invariantFits } from '../fonts';
 import { reducedMotion } from '../settings';
 import { textStyle } from '../widgets/box';
 
@@ -40,7 +40,7 @@ export class MoneyCounter {
     this.text = scene.add
       .text(x, centreY, formatMoney(99999), textStyle(SPEC.typography, SPEC.textColor))
       .setOrigin(0, 0.5);
-    invariant(this.text.width <= BOX_W, 'MoneyCounter: "$99999" does not fit its box');
+    invariantFits(TYPOGRAPHY[SPEC.typography].fontFamily, this.text.width, BOX_W, 'MoneyCounter: "$99999" does not fit its box');
   }
 
   /** Shows `money` (rolling to it after the first call); `now` is the frame clock in ms. */
