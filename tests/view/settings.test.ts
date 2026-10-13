@@ -82,6 +82,42 @@ describe('updateSettings', () => {
     }
   });
 
+  it('a page hidden mid-drag saves the live value on visibilitychange (mobile may skip pagehide)', async () => {
+    const onDoc: Record<string, () => void> = {};
+    const doc = { visibilityState: 'visible', addEventListener: (type: string, fn: () => void) => (onDoc[type] = fn) };
+    vi.stubGlobal('window', { addEventListener: () => undefined });
+    vi.stubGlobal('document', doc);
+    try {
+      const { updateSettings } = await load();
+      updateSettings({ musicVolume: 0.25 }, { persist: false });
+      onDoc.visibilitychange();
+      expect(saveSettings).not.toHaveBeenCalled();
+      doc.visibilityState = 'hidden';
+      onDoc.visibilitychange();
+      expect(saveSettings).toHaveBeenCalledOnce();
+      expect(saveSettings.mock.calls[0][0].musicVolume).toBe(0.25);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('a failed write on pagehide stays unsaved and is tried again', async () => {
+    const listeners: Record<string, () => void> = {};
+    vi.stubGlobal('window', { addEventListener: (type: string, fn: () => void) => (listeners[type] = fn) });
+    try {
+      const { updateSettings } = await load();
+      updateSettings({ sfxVolume: 0.6 }, { persist: false });
+      saveSettings.mockReturnValueOnce(false);
+      listeners.pagehide();
+      listeners.pagehide();
+      expect(saveSettings).toHaveBeenCalledTimes(2);
+      listeners.pagehide();
+      expect(saveSettings).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('keeps the current value for an invalid field', async () => {
     const { updateSettings } = await load();
     expect(updateSettings({ musicVolume: Number.NaN }).musicVolume).toBe(updateSettings({}).musicVolume);

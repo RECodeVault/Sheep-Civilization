@@ -73,7 +73,8 @@ export class StatsPanel implements Modal {
         .setOrigin(1, 0.5)
         .setDepth(depth + 1);
       this.texts.push(value);
-      this.maxValueW.set(value, WIDTH - PAD * 2 - labelText.width - MIN_LABEL_GAP);
+      // At least 1 px: a label that left no room must not give a zero or negative (mirrored) scale.
+      this.maxValueW.set(value, Math.max(1, WIDTH - PAD * 2 - labelText.width - MIN_LABEL_GAP));
       y += ROW_H + ROW_GAP;
       return value;
     };

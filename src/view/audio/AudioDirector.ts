@@ -143,9 +143,10 @@ export class AudioDirector {
   // A press while still locked: ask Phaser to unlock again. This runs in the window's capture phase, so
   // the body listeners `unlock()` adds still get this same event and resume the context inside the gesture.
   // A retry while the first resume is still pending is harmless: both resolve, and each handler removes itself.
+  // A running context has resumed and only waits for Phaser's next update to clear `locked`: no retry.
   private readonly onLockedInput = (): void => {
-    if (this.sound.locked) this.sound.unlock();
-    else this.stopRetrying();
+    if (!this.sound.locked) this.stopRetrying();
+    else if (this.ctx?.state !== 'running') this.sound.unlock();
   };
 
   private onUnlocked(): void {

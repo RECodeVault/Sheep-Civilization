@@ -366,6 +366,18 @@ function parseArgs(args: readonly string[]): { audio: boolean } {
   return { audio: !args.includes(NO_AUDIO_FLAG) };
 }
 
+/** `--no-audio` keeps the built audio, so it must be there: a checkout without it needs a full run. */
+async function requireBuiltAudio(): Promise<void> {
+  for (const f of AUDIO_FILES) {
+    try {
+      if ((await stat(path.join(OUT_AUDIO, f))).isFile()) continue;
+    } catch {
+      // Missing: reported below.
+    }
+    throw new AssetError(`${NO_AUDIO_FLAG}: public/assets/audio/${f} is missing; run npm run assets (needs ffmpeg) once`);
+  }
+}
+
 async function main(): Promise<void> {
   const opts = parseArgs(process.argv.slice(2));
   // Pack everything before writing anything, so a failure never leaves public/assets/ half-updated.
@@ -373,6 +385,7 @@ async function main(): Promise<void> {
   for (const a of ATLASES) packed.push(await packAtlas(a.name, a.folders));
   const backgrounds = await listBackgrounds();
   if (!opts.audio) {
+    await requireBuiltAudio();
     await writeAll(packed, backgrounds, null);
     console.log(`[assets] audio: skipped (${NO_AUDIO_FLAG}); public/assets/audio/ left as it is`);
     return;

@@ -80,11 +80,6 @@ export function clearCarcass(state: GameState, id: number): void {
 }
 
 /**
- * FR14/FR15: Starving sheep seek and eat carcasses while no food piece is free. Pass 1 releases
- * seekers that can no longer eat and eats on arrival; pass 2 sends each free Starving sheep to its
- * nearest carcass, eating it at once if it is already in reach. Plain loops: no allocation and no rng, except when a carcass is eaten (an event).
- */
-/**
  * True when some food piece has no seeker. Runs right after updateFeeding, which keeps every `seekFood`
  * claim on a live piece and gives each piece at most one seeker, so counting the claims is enough. And
  * feeding has just offered every free piece to the hungry sheep (a Starving carcass seeker among them),
@@ -101,6 +96,11 @@ function hasUnclaimedFood(state: GameState): boolean {
   return claims < n;
 }
 
+/**
+ * FR14/FR15: Starving sheep seek and eat carcasses while no food piece is free. Pass 1 releases
+ * seekers that can no longer eat and eats on arrival; pass 2 sends each free Starving sheep to its
+ * nearest carcass, eating it at once if it is already in reach. Plain loops: no allocation and no rng, except when a carcass is eaten (an event).
+ */
 export function updateCarcassEating(state: GameState): void {
   const sheep = state.sheep;
   const noFood = !hasUnclaimedFood(state);

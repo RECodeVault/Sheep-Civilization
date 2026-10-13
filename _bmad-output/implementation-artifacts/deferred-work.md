@@ -333,7 +333,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 
 - **Mid-fade reversal snaps (playtest, any time):** `EraBackground.fadeTo` snaps a running fade to its target before starting the next (Story 3.5 Task 4.1), so an era that flips back within 1 s jumps to the full previous art. At ×16 with a full flock sitting on a threshold (thresholds equal capacities) this can flicker between eras every frame or so. Revisit with the banner-flicker note: e.g. reverse the running tween instead of snapping, or a view-only cooldown.
 - **Badge fit vs the fallback font (any time):** `EraBadge`'s DEV fit invariant (like `BoostTimer`'s) measures text in whatever font loaded; after a Pixelify Sans timeout, "Wool Empire" in the fallback font could exceed the 160 px pill and throw in `OverlayScene.create` (DEV), or overflow (production). Measure against a font-independent bound, or skip the check when the font failed.
-  - **Resolved in the deferred-work sweep (2026-10-13):** main.ts records the fonts that loaded (`src/view/fonts.ts`), and `invariantFits` checks a fit only in a font that loaded. That covers the era badge, boost timer, money and flock counters and the Medicine slot. In every build, the badge also shrinks an era name that would run past the pill. Browser-checked with Pixelify Sans blocked: the game starts with no invariant error.
+  - **Resolved in the deferred-work sweep (2026-10-13):** main.ts records the fonts that loaded (`src/view/fonts.ts`), and `invariantFits` asserts a fit only in a font that loaded; in a fallback, an overflow logs a warning once per box (code review). That covers the era badge, boost timer, money and flock counters and the Medicine slot. In every build, the badge also shrinks an era name that would run past the pill. Browser-checked with Pixelify Sans blocked: the game starts with no invariant error.
 
 ## Deferred from: story 3-6-mvp-pacing-playtest-and-tuning-pass (2026-10-08)
 
@@ -449,7 +449,7 @@ Real issues found in reviews that are not actionable in the story where they wer
 ## Deferred from: code review of 4-8-auto-feeder (2026-10-09)
 
 - **Carcass seekers lose their carcass to any food piece (any time; playtest 5.10):** `updateCarcassEating` (`carcass.ts:106–111`) releases every `seekCarcass` sheep whenever `foodPieces.length > 0`, even when the only piece is already claimed by another sheep. A second Starving sheep then wanders with nothing to claim until that piece is eaten, then goes back to the carcass, losing a second or so. Pre-existing with Farm pieces; the Auto-feeder makes it happen every 10 s. A fix would release only when an unclaimed piece exists.
-  - **Resolved in the deferred-work sweep (2026-10-13):** `updateCarcassEating` treats food as present only while some piece has no seeker (`hasUnclaimedFood`, counted right after feeding), for both the release and the claims. Tested in `tests/sim/systems/carcass.test.ts`. A Starving wanderer may still claim a breeding piece for one tick while every food piece is claimed (`mayEatBreedingFood` still checks for any food), and carcass.ts takes it off that piece the same tick.
+  - **Resolved in the deferred-work sweep (2026-10-13):** `updateCarcassEating` treats food as present only while some piece has no seeker (`hasUnclaimedFood`, counted right after feeding), for both the release and the claims. Tested in `tests/sim/systems/carcass.test.ts`. Breeding pieces need no change: `mayEatBreedingFood` already keeps any hungry sheep off them while food lies in the pen, claimed or not.
 
 ## Deferred from: story 5-6-audio-pass-and-captions (2026-10-09)
 
@@ -465,14 +465,14 @@ Real issues found in reviews that are not actionable in the story where they wer
 
 - **AudioDirector unit tests:** none yet; Phaser does not load in the node test environment. Needs a fake SoundManager/bus harness to cover cause-blind deaths, the autoplay gate, the throttle and voice cap, and `pausedByHide` ownership.
 - **ffmpeg for art-only runs:** `npm run assets` always builds audio, so an art-only change needs ffmpeg. A `--no-audio` flag, or skipping when the sources are unchanged, would fix it.
-  - **Resolved in the deferred-work sweep (2026-10-13):** `npm run assets:art` (`--no-audio`) packs the atlases and syncs fonts, cursors and backgrounds, and leaves `public/assets/audio/` untouched. An unknown argument is an error. README updated.
+  - **Resolved in the deferred-work sweep (2026-10-13):** `npm run assets:art` (`--no-audio`) packs the atlases and syncs fonts, cursors and backgrounds, and leaves `public/assets/audio/` untouched. It fails if any built audio file is missing (code review), and an unknown argument is an error. README updated.
 - **Non-reproducible audio encodes:** every assets run re-encodes the OGG/MP3, so different ffmpeg versions create binary diffs. Consider a source-hash manifest or bitexact flags.
 - **MP3 encoder delay (Safari):** the markers are not compensated for LAME's delay and padding, and the music loop may have a gap at the seam. Check in Safari once real audio is in.
 - **AudioDirector teardown:** the page-lifetime singleton is never destroyed, so Vite HMR leaves a stale director. DEV-only.
 - **Debug Captions label:** the label is not refreshed on `settings:changed`, which matters once 5.7's panel toggles captions.
   - **Resolved in Story 5.7:** the debug overlay's Captions (and new Reduced motion) labels follow `settings:changed`.
 - **UNLOCKED never firing:** if `context.resume()` rejects, the page stays silent with no retry.
-  - **Resolved in the deferred-work sweep (2026-10-13):** while still locked after the first press, each later pointer or key press calls `sound.unlock()` again (Web Audio only). The call is made in window capture, so Phaser's body handler resumes the context inside that same gesture. The retry listeners are removed on `UNLOCKED`. Not reproducible in a browser probe (a rejected resume can't be forced), so this is unverified beyond typecheck.
+  - **Resolved in the deferred-work sweep (2026-10-13):** while still locked after the first press, each later pointer or key press calls `sound.unlock()` again (Web Audio only). The call is made in window capture, so Phaser's body handler resumes the context inside that same gesture. The retry listeners are removed on `UNLOCKED`, and no retry runs once the context is running (code review). Not reproducible in a browser probe (a rejected resume can't be forced), so this is unverified beyond typecheck.
 
 ## Deferred from: story 5-7-volume-and-accessibility-settings (2026-10-09)
 
@@ -484,9 +484,14 @@ Real issues found in reviews that are not actionable in the story where they wer
 
 - **Debug reduced-motion toggle outside a modal:** the DEV debug overlay can flip reduced motion with no modal open; running effects (Farm glow pulse, Market/Better Place highlights, breed markers) keep the old mode until they next start or unfreeze. Players only change it from the Volume panel (game paused), where every effect re-syncs. Subscribe FarmBoost etc. to `settings:changed` if this matters.
 - **Tab closed mid-drag:** a slider value applied with `persist: false` is lost if the page closes before release. A `pagehide` flush would fix it.
-  - **Resolved in the deferred-work sweep (2026-10-13):** `view/settings.ts` marks a `persist: false` change as unsaved and saves it on `pagehide`; the listener is added once, on the first unsaved change. Tested in `tests/view/settings.test.ts`.
+  - **Resolved in the deferred-work sweep (2026-10-13):** `view/settings.ts` marks a `persist: false` change as unsaved and saves it on `pagehide` or `visibilitychange` → hidden (code review: mobile may skip `pagehide`). The listeners are added once, on the first unsaved change, and a failed write stays unsaved. Tested in `tests/view/settings.test.ts`.
 
 ## Deferred from: code review of 5-4-stats-panel (2026-10-13)
 
 - **Very long Stats values:** `StatsPanel` is a fixed 312 px wide, sized for a 7-digit money value. Save validation allows counters and `moneyEarned` up to 2^48 (15 digits), and such a value would overlap "Money earned". Nothing measures, scales or abbreviates it. This can't happen in normal play, and the HUD MoneyCounter uses the same fixed-box approach. Fix with a width check and `setScale` if 5.10 playtesting ever gets close.
   - **Resolved in the deferred-work sweep (2026-10-13):** each value's room is the row width less its label and a 12 px gap. A longer value shrinks towards the right edge (`StatsPanel.setValue`), so it never overlaps its label.
+
+## Deferred from: code review of the deferred-work sweep (2026-10-13)
+
+- **No unlock retry on HTML5 Audio:** the retry added in `AudioDirector` (each press while still locked calls `sound.unlock()` again) runs only with Web Audio (`ctx !== null`). On the rare browser where Phaser falls back to `HTML5AudioSoundManager`, a failed unlock still has no retry. Every target browser uses Web Audio, and that fallback has its own unlock path.
+- **A font that arrives after the 3 s timeout is dropped:** `main.ts` gives up on a face at `FONT_TIMEOUT_MS`, and a `face.load()` that resolves later is never added, so the session stays on the fallback font. This predates the sweep: Phaser caches text metrics at creation, so a late font would also need every Text to be remeasured.

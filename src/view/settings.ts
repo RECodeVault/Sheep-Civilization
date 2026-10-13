@@ -6,15 +6,20 @@ import { loadSettings, saveSettings, validSettings, type Settings } from '../sav
 import { bus } from './bus';
 
 let current: Readonly<Settings> | null = null;
-// A live change not saved yet (a slider mid-drag). Saved on `pagehide`, so closing the tab before the
-// release keeps it; the listener is added on the first unsaved change, once per page.
+// A live change not saved yet (a slider mid-drag). Saved when the page is hidden or goes (as saveStore
+// does: mobile browsers may discard a hidden tab without `pagehide`), so closing the tab before the
+// release keeps it. The listeners are added on the first unsaved change, once per page.
 let unsaved = false;
 let flushHooked = false;
 
 function flushUnsaved(): void {
   if (!unsaved || current === null) return;
-  unsaved = false;
-  saveSettings(current);
+  // A failed write (full quota, blocked storage) stays unsaved, for the next hide or release.
+  unsaved = !saveSettings(current);
+}
+
+function onVisibility(): void {
+  if (document.visibilityState === 'hidden') flushUnsaved();
 }
 
 /** The current settings. The object is replaced on every change, so read it when needed. */
@@ -35,7 +40,7 @@ export interface UpdateOptions {
   /**
    * Write `sheepciv.settings` (default true). False applies and announces the change only: a slider
    * drag updates live on every move and saves once on release (no storage writes per pointer move), or
-   * on `pagehide` if the page goes before the release.
+   * when the page is hidden or goes before the release.
    */
   persist?: boolean;
 }
@@ -55,6 +60,7 @@ export function updateSettings(patch: Partial<Settings>, { persist = true }: Upd
     if (!flushHooked && typeof window !== 'undefined') {
       flushHooked = true;
       window.addEventListener('pagehide', flushUnsaved);
+      if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility);
     }
   }
   bus.emit('settings:changed', next);
